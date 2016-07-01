@@ -1,0 +1,10 @@
+################################
+# Dune module information file #
+################################
+
+#Name of the module
+Module: dune-randomfield
+Version: 1.0
+Maintainer: ole.klein@iwr.uni-heidelberg.de
+#depending on
+Depends: dune-common
