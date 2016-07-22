@@ -28,26 +28,26 @@ namespace Dune {
     /**
      * @brief Gaussian random field in 2D or 3D
      */
-    template<typename GridTraits, typename Covariance>
+    template<typename GridTraits, typename Covariance, bool storeInvMat = true, bool storeInvRoot = false>
       class RandomField
       {
 
         public:
 
-          typedef RandomFieldTraits<GridTraits,Covariance> Traits;
-          typedef typename Traits::RF                      RF;
+          typedef RandomFieldTraits<GridTraits,Covariance,storeInvMat,storeInvRoot> Traits;
+          typedef typename Traits::RF                                               RF;
 
         private:
 
-          std::string                                  fieldName;
-          Dune::shared_ptr<Traits>                     traits;
-          Dune::shared_ptr<RandomFieldMatrix<Traits> > pMatrix;
-          TrendPart<Traits>                            trendPart;
-          StochasticPart<Traits>                       stochasticPart;
-          //mutable StochasticPart<Traits>               invMatPart;
-          //mutable bool                                 invMatValid;
-          //mutable StochasticPart<Traits>               invRootPart;
-          //mutable bool                                 invRootValid;
+          std::string                                       fieldName;
+          Dune::shared_ptr<Traits>                          traits;
+          Dune::shared_ptr<RandomFieldMatrix<Traits> >      matrix;
+          TrendPart<Traits>                                 trendPart;
+          StochasticPart<Traits>                            stochasticPart;
+          mutable Dune::shared_ptr<StochasticPart<Traits> > invMatPart;
+          mutable bool                                      invMatValid;
+          mutable Dune::shared_ptr<StochasticPart<Traits> > invRootPart;
+          mutable bool                                      invRootValid;
 
         public:
 
@@ -55,29 +55,46 @@ namespace Dune {
            * @brief Constructor reading from file or creating homogeneous field
            */
           RandomField(const Dune::ParameterTree& config_, std::string fieldName_, std::string fileName = "")
-            : fieldName(fieldName_), traits(new Traits(config_,fieldName)), pMatrix(new RandomFieldMatrix<Traits>(traits)),
-            trendPart(traits,fieldName,fileName), stochasticPart(traits,fieldName,fileName)
-            //invMatPart(stochasticPart), invMatValid(false), invRootPart(stochasticPart), invRootValid(false)
-            {}
+            : fieldName(fieldName_), traits(new Traits(config_,fieldName)), matrix(new RandomFieldMatrix<Traits>(traits)),
+            trendPart(traits,fieldName,fileName), stochasticPart(traits,fieldName,fileName),
+            invMatValid(false), invRootValid(false)
+            {
+            if (storeInvMat)
+              invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+
+            if (storeInvRoot)
+              invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+            }
 
           /**
            * @brief Constructor copying traits and covariance matrix
            */
           RandomField(const RandomField& other, std::string fileName)
-            : fieldName(other.fieldName), traits(other.traits), pMatrix(other.pMatrix),
-            trendPart(traits,fieldName,fileName), stochasticPart(traits,fieldName,fileName)
-            //invMatPart(stochasticPart), invMatValid(false), invRootPart(stochasticPart), invRootValid(false)
-        {}
+            : fieldName(other.fieldName), traits(other.traits), matrix(other.matrix),
+            trendPart(traits,fieldName,fileName), stochasticPart(traits,fieldName,fileName),
+            invMatValid(false), invRootValid(false)
+        {
+            if (storeInvMat)
+              invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+
+            if (storeInvRoot)
+              invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+        }
 
           /**
            * @brief Copy constructor
            */
           RandomField(const RandomField& other)
-            : fieldName(other.fieldName), traits(other.traits), pMatrix(other.pMatrix),
-            trendPart(other.trendPart), stochasticPart(other.stochasticPart)
-            //invMatPart(other.invMatPart), invMatValid(other.invMatValid),
-            //invRootPart(other.invRootPart), invRootValid(other.invRootValid)
-        {}
+            : fieldName(other.fieldName), traits(other.traits), matrix(other.matrix),
+            trendPart(other.trendPart), stochasticPart(other.stochasticPart),
+            invMatValid(other.invMatValid), invRootValid(other.invRootValid)
+        {
+            if (storeInvMat)
+              invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(*(other.invMatPart)));
+
+            if (storeInvRoot)
+              invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(*(other.invRootPart)));
+        }
 
           /**
            * @brief Assignment operator
@@ -86,13 +103,17 @@ namespace Dune {
           {
             fieldName      = other.fieldName;
             traits         = other.traits;
-            pMatrix        = other.pMatrix;
+            matrix         = other.matrix;
             trendPart      = other.trendPart;
             stochasticPart = other.stochasticPart;
-            //invMatPart     = other.invMatPart;
-            //invMatValid    = other.invMatValid;
-            //invRootPart    = other.invRootPart;
-            //invRootValid   = other.invRootValid;
+            invMatValid    = other.invMatValid;
+            invRootValid   = other.invRootValid;
+
+            if (storeInvMat && invMatValid)
+              invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(*(other.invMatPart)));
+
+            if (storeInvRoot && invRootValid)
+              invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(*(other.invRootPart)));
 
             return *this;
           }
@@ -110,7 +131,7 @@ namespace Dune {
            */
           void generate()
           {
-            (*pMatrix).generateField(stochasticPart);
+            (*matrix).generateField(stochasticPart);
             trendPart.generate();
           }
 
@@ -119,7 +140,7 @@ namespace Dune {
            */
           void generateUncorrelated()
           {
-            (*pMatrix).generateUncorrelatedField(stochasticPart);
+            (*matrix).generateUncorrelatedField(stochasticPart);
             trendPart.generateUncorrelated();
           }
 
@@ -152,11 +173,18 @@ namespace Dune {
           {
             trendPart     .zero();
             stochasticPart.zero();
-            //invMatPart    .zero();
-            //invRootPart   .zero();
 
-            //invMatValid = true;
-            //invRootValid  = true;
+            if (storeInvMat)
+            {
+              (*invMatPart).zero();
+              invMatValid = true;
+            }
+
+            if (storeInvRoot)
+            {
+              (*invRootPart).zero();
+              invRootValid = true;
+            }
           }
 
           /**
@@ -165,7 +193,7 @@ namespace Dune {
           void refineMatrix()
           {
             (*traits).refine();
-            (*pMatrix).update();
+            (*matrix).update();
           }
 
           /**
@@ -173,55 +201,67 @@ namespace Dune {
            */
           void refine()
           {
-              /*
-            if (invMatValid)
+            if (storeInvMat && invMatValid)
             {
-              invMatPart.refine();
-              stochasticPart = (*pMatrix) * invMatPart;
-              invRootPart    = (*pMatrix).multiplyRoot(invMatPart);
+              (*invMatPart).refine();
+              stochasticPart = (*matrix) * (*invMatPart);
 
               if ((*traits).dim == 3)
               {
                 stochasticPart *= 1./8.;
-                invMatPart     *= 1./8.;
-                invRootPart    *= 1./8.;
+                *invMatPart    *= 1./8.;
               }
               else
               {
                 stochasticPart *= 1./4.;
-                invMatPart     *= 1./4.;
-                invRootPart    *= 1./4.;
+                *invMatPart    *= 1./4.;
               }
+
+              if (storeInvRoot)
+              {
+                *invRootPart = (*matrix).multiplyRoot(*invMatPart);
+
+                if ((*traits).dim == 3)
+                  *invRootPart *= 1./8.;
+                else
+                  *invRootPart *= 1./4.;
+
+                invRootValid = true;
+              }
+
             }
-            else if (invRootValid)
+            else if (storeInvRoot && invRootValid)
             {
-              invRootPart.refine();
-              stochasticPart = (*pMatrix).multiplyRoot(invRootPart);
-              invMatPart     = stochasticPart;
+              (*invRootPart).refine();
+              stochasticPart = (*matrix).multiplyRoot(*invRootPart);
 
               if ((*traits).dim == 3)
               {
                 stochasticPart *= 1./8.;
-                invMatPart     *= 1./8.;
-                invRootPart    *= 1./8.;
+                *invRootPart   *= 1./8.;
               }
               else
               {
                 stochasticPart *= 1./4.;
-                invMatPart     *= 1./4.;
-                invRootPart    *= 1./4.;
+                *invRootPart   *= 1./4.;
               }
 
+              if (storeInvMat)
+              {
+                *invMatPart = stochasticPart;
+                invMatValid = false;
+              }
             }
             else
             {
-            */
               stochasticPart.refine();
-              /*
-              invMatPart    .refine();
-              invRootPart   .refine();
+
+              if (storeInvMat)
+                (*invMatPart).refine();
+
+              if (storeInvRoot)
+                (*invRootPart).refine();
             }
-            */
           }
 
           /**
@@ -231,11 +271,18 @@ namespace Dune {
           {
             trendPart      += other.trendPart;
             stochasticPart += other.stochasticPart;
-            //invMatPart     += other.invMatPart;
-            //invRootPart    += other.invRootPart;
 
-            //invMatValid   = invMatValid   && other.invMatValid;
-            //invRootValid  = invRootValid  && other.invRootValid;
+            if (storeInvMat)
+            {
+              *invMatPart += *(other.invMatPart);
+              invMatValid = invMatValid && other.invMatValid;
+            }
+
+            if (storeInvRoot)
+            {
+              *invRootPart += *(other.invRootPart);
+              invRootValid = invRootValid && other.invRootValid;
+            }
 
             return *this;
           }
@@ -247,11 +294,18 @@ namespace Dune {
           {
             trendPart      -= other.trendPart;
             stochasticPart -= other.stochasticPart;
-            //invMatPart     -= other.invMatPart;
-            //invRootPart    -= other.invRootPart;
 
-            //invMatValid   = invMatValid   && other.invMatValid;
-            //invRootValid  = invRootValid  && other.invRootValid;
+            if (storeInvMat)
+            {
+              *invMatPart -= *(other.invMatPart);
+              invMatValid = invMatValid && other.invMatValid;
+            }
+
+            if (storeInvRoot)
+            {
+              *invRootPart -= *(other.invRootPart);
+              invRootValid = invRootValid && other.invRootValid;
+            }
 
             return *this;
           }
@@ -263,8 +317,16 @@ namespace Dune {
           {
             trendPart      *= alpha;
             stochasticPart *= alpha;
-            //invMatPart     *= alpha;
-            //invRootPart    *= alpha;
+
+            if (storeInvMat)
+            {
+              *invMatPart *= alpha;
+            }
+
+            if (storeInvRoot)
+            {
+              *invRootPart *= alpha;
+            }
 
             return *this;
           }
@@ -276,11 +338,18 @@ namespace Dune {
           {
             trendPart     .axpy(other.trendPart     ,alpha);
             stochasticPart.axpy(other.stochasticPart,alpha);
-            //invMatPart    .axpy(other.invMatPart    ,alpha);
-            //invRootPart   .axpy(other.invRootPart   ,alpha);
 
-            //invMatValid   = invMatValid   && other.invMatValid;
-            //invRootValid  = invRootValid  && other.invRootValid;
+            if (storeInvMat)
+            {
+              (*invMatPart).axpy(*(other.invMatPart),alpha);
+              invMatValid = invMatValid && other.invMatValid;
+            }
+
+            if (storeInvRoot)
+            {
+              (*invRootPart).axpy(*(other.invRootPart),alpha);
+              invRootValid = invRootValid && other.invRootValid;
+            }
 
             return *this;
           }
@@ -303,14 +372,21 @@ namespace Dune {
            */
           void timesMatrix()
           {
-            //invMatPart     = stochasticPart;
-            //invRootPart    = (*pMatrix).multiplyRoot(stochasticPart);
-            stochasticPart = (*pMatrix) * stochasticPart;
+            if (storeInvMat)
+            {
+              *invMatPart = stochasticPart;
+              invMatValid  = true;
+            }
+
+            if (storeInvRoot)
+            {
+              *invRootPart = (*matrix).multiplyRoot(stochasticPart);
+              invRootValid = true;
+            }
+
+            stochasticPart = (*matrix) * stochasticPart;
 
             trendPart.timesMatrix();
-
-            //invMatValid  = true;
-            //invRootValid = true;
           }
 
           /**
@@ -318,17 +394,29 @@ namespace Dune {
            */
           void timesInverseMatrix()
           {
-            //if (!invMatValid)
-            //  invMatPart = (*pMatrix).multiplyInverse(stochasticPart);
+            if (storeInvMat && invMatValid)
+            {
+              if (storeInvRoot)
+              {
+                *invRootPart = (*matrix).multiplyRoot(*invMatPart);
+                invRootValid = true;
+              }
 
-            //stochasticPart = invMatPart;
-            //invRootPart    = (*pMatrix).multiplyRoot(invMatPart);
-            stochasticPart = (*pMatrix).multiplyInverse(stochasticPart);
+              stochasticPart = *invMatPart;
+              invMatValid = false;
+            }
+            else
+            {
+              stochasticPart = (*matrix).multiplyInverse(stochasticPart);
+
+              if (storeInvMat)
+                invMatValid = false;
+
+              if (storeInvRoot)
+                invRootValid = false;
+            }
 
             trendPart.timesInverseMatrix();
-
-            //invMatValid  = false;
-            //invRootValid = true;
           }
 
           /**
@@ -336,14 +424,21 @@ namespace Dune {
            */
           void timesMatrixRoot()
           {
-            //invMatPart     = invRootPart;
-            //invRootPart    = stochasticPart;
-            stochasticPart = (*pMatrix).multiplyRoot(stochasticPart);
+            if (storeInvMat && storeInvRoot)
+            {
+              *invMatPart = *invRootPart;
+              invMatValid = invRootValid;
+            }
+
+            if (storeInvRoot)
+            {
+              *invRootPart = stochasticPart;
+              invRootValid = true;
+            }
+
+            stochasticPart = (*matrix).multiplyRoot(stochasticPart);
 
             trendPart.timesMatrixRoot();
-
-            //invMatValid  = invRootValid;
-            //invRootValid = true;
           }
 
           /**
@@ -351,55 +446,58 @@ namespace Dune {
            */
           void timesInvMatRoot()
           {
-              /*
-            if (invRootValid)
+            if (storeInvRoot && invRootValid)
             {
-              stochasticPart = invRootPart;
-              invRootPart    = invMatPart;
+              stochasticPart = *invRootPart;
+              invRootValid = false;
 
-              invRootValid = invMatValid;
-              invMatValid  = false;
+              if (storeInvMat)
+              {
+                *invRootPart = *invMatPart;
+                invRootValid = invMatValid;
+                invMatValid  = false;
+              }
             }
             else
             {
-            */
-              //if (!invMatValid)
-              //  invMatPart = (*pMatrix).multiplyInverse(stochasticPart);
+              stochasticPart = (*matrix).multiplyInverse(stochasticPart);
 
-              //invRootPart = invMatPart;
-              //stochasticPart = (*pMatrix).multiplyRoot(invRootPart);
-              stochasticPart = (*pMatrix).multiplyInverse(stochasticPart);
-              stochasticPart = (*pMatrix).multiplyRoot(stochasticPart);
+              if (storeInvRoot)
+              {
+                  *invRootPart = stochasticPart;
+                  invRootValid = true;
+              }
 
-              trendPart.timesInvMatRoot();
+              stochasticPart = (*matrix).multiplyRoot(stochasticPart);
 
-              /*
-              invMatValid  = false;
-              invRootValid = true;
+              if (storeInvMat)
+                invMatValid = false;
             }
-            */
+
+            trendPart.timesInvMatRoot();
           }
 
           void localize(const typename Traits::DomainType& center, const RF radius)
           {
             stochasticPart.localize(center,radius);
 
-            /*
-            invMatValid  = false;
-            invRootValid = false;
-            */
+            if (storeInvMat)
+              invMatValid = false;
+
+            if (storeInvRoot)
+              invRootValid = false;
           }
       };
 
     /**
      * @brief List of Gaussian random fields in 2D or 3D
      */
-    template<typename GridTraits, typename Covariance>
+    template<typename GridTraits, typename Covariance, bool storeInvMat = true, bool storeInvRoot = false>
       class RandomFieldList
       {
         public:
 
-          typedef RandomField<GridTraits, Covariance> SubRandomField;
+          typedef RandomField<GridTraits, Covariance, storeInvMat, storeInvRoot> SubRandomField;
 
         private:
 
@@ -408,10 +506,7 @@ namespace Dune {
           std::map<std::string, Dune::shared_ptr<SubRandomField> > list;
           Dune::shared_ptr<SubRandomField> emptyPointer;
 
-          mutable std::shared_ptr<std::vector<typename GridTraits::RangeField> > postEigen;
-          mutable std::shared_ptr<std::vector<RandomFieldList> >                 postContrib;
-
-          typedef typename GridTraits::RangeField RF;        
+          typedef typename GridTraits::RangeField RF;
           typedef typename std::vector<std::string>::const_iterator Iterator;
 
         public:
@@ -420,7 +515,6 @@ namespace Dune {
            * @brief Constructor reading random fields from file
            */
           RandomFieldList(const Dune::ParameterTree& config, const std::string& fileName = "")
-            : postEigen(new std::vector<typename GridTraits::RangeField>()), postContrib(new std::vector<RandomFieldList>())
             {
               std::stringstream typeStream(config.get<std::string>("randomField.types"));
               std::string type;
@@ -440,7 +534,6 @@ namespace Dune {
            * @brief Constructor reading random fields from file, but reusing covariance matrices
            */
           RandomFieldList(const RandomFieldList& other, const std::string& fileName)
-            : postEigen(new std::vector<typename GridTraits::RangeField>()), postContrib(new std::vector<RandomFieldList>())
           {
             for(typename std::map<std::string, Dune::shared_ptr<SubRandomField> >::const_iterator it = other.list.begin(); it!= other.list.end(); ++it)
             {
@@ -452,7 +545,7 @@ namespace Dune {
            * @brief Copy constructor
            */
           RandomFieldList(const RandomFieldList& other)
-            : fieldNames(other.fieldNames), activeTypes(other.activeTypes), postEigen(other.postEigen), postContrib(other.postContrib)
+            : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
           {
             for(typename std::map<std::string, Dune::shared_ptr<SubRandomField> >::const_iterator it = other.list.begin(); it!= other.list.end(); ++it)
             {
@@ -467,8 +560,6 @@ namespace Dune {
           {
             fieldNames  = other.fieldNames;
             activeTypes = other.activeTypes;
-            postEigen   = other.postEigen;
-            postContrib = other.postContrib;
 
             list.clear();
             for(typename std::map<std::string, Dune::shared_ptr<SubRandomField> >::const_iterator it = other.list.begin(); it!= other.list.end(); ++it)
