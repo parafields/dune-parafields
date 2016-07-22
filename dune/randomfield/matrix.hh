@@ -404,7 +404,7 @@ namespace Dune {
 
               if (value != firstValue)
               {
-                if (std::abs(value - oldValue)/std::abs(value - firstValue) < 1e-8)
+                if (std::abs(value - oldValue)/std::abs(value - firstValue) < 1e-16)
                   converged = true;
               }
 
