@@ -1,4 +1,4 @@
-dune_add_test(SOURCE fieldtest.cc)
+dune_add_test(SOURCES fieldtest.cc)
 target_link_dune_default_libraries(fieldtest)
 add_dune_fftw3_flags(fieldtest)
 add_dune_hdf5_flags(fieldtest)
