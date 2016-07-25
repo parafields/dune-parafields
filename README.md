@@ -34,8 +34,11 @@ usage.
 # Where to get help
 
 To get help concerning dune-randomfield, first check the
-technical documentation in the /doc subfolder. If your problem
-persists, check the bug tracker at
+examples in the /test subfolder. These tests can be built by
+issuing *"make build_tests"* in the main folder, and run with
+*"make test"* or by calling the executables directly.
+
+If your problem persists, check the bug tracker at
 
 https://gitlab.dune-project.org/oklein/dune-randomfield/issues
 
