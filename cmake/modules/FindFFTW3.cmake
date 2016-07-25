@@ -52,6 +52,8 @@ elseif(_comp STREQUAL "long-double")
 list(APPEND _libraries fftw3l)
 elseif(_comp STREQUAL "threads")
 set(_use_threads ON)
+elseif(_comp STREQUAL "mpi")
+set(_use_mpi ON)
 else(_comp STREQUAL "single")
 message(FATAL_ERROR "FindFFTW3: unknown component `${_comp}' specified. "
 "Valid components are `single', `double', `long-double', and `threads'.")
@@ -66,6 +68,12 @@ list(APPEND _thread_libs ${_lib}_threads)
 endforeach(_lib ${_libraries})
 set(_libraries ${_thread_libs} ${_libraries})
 endif(_use_threads)
+
+if(_use_mpi)
+  foreach(_lib ${_libraries})
+    set(_libraries ${_lib}_mpi ${_libraries})
+  endforeach()
+endif()
 
 # Keep a list of variable names that we need to pass on to
 # find_package_handle_standard_args().
@@ -87,7 +95,20 @@ HINTS ${FFTW3_ROOT_DIR} PATH_SUFFIXES include)
 mark_as_advanced(FFTW3_INCLUDE_DIR)
 list(APPEND _check_list FFTW3_INCLUDE_DIR)
 
+# Search for the parallel header file.
+find_path(FFTW3_MPI_INCLUDE_DIR fftw3-mpi.h
+HINTS ${FFTW3_ROOT_DIR} PATH_SUFFIXES include)
+mark_as_advanced(FFTW3_MPI_INCLUDE_DIR)
+list(APPEND _check_list FFTW3_MPI_INCLUDE_DIR)
+
+message("_libs: ${_libraries}")
+message("Libs: ${FFTW3_LIBRARIES}")
+message("use_mpi: ${_use_mpi}")
+
 # Handle the QUIETLY and REQUIRED arguments and set FFTW_FOUND to TRUE if
 # all listed variables are TRUE
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(FFTW3 DEFAULT_MSG ${_check_list})
+
+dune_register_package_flags(LIBRARIES ${FFTW3_LIBRARIES}
+                            INCLUDE_DIRS ${FFTW3_INCLUDE_DIR})
