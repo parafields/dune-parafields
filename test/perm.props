@@ -1,0 +1,5 @@
+[stochastic]
+
+variance = 1
+corrLength = 0.05
+
