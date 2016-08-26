@@ -172,9 +172,9 @@ namespace Dune {
               file << "    </DataItem>"                                                                     << std::endl;
               file << "    <DataItem Dimensions=\"3\" NumberType=\"Float\" Precision=\"4\" Format=\"XML\">" << std::endl;
               file << "     ";
-              file << cells[0]/extensions[0] << " "; // additional entry to visualize 2D files
-              file << cells[dim-2]/extensions[dim-2] << " ";
-              file << cells[dim-1]/extensions[dim-1] << std::endl;
+              file << extensions[0]/cells[0] << " "; // additional entry to visualize 2D files
+              file << extensions[dim-2]/cells[dim-2] << " ";
+              file << extensions[dim-1]/cells[dim-1] << std::endl;
               file << "    </DataItem>"                                                                     << std::endl;
               file << "   </Geometry>"                                                                      << std::endl;
               file << "   <Attribute Name=\"";
