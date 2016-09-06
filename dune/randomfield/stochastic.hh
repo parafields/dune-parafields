@@ -28,7 +28,7 @@ namespace Dune {
 
           typedef typename Traits::RF RF;
 
-          enum{dim = Traits::dimDomain};
+          enum {dim = Traits::dim};
 
           friend class RandomFieldMatrix<Traits>;
 

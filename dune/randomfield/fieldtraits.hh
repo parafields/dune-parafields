@@ -126,13 +126,18 @@ namespace Dune {
         public:
 
         enum {dim = GridTraits::dim};
-        enum {dimRange  = 1};
-        enum {dimDomain = dim};
 
         typedef typename GridTraits::RangeField  RF;
         typedef typename GridTraits::DomainField DomainField;
         typedef typename GridTraits::Domain      DomainType;
         typedef typename GridTraits::Scalar      RangeType;
+
+#if HAVE_DUNE_PDELAB
+        // allows treating a RandomField as a PDELab function
+        typedef typename Dune::YaspGrid<dim>::LeafGridView GridViewType;
+        enum {dimRange  = 1};
+        enum {dimDomain = dim};
+#endif // HAVE_DUNE_PDELAB
 
         typedef Cov Covariance;
 

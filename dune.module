@@ -8,3 +8,4 @@ Version: 1.0
 Maintainer: ole.klein@iwr.uni-heidelberg.de
 #depending on
 Depends: dune-common
+Suggests: dune-grid dune-pdelab

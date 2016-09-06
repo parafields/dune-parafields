@@ -5,6 +5,13 @@
 #include<dune/common/parametertree.hh>
 #include<dune/common/shared_ptr.hh>
 
+#if HAVE_DUNE_PDELAB
+// for VTK output functionality
+#include<dune/grid/yaspgrid.hh>
+#include<dune/grid/io/file/vtk.hh>
+#include<dune/pdelab/gridfunctionspace/gridfunctionspaceutilities.hh>
+#endif // HAVE_DUNE_PDELAB
+
 // file check
 #include<sys/stat.h>
 
@@ -143,6 +150,18 @@ namespace Dune {
             (*matrix).generateUncorrelatedField(stochasticPart);
             trendPart.generateUncorrelated();
           }
+
+#if HAVE_DUNE_GRID
+          /**
+           * @brief Evaluate the random field in the coordinates of an element
+           */
+          template<typename Element>
+            void evaluate(const Element& elem, const typename Traits::DomainType& xElem, typename Traits::RangeType& output) const
+            {
+              const typename Traits::DomainType location = elem.geometry().global(xElem);
+              evaluate(location,output);
+            }
+#endif // HAVE_DUNE_GRID
 
           /**
            * @brief Evaluate the random field at given coordinates
@@ -628,6 +647,23 @@ namespace Dune {
             for(Iterator it = fieldNames.begin(); it != fieldNames.end(); ++it)
               list.find(*it)->second->writeToFile(fileName);
           }
+
+#if HAVE_DUNE_PDELAB
+          /**
+           * @brief Export random fields as VTK files, requires dune-grid and PDELab
+           */
+          template<typename GridView>
+            void writeToVTK(const std::string& fileName, const GridView& gv) const
+            {
+              for (Iterator it = fieldNames.begin(); it != fieldNames.end(); ++it)
+              {
+                Dune::VTKWriter<GridView> vtkWriter(gv,Dune::VTK::conforming);
+                std::shared_ptr<Dune::PDELab::VTKGridFunctionAdapter<SubRandomField> > fieldPtr(new Dune::PDELab::VTKGridFunctionAdapter<SubRandomField>(*(list.find(*it)->second),*it));
+                vtkWriter.addCellData(fieldPtr);
+                vtkWriter.pwrite(fileName+"."+(*it),"vtk","",Dune::VTK::appendedraw);
+              }
+            }
+#endif // HAVE_DUNE_PDELAB
 
           /**
            * @brief Set the random fields to zero
