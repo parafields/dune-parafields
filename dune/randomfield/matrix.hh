@@ -186,6 +186,9 @@ namespace Dune {
            */
           void generateField(StochasticPart<Traits>& stochasticPart) const
           {
+            Dune::Timer timer(false);
+            timer.start();
+
             // initialize pseudo-random generator
             unsigned int seed = (unsigned int) clock(); // create seed out of the current time
             seed += rank;                               // different seed for each processor
@@ -212,6 +215,9 @@ namespace Dune {
             stochasticPart.evalValid = false;
 
             fftw_free(extendedField);
+
+            timer.stop();
+            if (rank == 0) std::cout << "Time for RandomMatrix generate " << timer.lastElapsed() << std::endl;
           }
 
           /**
