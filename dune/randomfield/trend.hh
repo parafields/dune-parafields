@@ -117,7 +117,7 @@ namespace Dune {
                 myNewShiftVector[i] = normalDist(generator) * std::sqrt(varianceVector[i]);
               }
             }
-          
+
             MPI_Allreduce(&(myNewShiftVector[0]),&(newShiftVector[0]),shiftVector.size(),MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
             shiftVector = newShiftVector;
           }
@@ -142,7 +142,7 @@ namespace Dune {
                 myNewShiftVector[i] = normalDist(generator);
               }
             }
-          
+
             MPI_Allreduce(&(myNewShiftVector[0]),&(newShiftVector[0]),shiftVector.size(),MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
             shiftVector = newShiftVector;
           }
@@ -223,7 +223,7 @@ namespace Dune {
           {
             for (unsigned int i = 0; i < shiftVector.size(); ++i)
               shiftVector[i] += other.shiftVector[i] * alpha;
-          
+
             return *this;
           }
 
@@ -344,71 +344,18 @@ namespace Dune {
          */
         TrendPart<Traits>(const Dune::shared_ptr<Traits>& traits_, const std::string& fieldName, const std::string& fileName = "")
           : traits(traits_)
-        {
-          Dune::ParameterTreeParser parser;
-          Dune::ParameterTree fieldProps;
-          parser.readINITree(fieldName+".props",fieldProps);
-
-          std::vector<RF> emptyVector, trendVector, meanVector, varianceVector;
-
-          meanVector = fieldProps.get<std::vector<RF> >("mean.mean",emptyVector);
-
-          if (!meanVector.empty())
           {
-            varianceVector = fieldProps.get<std::vector<RF> >("mean.variance");
+            Dune::ParameterTreeParser parser;
+            Dune::ParameterTree fieldProps;
+            parser.readINITree(fieldName+".props",fieldProps);
 
-            if (fileName == "")
+            std::vector<RF> emptyVector, trendVector, meanVector, varianceVector;
+
+            meanVector = fieldProps.get<std::vector<RF> >("mean.mean",emptyVector);
+
+            if (!meanVector.empty())
             {
-              trendVector = meanVector;
-            }
-            else
-            {
-              Dune::ParameterTree trendConfig;
-              parser.readINITree(fileName+"."+fieldName+".trend",trendConfig);
-              trendVector = trendConfig.get<std::vector<RF> >("mean");
-            }
-
-            componentVector.push_back(TrendComponent<Traits>(traits,trendVector, meanVector,varianceVector,TrendComponentType::Mean));
-          }
-
-          meanVector = fieldProps.get<std::vector<RF> >("slope.mean",emptyVector);
-
-          if (!meanVector.empty())
-          {
-            varianceVector = fieldProps.get<std::vector<RF> >("slope.variance");
-
-            if (fileName == "")
-            {
-              trendVector = meanVector;
-            }
-            else
-            {
-              Dune::ParameterTree trendConfig;
-              parser.readINITree(fileName+"."+fieldName+".trend",trendConfig);
-              trendVector = trendConfig.get<std::vector<RF> >("slope");
-            }
-
-            componentVector.push_back(TrendComponent<Traits>(traits,trendVector,meanVector,varianceVector,TrendComponentType::Slope));
-          }
-
-          int count = 0;
-          std::stringstream s;
-          bool endReached = false;
-
-          while(!endReached)
-          {
-            s.clear();
-            s.str(std::string());
-            s << count;
-            meanVector = fieldProps.get<std::vector<RF> >("disk"+s.str()+".mean",emptyVector);
-
-            if (meanVector.empty())
-            {
-              endReached = true;
-            }
-            else
-            {
-              varianceVector = fieldProps.get<std::vector<RF> >("disk"+s.str()+".variance");
+              varianceVector = fieldProps.get<std::vector<RF> >("mean.variance");
 
               if (fileName == "")
               {
@@ -418,33 +365,17 @@ namespace Dune {
               {
                 Dune::ParameterTree trendConfig;
                 parser.readINITree(fileName+"."+fieldName+".trend",trendConfig);
-                trendVector = trendConfig.get<std::vector<RF> >("disk"+s.str());
+                trendVector = trendConfig.get<std::vector<RF> >("mean");
               }
 
-              componentVector.push_back(TrendComponent<Traits>(traits,trendVector,meanVector,varianceVector,TrendComponentType::Disk,count));
-
-              count++;
+              componentVector.push_back(TrendComponent<Traits>(traits,trendVector, meanVector,varianceVector,TrendComponentType::Mean));
             }
-          }
 
-          count = 0;
-          s.clear();
-          endReached = false;
+            meanVector = fieldProps.get<std::vector<RF> >("slope.mean",emptyVector);
 
-          while(!endReached)
-          {
-            s.clear();
-            s.str(std::string());
-            s << count;
-            meanVector = fieldProps.get<std::vector<RF> >("block"+s.str()+".mean",emptyVector);
-
-            if (meanVector.empty())
+            if (!meanVector.empty())
             {
-              endReached = true;
-            }
-            else
-            {
-              varianceVector = fieldProps.get<std::vector<RF> >("block"+s.str()+".variance");
+              varianceVector = fieldProps.get<std::vector<RF> >("slope.variance");
 
               if (fileName == "")
               {
@@ -454,15 +385,84 @@ namespace Dune {
               {
                 Dune::ParameterTree trendConfig;
                 parser.readINITree(fileName+"."+fieldName+".trend",trendConfig);
-                trendVector = trendConfig.get<std::vector<RF> >("block"+s.str());
+                trendVector = trendConfig.get<std::vector<RF> >("slope");
               }
 
-              componentVector.push_back(TrendComponent<Traits>(traits,trendVector,meanVector,varianceVector,TrendComponentType::Block,count));
+              componentVector.push_back(TrendComponent<Traits>(traits,trendVector,meanVector,varianceVector,TrendComponentType::Slope));
+            }
 
-              count++;
+            int count = 0;
+            std::stringstream s;
+            bool endReached = false;
+
+            while(!endReached)
+            {
+              s.clear();
+              s.str(std::string());
+              s << count;
+              meanVector = fieldProps.get<std::vector<RF> >("disk"+s.str()+".mean",emptyVector);
+
+              if (meanVector.empty())
+              {
+                endReached = true;
+              }
+              else
+              {
+                varianceVector = fieldProps.get<std::vector<RF> >("disk"+s.str()+".variance");
+
+                if (fileName == "")
+                {
+                  trendVector = meanVector;
+                }
+                else
+                {
+                  Dune::ParameterTree trendConfig;
+                  parser.readINITree(fileName+"."+fieldName+".trend",trendConfig);
+                  trendVector = trendConfig.get<std::vector<RF> >("disk"+s.str());
+                }
+
+                componentVector.push_back(TrendComponent<Traits>(traits,trendVector,meanVector,varianceVector,TrendComponentType::Disk,count));
+
+                count++;
+              }
+            }
+
+            count = 0;
+            s.clear();
+            endReached = false;
+
+            while(!endReached)
+            {
+              s.clear();
+              s.str(std::string());
+              s << count;
+              meanVector = fieldProps.get<std::vector<RF> >("block"+s.str()+".mean",emptyVector);
+
+              if (meanVector.empty())
+              {
+                endReached = true;
+              }
+              else
+              {
+                varianceVector = fieldProps.get<std::vector<RF> >("block"+s.str()+".variance");
+
+                if (fileName == "")
+                {
+                  trendVector = meanVector;
+                }
+                else
+                {
+                  Dune::ParameterTree trendConfig;
+                  parser.readINITree(fileName+"."+fieldName+".trend",trendConfig);
+                  trendVector = trendConfig.get<std::vector<RF> >("block"+s.str());
+                }
+
+                componentVector.push_back(TrendComponent<Traits>(traits,trendVector,meanVector,varianceVector,TrendComponentType::Block,count));
+
+                count++;
+              }
             }
           }
-        }
 
         /**
          * @brief Generate a trend part with desired covariance structure

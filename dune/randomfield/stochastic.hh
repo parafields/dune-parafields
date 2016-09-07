@@ -13,9 +13,9 @@
 namespace Dune {
   namespace RandomField {
 
-      /*
-       * @brief Part of random field that consists of cell values
-       */
+    /*
+     * @brief Part of random field that consists of cell values
+     */
     template<typename T>
       class StochasticPart
       {

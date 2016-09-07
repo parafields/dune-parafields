@@ -46,7 +46,7 @@ namespace Dune{
         assert(status > -1);
 
         // open the file for reading
-        hid_t file_id = H5Fopen(data_filename.c_str(),H5F_ACC_RDONLY,access_pList);  
+        hid_t file_id = H5Fopen(data_filename.c_str(),H5F_ACC_RDONLY,access_pList);
         assert(file_id > -1);
 
         // Release file-access template
@@ -58,10 +58,10 @@ namespace Dune{
         assert(dataset_id > -1);
 
         // get the dataspace
-        hid_t dataspace_id = H5Dget_space(dataset_id); 
+        hid_t dataspace_id = H5Dget_space(dataset_id);
         assert(dataspace_id > -1);
 
-        // some needed variables 
+        // some needed variables
         hsize_t dimData;
         hsize_t* dims;
 
@@ -74,7 +74,7 @@ namespace Dune{
         status = H5Sget_simple_extent_dims(dataspace_id,dims,0);
         assert(status > -1);
 
-        //set the local, offset, and count as hsize_t, which is needed by the HDF5 routines 
+        //set the local, offset, and count as hsize_t, which is needed by the HDF5 routines
         hsize_t local_size = 1;
         hsize_t offset[dim],count[dim];
         for(unsigned int i=0; i < dim; i++ )
@@ -96,7 +96,7 @@ namespace Dune{
         //resize the return data
         local_data.resize(local_size);
 
-        // set up the collective transfer properties list 
+        // set up the collective transfer properties list
         hid_t xferPropList = H5Pcreate(H5P_DATASET_XFER);
         assert(xferPropList > -1);
 
@@ -106,7 +106,7 @@ namespace Dune{
           status = H5Dread(dataset_id,
               H5T_NATIVE_DOUBLE,
               memspace_id,
-              dataspace_id, 
+              dataspace_id,
               xferPropList,
               &(local_data[0])
               );
@@ -166,7 +166,7 @@ namespace Dune{
         for(unsigned int i = 0; i < dim; i++)
         {
           count[dim-i-1]  = local_count [i];
-          offset[dim-i-1] = local_offset[i];   
+          offset[dim-i-1] = local_offset[i];
         }
 
         // define the total size of the local data

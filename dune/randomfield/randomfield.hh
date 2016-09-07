@@ -66,11 +66,11 @@ namespace Dune {
             trendPart(traits,fieldName,fileName), stochasticPart(traits,fieldName,fileName),
             invMatValid(false), invRootValid(false)
             {
-            if (storeInvMat)
-              invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+              if (storeInvMat)
+                invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
 
-            if (storeInvRoot)
-              invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+              if (storeInvRoot)
+                invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
             }
 
           /**
@@ -81,11 +81,11 @@ namespace Dune {
             trendPart(traits,fieldName,fileName), stochasticPart(traits,fieldName,fileName),
             invMatValid(false), invRootValid(false)
         {
-            if (storeInvMat)
-              invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+          if (storeInvMat)
+            invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
 
-            if (storeInvRoot)
-              invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+          if (storeInvRoot)
+            invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
         }
 
           /**
@@ -96,11 +96,11 @@ namespace Dune {
             trendPart(other.trendPart), stochasticPart(other.stochasticPart),
             invMatValid(other.invMatValid), invRootValid(other.invRootValid)
         {
-            if (storeInvMat)
-              invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(*(other.invMatPart)));
+          if (storeInvMat)
+            invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(*(other.invMatPart)));
 
-            if (storeInvRoot)
-              invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(*(other.invRootPart)));
+          if (storeInvRoot)
+            invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(*(other.invRootPart)));
         }
 
           /**
@@ -166,15 +166,15 @@ namespace Dune {
           /**
            * @brief Evaluate the random field at given coordinates
            */
-            void evaluate(const typename Traits::DomainType& location, typename Traits::RangeType& output) const
-            {
-              typename Traits::RangeType stochastic = 0., trend = 0.;
+          void evaluate(const typename Traits::DomainType& location, typename Traits::RangeType& output) const
+          {
+            typename Traits::RangeType stochastic = 0., trend = 0.;
 
-              stochasticPart.evaluate(location,stochastic);
-              trendPart     .evaluate(location,trend);
+            stochasticPart.evaluate(location,stochastic);
+            trendPart     .evaluate(location,trend);
 
-              output = stochastic + trend;
-            }
+            output = stochastic + trend;
+          }
 
           /**
            * @brief Export random field to files on disk
@@ -483,8 +483,8 @@ namespace Dune {
 
               if (storeInvRoot)
               {
-                  *invRootPart = stochasticPart;
-                  invRootValid = true;
+                *invRootPart = stochasticPart;
+                invRootValid = true;
               }
 
               stochasticPart = (*matrix).multiplyRoot(stochasticPart);
@@ -534,20 +534,20 @@ namespace Dune {
            * @brief Constructor reading random fields from file
            */
           RandomFieldList(const Dune::ParameterTree& config, const std::string& fileName = "")
+          {
+            std::stringstream typeStream(config.get<std::string>("randomField.types"));
+            std::string type;
+            while(std::getline(typeStream, type, ' '))
             {
-              std::stringstream typeStream(config.get<std::string>("randomField.types"));
-              std::string type;
-              while(std::getline(typeStream, type, ' '))
-              {
-                fieldNames.push_back(type);
-                list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >(type, Dune::shared_ptr<SubRandomField>(new SubRandomField(config,type,fileName))));
-              }
-
-              if (fieldNames.empty())
-                DUNE_THROW(Dune::Exception,"List of randomField types is empty");
-
-              activateFields(config.get<int>("randomField.active",fieldNames.size()));
+              fieldNames.push_back(type);
+              list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >(type, Dune::shared_ptr<SubRandomField>(new SubRandomField(config,type,fileName))));
             }
+
+            if (fieldNames.empty())
+              DUNE_THROW(Dune::Exception,"List of randomField types is empty");
+
+            activateFields(config.get<int>("randomField.active",fieldNames.size()));
+          }
 
           /**
            * @brief Constructor reading random fields from file, but reusing covariance matrices

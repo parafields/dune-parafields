@@ -268,9 +268,9 @@ namespace Dune {
         {
           for (unsigned int i = 0; i < dim; ++i)
             cells[i] *= 2;
-          
+
           level++;
-          
+
           update();
         }
 
