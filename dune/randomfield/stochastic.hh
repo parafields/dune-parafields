@@ -35,25 +35,25 @@ namespace Dune {
           Dune::shared_ptr<Traits> traits;
 
           int rank, commSize;
-          std::vector<RF>           extensions;
-          std::vector<unsigned int> cells;
-          unsigned int              level;
-          std::vector<unsigned int> localCells;
-          std::vector<unsigned int> localOffset;
-          unsigned int              localDomainSize;
-          unsigned int              sliceSize;
-          std::vector<unsigned int> localEvalCells;
-          std::vector<unsigned int> localEvalOffset;
-          int                       procPerDim;
+          std::array<RF,dim>           extensions;
+          std::array<unsigned int,dim> cells;
+          unsigned int                 level;
+          std::array<unsigned int,dim> localCells;
+          std::array<unsigned int,dim> localOffset;
+          unsigned int                 localDomainSize;
+          unsigned int                 sliceSize;
+          std::array<unsigned int,dim> localEvalCells;
+          std::array<unsigned int,dim> localEvalOffset;
+          int                          procPerDim;
 
           std::vector<RF> dataVector;
           mutable std::vector<RF> evalVector;
           mutable std::vector<std::vector<RF> > overlap;
 
           mutable bool evalValid;
-          mutable std::vector<unsigned int> cellIndices;
-          mutable std::vector<unsigned int> evalIndices;
-          mutable std::vector<unsigned int> countIndices;
+          mutable std::array<unsigned int,dim> cellIndices;
+          mutable std::array<unsigned int,dim> evalIndices;
+          mutable std::array<unsigned int,dim> countIndices;
 
         public:
 
@@ -61,7 +61,7 @@ namespace Dune {
            * @brief Constructor
            */
           StochasticPart(const Dune::shared_ptr<Traits>& traits_, const std::string& fieldName, const std::string& fileName)
-            : traits(traits_), cellIndices((*traits).dim), evalIndices((*traits).dim), countIndices((*traits).dim)
+            : traits(traits_)
           {
             update();
 
@@ -110,8 +110,6 @@ namespace Dune {
                 DUNE_THROW(Dune::Exception,"number of processors not square (resp. cubic)");
               procPerDim++;
             }
-            localEvalCells.resize(dim);
-            localEvalOffset.resize(dim);
             for (unsigned int i = 0; i < dim; i++)
               localEvalCells[i] = cells[i] / procPerDim;
             if (dim == 3)
@@ -134,10 +132,6 @@ namespace Dune {
               overlap[2*i    ].resize(localDomainSize/localEvalCells[i]);
               overlap[2*i + 1].resize(localDomainSize/localEvalCells[i]);
             }
-
-            cellIndices.resize((*traits).dim);
-            evalIndices.resize((*traits).dim);
-            countIndices.resize((*traits).dim);
 
             evalValid = false;
           }
@@ -372,7 +366,7 @@ namespace Dune {
               const std::vector<RF> oldData = dataVector;
               update();
 
-              std::vector<unsigned int> oldLocalCells(dim);
+              std::array<unsigned int,dim> oldLocalCells;
               for (unsigned int i = 0; i < dim; i++)
               {
                 oldLocalCells[i] = localCells[i]/2;
@@ -380,8 +374,8 @@ namespace Dune {
 
               dataVector.resize(localDomainSize);
 
-              std::vector<unsigned int> oldIndices(dim);
-              std::vector<unsigned int> newIndices(dim);
+              std::array<unsigned int,dim> oldIndices;
+              std::array<unsigned int,dim> newIndices;
               if (dim == 3)
               {
                 for (oldIndices[2] = 0; oldIndices[2] < oldLocalCells[2]; oldIndices[2]++)
@@ -624,7 +618,7 @@ namespace Dune {
            */
           void exchangeOverlap() const
           {
-            std::vector<unsigned int> neighbor(2*dim);
+            std::array<unsigned int,2*dim> neighbor;
             std::vector<std::vector<RF> > extract = overlap;
 
             if (dim == 3)

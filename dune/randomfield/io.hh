@@ -30,8 +30,8 @@ namespace Dune{
     template<typename RF, unsigned int dim>
       void readParallelFromHDF5(
           std::vector<RF>& local_data,
-          const std::vector<unsigned int>& local_count,
-          const std::vector<unsigned int>& local_offset,
+          const std::array<unsigned int,dim>& local_count,
+          const std::array<unsigned int,dim>& local_offset,
           const MPI_Comm& communicator,
           const std::string& data_name,
           const std::string& data_filename)
@@ -129,10 +129,10 @@ namespace Dune{
      */
     template<typename RF, unsigned int dim>
       void writeParallelToHDF5(
-          const std::vector<unsigned int>& global_dim,
+          const std::array<unsigned int,dim>& global_dim,
           const std::vector<RF>& data,
-          const std::vector<unsigned int>& local_count,
-          const std::vector<unsigned int>& local_offset,
+          const std::array<unsigned int,dim>& local_count,
+          const std::array<unsigned int,dim>& local_offset,
           const MPI_Comm& communicator,
           const std::string& data_name,
           const std::string& data_filename)

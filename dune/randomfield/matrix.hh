@@ -2,6 +2,10 @@
 #ifndef DUNE_RANDOMFIELD_MATRIX_HH
 #define	DUNE_RANDOMFIELD_MATRIX_HH
 
+#include<vector>
+#include<array>
+#include<random>
+
 namespace Dune {
   namespace RandomField {
 
@@ -23,20 +27,20 @@ namespace Dune {
 
           int rank, commSize;
           unsigned int              level;
-          std::vector<RF>           meshsize;
+          std::array<RF,dim>        meshsize;
           RF                        variance;
           std::vector<RF>           corrLength;
           unsigned int              cgIterations;
 
           ptrdiff_t allocLocal, localN0, local0Start;
 
-          std::vector<unsigned int> localCells;
-          unsigned int              localDomainSize;
-          std::vector<unsigned int> extendedCells;
-          unsigned int              extendedDomainSize;
-          std::vector<unsigned int> localExtendedCells;
-          std::vector<unsigned int> localExtendedOffset;
-          unsigned int              localExtendedDomainSize;
+          std::array<unsigned int,dim> localCells;
+          unsigned int                 localDomainSize;
+          std::array<unsigned int,dim> extendedCells;
+          unsigned int                 extendedDomainSize;
+          std::array<unsigned int,dim> localExtendedCells;
+          std::array<unsigned int,dim> localExtendedOffset;
+          unsigned int                 localExtendedDomainSize;
 
           fftw_complex* fftTransformedMatrix;
 
@@ -84,8 +88,8 @@ namespace Dune {
               fftw_free(fftTransformedMatrix);
             fftTransformedMatrix = (fftw_complex*) fftw_malloc( allocLocal * sizeof(fftw_complex) );
 
-            std::vector<RF> coord(dim,0.);
-            std::vector<unsigned int> indices(dim,0);
+            std::array<RF,dim>           coord;
+            std::array<unsigned int,dim> indices;
 
             for (unsigned int index = 0; index < localExtendedDomainSize; index++)
             {
@@ -436,7 +440,7 @@ namespace Dune {
 
             if (commSize == 1)
             {
-              std::vector<unsigned int> indices(dim);
+              std::array<unsigned int,dim> indices;
               for (unsigned int index = 0; index < localDomainSize; index++)
               {
                 (*traits).indexToIndices(index,indices,localCells);
@@ -456,7 +460,7 @@ namespace Dune {
               {
                 MPI_Status status;
                 std::vector<RF> localCopy(localDomainSize);
-                std::vector<unsigned int> indices(dim);
+                std::array<unsigned int,dim> indices;
 
                 unsigned int receiveSize = std::min(embeddingFactor, commSize - rank*embeddingFactor);
                 for (unsigned int i = 0; i < receiveSize; i++)
@@ -490,7 +494,7 @@ namespace Dune {
 
             if (commSize == 1)
             {
-              std::vector<unsigned int> indices(dim);
+              std::array<unsigned int,dim> indices;
               for (unsigned int index = 0; index < localDomainSize; index++)
               {
                 (*traits).indexToIndices(index,indices,localCells);
@@ -511,7 +515,7 @@ namespace Dune {
                 unsigned int sendSize = std::min(embeddingFactor, commSize - rank*embeddingFactor);
                 localCopy.resize(sendSize);
                 request.resize(sendSize);
-                std::vector<unsigned int> indices(dim);
+                std::array<unsigned int,dim> indices;
 
                 for (unsigned int i = 0; i < sendSize; i++)
                 {

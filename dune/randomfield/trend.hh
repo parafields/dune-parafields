@@ -58,7 +58,7 @@ namespace Dune {
           TrendComponentType::Type componentType;
           unsigned int componentCount;
 
-          std::vector<RF> extensions;
+          std::array<RF,dim> extensions;
 
           std::vector<RF> shiftVector;
           std::vector<RF> meanVector;

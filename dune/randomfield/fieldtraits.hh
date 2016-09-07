@@ -2,6 +2,7 @@
 #ifndef DUNE_RANDOMFIELD_FIELDTRAITS_HH
 #define	DUNE_RANDOMFIELD_FIELDTRAITS_HH
 
+#include<array>
 #include<vector>
 
 #include<dune/common/parametertreeparser.hh>
@@ -16,23 +17,19 @@ namespace Dune {
     {
       public:
 
-        template<typename RF>
-          RF operator()(RF variance, std::vector<RF> x, std::vector<RF> lambda) const
+        template<typename RF, long unsigned int dim>
+          RF operator()(const RF variance, const std::array<RF,dim>& x, const std::vector<RF>& lambda) const
           {
-            const unsigned int dim = x.size();
-            if( variance == 0.0 )
-              return 0.0;
-
-            RF sum = 0.0;
-            for(unsigned int i=0; i<dim; i++)
+            RF sum = 0.;
+            for(unsigned int i = 0; i < dim; i++)
             {
               sum += (x[i] * x[i]) / (lambda[i] * lambda[i]);
             }
             RF h_eff = std::sqrt(sum);
-            if (h_eff > 1.0)
-              return 0.0;
+            if (h_eff > 1.)
+              return 0.;
             else
-              return variance * (1.0 - 1.5 * h_eff + 0.5 * std::pow(h_eff, 3));
+              return variance * (1. - 1.5 * h_eff + 0.5 * std::pow(h_eff, 3));
           }
     };
 
@@ -43,15 +40,11 @@ namespace Dune {
     {
       public:
 
-        template<typename RF>
-          RF operator()(RF variance, std::vector<RF> x, std::vector<RF> lambda) const
+        template<typename RF, long unsigned int dim>
+          RF operator()(const RF variance, const std::array<RF,dim>& x, const std::vector<RF>& lambda) const
           {
-            const unsigned int dim = x.size();
-            if( variance == 0.0 )
-              return 0.0;
-
-            RF sum = 0.0;
-            for(unsigned int i=0; i<dim; i++)
+            RF sum = 0.;
+            for(unsigned int i = 0; i < dim; i++)
             {
               sum += (x[i] * x[i]) / (lambda[i] * lambda[i]);
             }
@@ -67,15 +60,11 @@ namespace Dune {
     {
       public:
 
-        template<typename RF>
-          RF operator()(RF variance, std::vector<RF> x, std::vector<RF> lambda) const
+        template<typename RF, long unsigned int dim>
+          RF operator()(const RF variance, const std::array<RF,dim>& x, const std::vector<RF>& lambda) const
           {
-            const unsigned int dim = x.size();
-            if( variance == 0.0 )
-              return 0.0;
-
-            RF sum = 0.0;
-            for(unsigned int i=0; i < dim; i++)
+            RF sum = 0.;
+            for(unsigned int i = 0; i < dim; i++)
             {
               sum += (x[i] * x[i]) / (lambda[i] * lambda[i]);
             }
@@ -91,22 +80,17 @@ namespace Dune {
     {
       public:
 
-        template<typename RF>
-          RF operator()(RF variance, std::vector<RF> x, std::vector<RF> lambda) const
+        template<typename RF, unsigned int dim>
+          RF operator()(RF variance, std::array<RF,dim>& x, std::array<RF,dim>& lambda) const
           {
-            const unsigned int dim = x.size();
-            if( variance == 0.0 )
-              return 0.0;
-
-            RF sum = 0.0;
-            for(unsigned int i=0; i < dim; i++)
+            RF sum = 0.;
+            for(unsigned int i = 0; i < dim; i++)
             {
               sum += std::abs(x[i] / lambda[i]);
             }
             RF h_eff = sum;
             return variance * std::exp(-h_eff);
           }
-
     };
 
     template<typename Traits> class TrendPart;
@@ -154,10 +138,10 @@ namespace Dune {
 
         const Dune::ParameterTree& config;
 
-        const std::vector<RF> extensions;
-        unsigned int          level;
-        std::vector<RF>       meshsize;
-        RF                    cellVolume;
+        const std::array<RF,dim> extensions;
+        unsigned int             level;
+        std::array<RF,dim>       meshsize;
+        RF                       cellVolume;
 
         RF              variance;
         std::vector<RF> corrLength;
@@ -169,29 +153,29 @@ namespace Dune {
         int embeddingFactor;
 
         // properties of random field
-        std::vector<unsigned int> cells;
-        unsigned int              domainSize;
-        std::vector<unsigned int> localCells;
-        std::vector<unsigned int> localOffset;
-        unsigned int              localDomainSize;
+        std::array<unsigned int,dim> cells;
+        unsigned int                 domainSize;
+        std::array<unsigned int,dim> localCells;
+        std::array<unsigned int,dim> localOffset;
+        unsigned int                 localDomainSize;
 
         // properties on extended domain
-        std::vector<unsigned int> extendedCells;
-        unsigned int              extendedDomainSize;
-        std::vector<unsigned int> localExtendedCells;
-        std::vector<unsigned int> localExtendedOffset;
-        unsigned int              localExtendedDomainSize;
+        std::array<unsigned int,dim> extendedCells;
+        unsigned int                 extendedDomainSize;
+        std::array<unsigned int,dim> localExtendedCells;
+        std::array<unsigned int,dim> localExtendedOffset;
+        unsigned int                 localExtendedDomainSize;
 
-        mutable std::vector<unsigned int> globalIndices;
-        mutable std::vector<unsigned int> localIndices;
+        mutable std::array<unsigned int,dim> globalIndices;
+        mutable std::array<unsigned int,dim> localIndices;
 
         public:
 
         RandomFieldTraits(const Dune::ParameterTree& config_, const std::string& fieldName)
           : config(config_),
-          extensions    (config.get<std::vector<RF> >          ("grid.extensions")),
-          cgIterations  (config.get<unsigned int>              ("randomField.cgIterations",100)),
-          cells         (config.get<std::vector<unsigned int> >("grid.cells"))
+          extensions    (config.get<std::array<RF,dim> >          ("grid.extensions")),
+          cgIterations  (config.get<unsigned int>                 ("randomField.cgIterations",100)),
+          cells         (config.get<std::array<unsigned int,dim> >("grid.cells"))
         {
           Dune::ParameterTree fieldProps;
           Dune::ParameterTreeParser parser;
@@ -223,15 +207,6 @@ namespace Dune {
         {
           /// @todo determine factor automatically
           embeddingFactor = 4;
-
-          meshsize.resize(dim);
-          extendedCells.resize(dim);
-          localCells.resize(dim);
-          localOffset.resize(dim);
-          localExtendedCells.resize(dim);
-          localExtendedOffset.resize(dim);
-          globalIndices.resize(dim);
-          localIndices.resize(dim);
 
           for (unsigned int i = 0; i < dim; i++)
           {
@@ -320,7 +295,7 @@ namespace Dune {
         /**
          * @brief Convert an index tuple into a one dimensional encoding
          */
-        unsigned int indicesToIndex(const std::vector<unsigned int>& indices, const std::vector<unsigned int>& bound) const
+        unsigned int indicesToIndex(const std::array<unsigned int,dim>& indices, const std::array<unsigned int,dim>& bound) const
         {
           if (dim == 3)
           {
@@ -335,7 +310,7 @@ namespace Dune {
         /**
          * @brief Convert a one dimensional encoding into the original index tuple
          */
-        void indexToIndices(const unsigned int index, std::vector<unsigned int>& indices, const std::vector<unsigned int>& bound) const
+        void indexToIndices(const unsigned int index, std::array<unsigned int,dim>& indices, const std::array<unsigned int,dim>& bound) const
         {
           if (dim == 3)
           {
@@ -353,7 +328,7 @@ namespace Dune {
         /**
          * @brief Convert spatial coordinates into the corresponding integer indices
          */
-        void coordsToIndices(const DomainType& location, std::vector<unsigned int>& localIndices, const std::vector<unsigned int>& offset) const
+        void coordsToIndices(const DomainType& location, std::array<unsigned int,dim>& localIndices, const std::array<unsigned int,dim>& offset) const
         {
           for (unsigned int i = 0; i < dim; i++)
           {
@@ -365,7 +340,7 @@ namespace Dune {
         /**
          * @brief Convert integer indices into corresponding spatial coordinates
          */
-        void indicesToCoords(const std::vector<unsigned int>& localIndices, const std::vector<unsigned int>& offset, DomainType& location) const
+        void indicesToCoords(const std::array<unsigned int,dim>& localIndices, const std::array<unsigned int,dim>& offset, DomainType& location) const
         {
           for (unsigned int i = 0; i < dim; i++)
           {
