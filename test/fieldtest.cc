@@ -160,11 +160,11 @@ void test2d()
   std::cout << "--------------" << std::endl;
   std::cout << "2D Gaussian   " << std::endl;
   std::cout << "--------------" << std::endl;
-  runTests<GridTraits,Dune::RandomField::ExponentialCovariance,INVMAT,INVROOT>(config);
+  runTests<GridTraits,Dune::RandomField::GaussianCovariance,   INVMAT,INVROOT>(config);
   std::cout << "--------------" << std::endl;
   std::cout << "2D Spherical  " << std::endl;
   std::cout << "--------------" << std::endl;
-  runTests<GridTraits,Dune::RandomField::ExponentialCovariance,INVMAT,INVROOT>(config);
+  runTests<GridTraits,Dune::RandomField::SphericalCovariance,  INVMAT,INVROOT>(config);
 }
 
 /**
@@ -185,11 +185,11 @@ void test3d()
   std::cout << "--------------" << std::endl;
   std::cout << "3D Gaussian   " << std::endl;
   std::cout << "--------------" << std::endl;
-  runTests<GridTraits,Dune::RandomField::ExponentialCovariance,INVMAT,INVROOT>(config);
+  runTests<GridTraits,Dune::RandomField::GaussianCovariance,   INVMAT,INVROOT>(config);
   std::cout << "--------------" << std::endl;
   std::cout << "3D Spherical  " << std::endl;
   std::cout << "--------------" << std::endl;
-  runTests<GridTraits,Dune::RandomField::ExponentialCovariance,INVMAT,INVROOT>(config);
+  runTests<GridTraits,Dune::RandomField::SphericalCovariance,  INVMAT,INVROOT>(config);
 }
 
 int main(int argc, char** argv)
