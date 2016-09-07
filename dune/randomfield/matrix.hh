@@ -430,7 +430,7 @@ namespace Dune {
           /**
            * @brief Embed a random field in the extended domain
            */
-          void fieldToExtendedField(std::vector<RF>& field, fftw_complex *extendedField) const
+          void fieldToExtendedField(std::vector<RF>& field, fftw_complex* extendedField) const
           {
             for(unsigned int i = 0; i < localExtendedDomainSize; i++)
             {
@@ -485,7 +485,7 @@ namespace Dune {
           /**
            * @brief Restrict an extended random field to the original domain
            */
-          void extendedFieldToField(std::vector<RF>& field, fftw_complex *extendedField) const
+          void extendedFieldToField(std::vector<RF>& field, fftw_complex* extendedField) const
           {
             for (unsigned int i = 0; i < localDomainSize; i++)
             {
