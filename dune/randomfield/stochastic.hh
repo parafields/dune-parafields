@@ -44,7 +44,7 @@ namespace Dune {
           unsigned int                 sliceSize;
           std::array<unsigned int,dim> localEvalCells;
           std::array<unsigned int,dim> localEvalOffset;
-          int                          procPerDim;
+          std::array<int,dim>          procPerDim;
 
           std::vector<RF> dataVector;
           mutable std::vector<RF> evalVector;
@@ -102,26 +102,24 @@ namespace Dune {
             localCells      = (*traits).localCells;
             localOffset     = (*traits).localOffset;
             localDomainSize = (*traits).localDomainSize;
+            procPerDim      = (*traits).procPerDim;
 
-            procPerDim = 1;
-            while (Dune::Power<dim>::eval(procPerDim) != commSize)
-            {
-              if (Dune::Power<dim>::eval(procPerDim) > commSize)
-                DUNE_THROW(Dune::Exception,"number of processors not square (resp. cubic)");
-              procPerDim++;
-            }
             for (unsigned int i = 0; i < dim; i++)
-              localEvalCells[i] = cells[i] / procPerDim;
+            {
+              if (cells[i] % procPerDim[i] != 0)
+                DUNE_THROW(Dune::Exception,"cells in dimension not divisable by numProcs");
+              localEvalCells[i] = cells[i] / procPerDim[i];
+            }
             if (dim == 3)
             {
-              localEvalOffset[0] = (rank%(procPerDim*procPerDim))%procPerDim * localEvalCells[0];
-              localEvalOffset[1] = (rank%(procPerDim*procPerDim))/procPerDim * localEvalCells[1];
-              localEvalOffset[2] =  rank/(procPerDim*procPerDim)             * localEvalCells[2];
+              localEvalOffset[0] = (rank%(procPerDim[0]*procPerDim[1]))%procPerDim[0] * localEvalCells[0];
+              localEvalOffset[1] = (rank%(procPerDim[0]*procPerDim[1]))/procPerDim[0] * localEvalCells[1];
+              localEvalOffset[2] =  rank/(procPerDim[0]*procPerDim[1])                * localEvalCells[2];
             }
             else
             {
-              localEvalOffset[0] = rank%procPerDim * localEvalCells[0];
-              localEvalOffset[1] = rank/procPerDim * localEvalCells[1];
+              localEvalOffset[0] = rank%procPerDim[0] * localEvalCells[0];
+              localEvalOffset[1] = rank/procPerDim[0] * localEvalCells[1];
             }
 
             dataVector.resize(localDomainSize);
@@ -470,13 +468,13 @@ namespace Dune {
             MPI_Request request;
             MPI_Status status;
 
-            unsigned int numSlices = procPerDim*localDomainSize/localCells[0];
+            unsigned int numSlices = procPerDim[0]*localDomainSize/localCells[0];
             unsigned int sliceSize = localDomainSize/numSlices;
 
             if (dim == 3)
             {
-              unsigned int px = procPerDim;
-              unsigned int py = procPerDim;
+              unsigned int px = procPerDim[0];
+              unsigned int py = procPerDim[1];
               unsigned int ny = localCells[dim-2];
               unsigned int nz = localCells[dim-1];
               unsigned int dy = ny/py;
@@ -500,7 +498,7 @@ namespace Dune {
             {
               for (unsigned int i = 0; i < numSlices; i++)
               {
-                unsigned int iNew = i/procPerDim + (i%procPerDim)*localCells[dim-1];
+                unsigned int iNew = i/procPerDim[0] + (i%procPerDim[0])*localCells[dim-1];
                 for (unsigned int j = 0; j < sliceSize; j++)
                 {
                   resorted[iNew * sliceSize + j] = dataVector[i * sliceSize + j];
@@ -510,9 +508,9 @@ namespace Dune {
 
             unsigned int numComms;
             if (dim == 3)
-              numComms = procPerDim*procPerDim;
+              numComms = procPerDim[0]*procPerDim[1];
             else
-              numComms = procPerDim;
+              numComms = procPerDim[0];
 
             for (unsigned int i = 0; i < numComms; i++)
             {
@@ -555,9 +553,9 @@ namespace Dune {
 
             unsigned int numComms;
             if (dim == 3)
-              numComms = procPerDim*procPerDim;
+              numComms = procPerDim[0]*procPerDim[1];
             else
-              numComms = procPerDim;
+              numComms = procPerDim[0];
 
             for (unsigned int i = 0; i < numComms; i++)
             {
@@ -569,15 +567,15 @@ namespace Dune {
               MPI_Recv (&(resorted  [i*localDomainSize/numComms]), localDomainSize/numComms, MPI_DOUBLE, (rank/numComms)*numComms + i, 0, MPI_COMM_WORLD, &status);
             }
 
-            unsigned int numSlices = procPerDim*localDomainSize/localCells[0];
+            unsigned int numSlices = procPerDim[0]*localDomainSize/localCells[0];
             unsigned int sliceSize = localDomainSize/numSlices;
 
             if (dim == 3)
             {
               for (unsigned int i = 0; i < numSlices; i++)
               {
-                unsigned int px = procPerDim;
-                unsigned int py = procPerDim;
+                unsigned int px = procPerDim[0];
+                unsigned int py = procPerDim[1];
                 unsigned int ny = localCells[dim-2];
                 unsigned int nz = localCells[dim-1];
                 unsigned int dy = ny/py;
@@ -599,7 +597,7 @@ namespace Dune {
             {
               for (unsigned int i = 0; i < numSlices; i++)
               {
-                unsigned int iNew = i/procPerDim + (i%procPerDim)*localCells[dim-1];
+                unsigned int iNew = i/procPerDim[0] + (i%procPerDim[0])*localCells[dim-1];
                 for (unsigned int j = 0; j < sliceSize; j++)
                 {
                   dataVector[i * sliceSize + j] = resorted[iNew * sliceSize + j];
@@ -642,12 +640,13 @@ namespace Dune {
                 }
               }
 
-              neighbor[0] = (rank/procPerDim)*procPerDim + (rank    +(procPerDim-1))%procPerDim;
-              neighbor[1] = (rank/procPerDim)*procPerDim + (rank    +1             )%procPerDim;
-              neighbor[2] = (rank/(procPerDim*procPerDim))*(procPerDim*procPerDim) + (rank+(procPerDim*procPerDim-procPerDim))%(procPerDim*procPerDim);
-              neighbor[3] = (rank/(procPerDim*procPerDim))*(procPerDim*procPerDim) + (rank+procPerDim                        )%(procPerDim*procPerDim);
-              neighbor[4] = (rank+(commSize-(procPerDim*procPerDim)))%commSize;
-              neighbor[5] = (rank+(procPerDim*procPerDim)           )%commSize;
+              neighbor[0] = (rank/procPerDim[0])*procPerDim[0] + (rank+(procPerDim[0]-1))%procPerDim[0];
+              neighbor[1] = (rank/procPerDim[0])*procPerDim[0] + (rank+1                )%procPerDim[0];
+              neighbor[2] = (rank/(procPerDim[0]*procPerDim[1]))*(procPerDim[0]*procPerDim[1]) + (rank+(procPerDim[0]*procPerDim[1]-procPerDim[0]))%(procPerDim[0]*procPerDim[1]);
+              neighbor[3] = (rank/(procPerDim[0]*procPerDim[1]))*(procPerDim[0]*procPerDim[1]) + (rank+procPerDim[0]                              )%(procPerDim[0]*procPerDim[1]);
+              neighbor[4] = (rank+(commSize-(procPerDim[0]*procPerDim[1])))%commSize;
+              neighbor[5] = (rank+(procPerDim[0]*procPerDim[1])           )%commSize;
+
             }
             else
             {
@@ -666,10 +665,11 @@ namespace Dune {
                 }
               }
 
-              neighbor[0] = (rank/procPerDim)*procPerDim + (rank+(procPerDim-1))%     procPerDim;
-              neighbor[1] = (rank/procPerDim)*procPerDim + (rank+1             )%     procPerDim;
-              neighbor[2] = (rank+(commSize-procPerDim))%commSize;
-              neighbor[3] = (rank+procPerDim           )%commSize;
+              neighbor[0] = (rank/procPerDim[0])*procPerDim[0] + (rank+(procPerDim[0]-1))%procPerDim[0];
+              neighbor[1] = (rank/procPerDim[0])*procPerDim[0] + (rank+1                )%procPerDim[0];
+              neighbor[2] = (rank+(commSize-procPerDim[0]))%commSize;
+              neighbor[3] = (rank+procPerDim[0]           )%commSize;
+
             }
 
             MPI_Request request;

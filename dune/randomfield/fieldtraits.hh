@@ -11,6 +11,66 @@ namespace Dune {
   namespace RandomField {
 
     /**
+     * @brief Default load balance strategy, taken from dune-grid to avoid hard dependency
+     */
+    template<long unsigned int dim>
+      class DefaultLoadBalance
+      {
+        public:
+
+          /** @brief Distribute a structured grid across a set of processors
+           *
+           * @param [in] size Number of elements in each coordinate direction, for the entire grid
+           * @param [in] P    Number of processors
+           */
+          void loadbalance (const std::array<int, dim>& size, int P, std::array<int,dim>& dims) const
+          {
+            double opt = 1e100;
+            std::array<int,dim> trydims;
+
+            optimize_dims(dim-1,size,P,dims,trydims,opt);
+          }
+
+        private:
+
+          void optimize_dims (int i, const std::array<int,dim>& size, int P, std::array<int,dim>& dims, std::array<int,dim>& trydims, double& opt) const
+          {
+            if (i > 0) // test all subdivisions recursively
+            {
+              for (unsigned int k = 1; k <= (unsigned int)P; k++)
+                if (P%k == 0)
+                {
+                  // P divisible by k
+                  trydims[i] = k;
+                  optimize_dims(i-1,size,P/k,dims,trydims,opt);
+                }
+            }
+            else
+            {
+              // found a possible combination
+              trydims[0] = P;
+
+              // check for optimality
+              double m = -1.;
+
+              for (unsigned int k = 0; k < dim; k++)
+              {
+                double mm = ((double)size[k])/((double)trydims[k]);
+                if (fmod((double)size[k],(double)trydims[k]) > 0.0001)
+                  mm *= 3;
+                if ( mm > m )
+                  m = mm;
+              }
+              if (m < opt)
+              {
+                opt = m;
+                dims = trydims;
+              }
+            }
+          }
+      };
+
+    /**
      * @brief Spherical covariance function
      */
     class SphericalCovariance
@@ -136,6 +196,8 @@ namespace Dune {
         // MPI constants
         int rank, commSize;
 
+        std::array<int,dim> procPerDim;
+
         const Dune::ParameterTree& config;
 
         const std::array<RF,dim> extensions;
@@ -171,7 +233,8 @@ namespace Dune {
 
         public:
 
-        RandomFieldTraits(const Dune::ParameterTree& config_, const std::string& fieldName)
+        template<typename LoadBalance>
+          RandomFieldTraits(const Dune::ParameterTree& config_, const std::string& fieldName, const LoadBalance& loadBalance)
           : config(config_),
           extensions    (config.get<std::array<RF,dim> >          ("grid.extensions")),
           cgIterations  (config.get<unsigned int>                 ("randomField.cgIterations",100)),
@@ -186,6 +249,15 @@ namespace Dune {
           MPI_Comm_rank(MPI_COMM_WORLD,&rank);
           MPI_Comm_size(MPI_COMM_WORLD,&commSize);
 
+          // dune-grid load balancers want int as data type
+          std::array<int,dim> intCells;
+          for (unsigned int i = 0; i < dim; i++)
+            intCells[i] = cells[i];
+          loadBalance.loadbalance(intCells,commSize,procPerDim);
+
+          if (cells[dim-1] % commSize != 0)
+            DUNE_THROW(Dune::Exception,"number of cells in first dimension has to be multiple of numProc");
+
           if (corrLength.size() == 1)
           {
             if (rank == 0) std::cout << "homogeneous correlation length detected, extending" << std::endl;
@@ -193,6 +265,8 @@ namespace Dune {
             for (int i = 1; i < dim; i ++)
               corrLength[i] = corrLength[0];
           }
+          if (corrLength.size() != dim)
+            DUNE_THROW(Dune::Exception,"correlation length vector doesn't match dimension");
 
           level = 0;
 

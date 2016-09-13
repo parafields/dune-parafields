@@ -61,8 +61,9 @@ namespace Dune {
           /**
            * @brief Constructor reading from file or creating homogeneous field
            */
-          RandomField(const Dune::ParameterTree& config_, std::string fieldName_, std::string fileName = "")
-            : fieldName(fieldName_), traits(new Traits(config_,fieldName)), matrix(new RandomFieldMatrix<Traits>(traits)),
+          template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim> >
+            RandomField(const Dune::ParameterTree& config_, const std::string fieldName_, const std::string fileName = "", const LoadBalance loadBalance = LoadBalance())
+            : fieldName(fieldName_), traits(new Traits(config_,fieldName,loadBalance)), matrix(new RandomFieldMatrix<Traits>(traits)),
             trendPart(traits,fieldName,fileName), stochasticPart(traits,fieldName,fileName),
             invMatValid(false), invRootValid(false)
             {
@@ -533,21 +534,22 @@ namespace Dune {
           /**
            * @brief Constructor reading random fields from file
            */
-          RandomFieldList(const Dune::ParameterTree& config, const std::string& fileName = "")
-          {
-            std::stringstream typeStream(config.get<std::string>("randomField.types"));
-            std::string type;
-            while(std::getline(typeStream, type, ' '))
+          template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim> >
+            RandomFieldList(const Dune::ParameterTree& config, const std::string& fileName = "", const LoadBalance loadBalance = LoadBalance())
             {
-              fieldNames.push_back(type);
-              list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >(type, Dune::shared_ptr<SubRandomField>(new SubRandomField(config,type,fileName))));
+              std::stringstream typeStream(config.get<std::string>("randomField.types"));
+              std::string type;
+              while(std::getline(typeStream, type, ' '))
+              {
+                fieldNames.push_back(type);
+                list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >(type, Dune::shared_ptr<SubRandomField>(new SubRandomField(config,type,fileName,loadBalance))));
+              }
+
+              if (fieldNames.empty())
+                DUNE_THROW(Dune::Exception,"List of randomField types is empty");
+
+              activateFields(config.get<int>("randomField.active",fieldNames.size()));
             }
-
-            if (fieldNames.empty())
-              DUNE_THROW(Dune::Exception,"List of randomField types is empty");
-
-            activateFields(config.get<int>("randomField.active",fieldNames.size()));
-          }
 
           /**
            * @brief Constructor reading random fields from file, but reusing covariance matrices
