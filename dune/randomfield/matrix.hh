@@ -42,7 +42,7 @@ namespace Dune {
           std::array<unsigned int,dim> localExtendedOffset;
           unsigned int                 localExtendedDomainSize;
 
-          fftw_complex* fftTransformedMatrix;
+          mutable fftw_complex* fftTransformedMatrix;
 
         public:
 
@@ -85,50 +85,7 @@ namespace Dune {
             localExtendedDomainSize = (*traits).localExtendedDomainSize;
 
             if (fftTransformedMatrix != NULL)
-              fftw_free(fftTransformedMatrix);
-            fftTransformedMatrix = (fftw_complex*) fftw_malloc( allocLocal * sizeof(fftw_complex) );
-
-            std::array<RF,dim>           coord;
-            std::array<unsigned int,dim> indices;
-
-            for (unsigned int index = 0; index < localExtendedDomainSize; index++)
-            {
-              (*traits).indexToIndices(index,indices,localExtendedCells);
-
-              for (unsigned int i = 0; i < dim; i++)
-                coord[i]  = std::min(indices[i] + localExtendedOffset[i], extendedCells[i] - indices[i] - localExtendedOffset[i]) * meshsize[i];
-
-              fftTransformedMatrix[index][0] = covariance(variance, coord, corrLength);
-              fftTransformedMatrix[index][1] = 0.;
-            }
-
-            forwardTransform(fftTransformedMatrix);
-
-            RF regFactor = (*traits).config.template get<RF>("randomField.regFactor",0.);
-
-            unsigned int small = 0;
-            unsigned int negative = 0;
-            unsigned int smallNegative = 0;
-            for (unsigned int index = 0; index < localExtendedDomainSize; index++)
-            {
-              if (fftTransformedMatrix[index][0] < 1e-6)
-              {
-                if (fftTransformedMatrix[index][0] < 1e-10)
-                {
-                  if (fftTransformedMatrix[index][0] > -1e-10)
-                    smallNegative++;
-                  else
-                    negative++;
-                }
-                else
-                  small++;
-              }
-
-              if (fftTransformedMatrix[index][0] < regFactor)
-                fftTransformedMatrix[index][0] = regFactor;
-            }
-
-            if (rank == 0) std::cout << small << " small, " << smallNegative << " small negative and " << negative << " large negative eigenvalues in covariance matrix" << std::endl;
+              fillTransformedMatrix();
 
             timer.stop();
             if (rank == 0) std::cout << "Time for RandomMatrix update " << timer.lastElapsed() << std::endl;
@@ -193,6 +150,9 @@ namespace Dune {
             Dune::Timer timer(false);
             timer.start();
 
+            if (fftTransformedMatrix == NULL)
+              fillTransformedMatrix();
+
             // initialize pseudo-random generator
             unsigned int seed = (unsigned int) clock(); // create seed out of the current time
             seed += rank;                               // different seed for each processor
@@ -254,6 +214,56 @@ namespace Dune {
           }
 
         private:
+
+          /**
+           * @brief Compute entries of Fourier-transformed covariance matrix
+           */
+          void fillTransformedMatrix() const
+          {
+            if (fftTransformedMatrix != NULL)
+              fftw_free(fftTransformedMatrix);
+            fftTransformedMatrix = (fftw_complex*) fftw_malloc( allocLocal * sizeof(fftw_complex) );
+
+            std::array<RF,dim>           coord;
+            std::array<unsigned int,dim> indices;
+
+            for (unsigned int index = 0; index < localExtendedDomainSize; index++)
+            {
+              (*traits).indexToIndices(index,indices,localExtendedCells);
+
+              for (unsigned int i = 0; i < dim; i++)
+                coord[i]  = std::min(indices[i] + localExtendedOffset[i], extendedCells[i] - indices[i] - localExtendedOffset[i]) * meshsize[i];
+
+              fftTransformedMatrix[index][0] = covariance(variance, coord, corrLength);
+              fftTransformedMatrix[index][1] = 0.;
+            }
+
+            forwardTransform(fftTransformedMatrix);
+
+            unsigned int small = 0;
+            unsigned int negative = 0;
+            unsigned int smallNegative = 0;
+            for (unsigned int index = 0; index < localExtendedDomainSize; index++)
+            {
+              if (fftTransformedMatrix[index][0] < 1e-6)
+              {
+                if (fftTransformedMatrix[index][0] < 1e-10)
+                {
+                  if (fftTransformedMatrix[index][0] > -1e-10)
+                    smallNegative++;
+                  else
+                    negative++;
+                }
+                else
+                  small++;
+              }
+
+              if (fftTransformedMatrix[index][0] < 0.)
+                fftTransformedMatrix[index][0] = 0.;
+            }
+
+            if (rank == 0) std::cout << small << " small, " << smallNegative << " small negative and " << negative << " large negative eigenvalues in covariance matrix" << std::endl;
+          }
 
           /**
            * @brief Perform a forward Fourier tranform of a vector
@@ -548,6 +558,9 @@ namespace Dune {
            */
           void multiplyExtended(std::vector<RF>& input, std::vector<RF>& output) const
           {
+            if (fftTransformedMatrix == NULL)
+              fillTransformedMatrix();
+
             fftw_complex *extendedField;
             extendedField = (fftw_complex*) fftw_malloc(allocLocal * sizeof (fftw_complex));
 
@@ -571,6 +584,9 @@ namespace Dune {
            */
           void multiplyRootExtended(std::vector<RF>& input, std::vector<RF>& output) const
           {
+            if (fftTransformedMatrix == NULL)
+              fillTransformedMatrix();
+
             fftw_complex *extendedField;
             extendedField = (fftw_complex*) fftw_malloc(allocLocal * sizeof (fftw_complex));
 
@@ -594,6 +610,9 @@ namespace Dune {
            */
           void multiplyInverseExtended(std::vector<RF>& input, std::vector<RF>& output) const
           {
+            if (fftTransformedMatrix == NULL)
+              fillTransformedMatrix();
+
             fftw_complex *extendedField;
             extendedField = (fftw_complex*) fftw_malloc(allocLocal * sizeof (fftw_complex));
 
