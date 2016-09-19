@@ -60,24 +60,24 @@ namespace Dune {
           /**
            * @brief Constructor
            */
-          StochasticPart(const Dune::shared_ptr<Traits>& traits_, const std::string& fieldName, const std::string& fileName)
+          StochasticPart(const Dune::shared_ptr<Traits>& traits_, const std::string& fileName)
             : traits(traits_)
           {
             update();
 
             if (fileName != "")
             {
-              if(!fileExists(fileName+"."+fieldName+".stoch.h5"))
-                DUNE_THROW(Dune::Exception,"File is missing: " + fileName + "." + fieldName + ".stoch.h5");
+              if(!fileExists(fileName+".stoch.h5"))
+                DUNE_THROW(Dune::Exception,"File is missing: " + fileName + ".stoch.h5");
 
               Dune::Timer readTimer(false);
               readTimer.start();
 
-              if (rank == 0) std::cout << "loading random field from file " << fileName + "." + fieldName << std::endl;
-              readParallelFromHDF5<RF,dim>(dataVector, localCells, localOffset, MPI_COMM_WORLD, "/"+fieldName, fileName+"."+fieldName+".stoch.h5");
+              if (rank == 0) std::cout << "loading random field from file " << fileName << std::endl;
+              readParallelFromHDF5<RF,dim>(dataVector, localCells, localOffset, MPI_COMM_WORLD, "/stochastic", fileName+".stoch.h5");
 
               readTimer.stop();
-              if (rank == 0) std::cout << "Time for loading random field from file " << fileName + "." + fieldName << ": " << readTimer.elapsed() << std::endl;
+              if (rank == 0) std::cout << "Time for loading random field from file " << fileName << ": " << readTimer.elapsed() << std::endl;
 
               evalValid  = false;
             }
@@ -137,17 +137,17 @@ namespace Dune {
           /**
            * @brief Write stochastic part of field to hard disk
            */
-          void writeToFile(const std::string& fileName, const std::string& fieldName) const
+          void writeToFile(const std::string& fileName) const
           {
             Dune::Timer writeTimer(false);
             writeTimer.start();
 
-            if (rank == 0) std::cout << "writing random field to file " << fileName+"."+fieldName << std::endl;
-            writeParallelToHDF5<RF,dim>((*traits).cells, dataVector, localCells, localOffset, MPI_COMM_WORLD, "/"+fieldName, fileName+"."+fieldName+".stoch.h5");
+            if (rank == 0) std::cout << "writing random field to file " << fileName << std::endl;
+            writeParallelToHDF5<RF,dim>((*traits).cells, dataVector, localCells, localOffset, MPI_COMM_WORLD, "/stochastic", fileName+".stoch.h5");
 
             if (rank == 0)
             {
-              std::ofstream file(fileName+"."+fieldName+".xdmf",std::ofstream::trunc);
+              std::ofstream file(fileName+".xdmf",std::ofstream::trunc);
 
               file << "<?xml version=\"1.0\" ?>"                                                            << std::endl;
               file << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>"                                              << std::endl;
@@ -170,13 +170,13 @@ namespace Dune {
               file << "    </DataItem>"                                                                     << std::endl;
               file << "   </Geometry>"                                                                      << std::endl;
               file << "   <Attribute Name=\"";
-              file << fieldName;
+              file << fileName;
               file << "\" AttributeType=\"Scalar\" Center=\"Cell\">"                                        << std::endl;
               file << "    <DataItem Dimensions=\"";
               for (unsigned int i = 0; i < dim; i++)
                 file << cells[dim-(i+1)] << " ";
               file << "\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">"                             << std::endl;
-              file << "     " << fileName+"."+fieldName+".stoch.h5" << ":/" << fieldName                    << std::endl;
+              file << "     " << fileName+".stoch.h5" << ":/stochastic"                                     << std::endl;
               file << "    </DataItem>"                                                                     << std::endl;
               file << "   </Attribute>"                                                                     << std::endl;
               file << "  </Grid>"                                                                           << std::endl;
@@ -185,7 +185,7 @@ namespace Dune {
             }
 
             writeTimer.stop();
-            if (rank == 0) std::cout << "Time for writing random field to file " << fileName + "." + fieldName << ": " << writeTimer.elapsed() << std::endl;
+            if (rank == 0) std::cout << "Time for writing random field to file " << fileName << ": " << writeTimer.elapsed() << std::endl;
           }
 
           /**

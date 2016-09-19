@@ -46,7 +46,7 @@ namespace Dune {
 
         private:
 
-          std::string                                       fieldName;
+          const Dune::ParameterTree                         config;
           Dune::shared_ptr<Traits>                          traits;
           Dune::shared_ptr<RandomFieldMatrix<Traits> >      matrix;
           TrendPart<Traits>                                 trendPart;
@@ -62,9 +62,9 @@ namespace Dune {
            * @brief Constructor reading from file or creating homogeneous field
            */
           template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim> >
-            RandomField(const Dune::ParameterTree& config_, const std::string fieldName_, const std::string fileName = "", const LoadBalance loadBalance = LoadBalance())
-            : fieldName(fieldName_), traits(new Traits(config_,fieldName,loadBalance)), matrix(new RandomFieldMatrix<Traits>(traits)),
-            trendPart(traits,fieldName,fileName), stochasticPart(traits,fieldName,fileName),
+            RandomField(const Dune::ParameterTree& config_, const std::string fileName = "", const LoadBalance loadBalance = LoadBalance())
+            : config(config_), traits(new Traits(config,loadBalance)), matrix(new RandomFieldMatrix<Traits>(traits)),
+            trendPart(config,traits,fileName), stochasticPart(traits,fileName),
             invMatValid(false), invRootValid(false)
             {
               if (storeInvMat)
@@ -77,9 +77,9 @@ namespace Dune {
           /**
            * @brief Constructor copying traits and covariance matrix
            */
-          RandomField(const RandomField& other, std::string fileName)
-            : fieldName(other.fieldName), traits(other.traits), matrix(other.matrix),
-            trendPart(traits,fieldName,fileName), stochasticPart(traits,fieldName,fileName),
+          RandomField(const RandomField& other, const std::string fileName)
+            : config(other.config), traits(other.traits), matrix(other.matrix),
+            trendPart(config,traits,fileName), stochasticPart(traits,fileName),
             invMatValid(false), invRootValid(false)
         {
           if (storeInvMat)
@@ -93,7 +93,7 @@ namespace Dune {
            * @brief Copy constructor
            */
           RandomField(const RandomField& other)
-            : fieldName(other.fieldName), traits(other.traits), matrix(other.matrix),
+            : config(other.config), traits(other.traits), matrix(other.matrix),
             trendPart(other.trendPart), stochasticPart(other.stochasticPart),
             invMatValid(other.invMatValid), invRootValid(other.invRootValid)
         {
@@ -109,7 +109,7 @@ namespace Dune {
            */
           RandomField& operator=(const RandomField& other)
           {
-            fieldName      = other.fieldName;
+            config         = other.config;
             traits         = other.traits;
             matrix         = other.matrix;
             trendPart      = other.trendPart;
@@ -182,9 +182,23 @@ namespace Dune {
            */
           void writeToFile(const std::string& fileName) const
           {
-            stochasticPart.writeToFile(fileName,fieldName);
-            trendPart     .writeToFile(fileName,fieldName);
+            stochasticPart.writeToFile(fileName);
+            trendPart     .writeToFile(fileName);
           }
+
+#if HAVE_DUNE_PDELAB
+          /**
+           * @brief Export random field as VTK file, requires dune-grid and PDELab
+           */
+          template<typename GridView>
+            void writeToVTK(const std::string& fileName, const GridView& gv) const
+            {
+              Dune::VTKWriter<GridView> vtkWriter(gv,Dune::VTK::conforming);
+              std::shared_ptr<Dune::PDELab::VTKGridFunctionAdapter<RandomField<GridTraits,Covariance,storeInvMat,storeInvRoot> > > fieldPtr(new Dune::PDELab::VTKGridFunctionAdapter<RandomField<GridTraits,Covariance,storeInvMat,storeInvRoot> >(*this,fileName));
+              vtkWriter.addCellData(fieldPtr);
+              vtkWriter.pwrite(fileName,"vtk","",Dune::VTK::appendedraw);
+            }
+#endif // HAVE_DUNE_PDELAB
 
           /**
            * @brief Make random field homogeneous
@@ -542,7 +556,23 @@ namespace Dune {
               while(std::getline(typeStream, type, ' '))
               {
                 fieldNames.push_back(type);
-                list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >(type, Dune::shared_ptr<SubRandomField>(new SubRandomField(config,type,fileName,loadBalance))));
+
+                Dune::ParameterTree subConfig;
+                Dune::ParameterTreeParser parser;
+                parser.readINITree(type+".props",subConfig);
+                // copy general keys to subConfig if necessary
+                if (!subConfig.hasKey("grid.extensions") && config.hasKey("grid.extensions"))
+                  subConfig["grid.extensions"] = config["grid.extensions"];
+                if (!subConfig.hasKey("grid.cells") && config.hasKey("grid.cells"))
+                  subConfig["grid.cells"] = config["grid.cells"];
+                if (!subConfig.hasKey("randomField.cgIterations") && config.hasKey("randomField.cgIterations"))
+                  subConfig["randomField.cgIterations"] = config["randomField.cgIterations"];
+
+                std::string subFileName = fileName;
+                if (subFileName != "")
+                  subFileName += "." + type;
+
+                list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >(type, Dune::shared_ptr<SubRandomField>(new SubRandomField(subConfig,subFileName,loadBalance))));
               }
 
               if (fieldNames.empty())
@@ -558,7 +588,7 @@ namespace Dune {
           {
             for(typename std::map<std::string, Dune::shared_ptr<SubRandomField> >::const_iterator it = other.list.begin(); it!= other.list.end(); ++it)
             {
-              list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >((*it).first, Dune::shared_ptr<SubRandomField>(new SubRandomField(*(*it).second,fileName))));
+              list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >((*it).first, Dune::shared_ptr<SubRandomField>(new SubRandomField(*(*it).second,fileName+"."+(*it).first))));
             }
           }
 
@@ -647,7 +677,7 @@ namespace Dune {
           void writeToFile(const std::string& fileName) const
           {
             for(Iterator it = fieldNames.begin(); it != fieldNames.end(); ++it)
-              list.find(*it)->second->writeToFile(fileName);
+              list.find(*it)->second->writeToFile(fileName+"."+(*it));
           }
 
 #if HAVE_DUNE_PDELAB
@@ -658,12 +688,7 @@ namespace Dune {
             void writeToVTK(const std::string& fileName, const GridView& gv) const
             {
               for (Iterator it = fieldNames.begin(); it != fieldNames.end(); ++it)
-              {
-                Dune::VTKWriter<GridView> vtkWriter(gv,Dune::VTK::conforming);
-                std::shared_ptr<Dune::PDELab::VTKGridFunctionAdapter<SubRandomField> > fieldPtr(new Dune::PDELab::VTKGridFunctionAdapter<SubRandomField>(*(list.find(*it)->second),*it));
-                vtkWriter.addCellData(fieldPtr);
-                vtkWriter.pwrite(fileName+"."+(*it),"vtk","",Dune::VTK::appendedraw);
-              }
+                list.find(*it)->second->writeToVTK(fileName+"."+(*it),gv);
             }
 #endif // HAVE_DUNE_PDELAB
 

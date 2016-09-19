@@ -234,18 +234,14 @@ namespace Dune {
         public:
 
         template<typename LoadBalance>
-          RandomFieldTraits(const Dune::ParameterTree& config_, const std::string& fieldName, const LoadBalance& loadBalance)
+          RandomFieldTraits(const Dune::ParameterTree& config_, const LoadBalance& loadBalance)
           : config(config_),
           extensions    (config.get<std::array<RF,dim> >          ("grid.extensions")),
+          variance      (config.get<RF>                           ("stochastic.variance")),
+          corrLength    (config.get<std::vector<RF> >             ("stochastic.corrLength")),
           cgIterations  (config.get<unsigned int>                 ("randomField.cgIterations",100)),
           cells         (config.get<std::array<unsigned int,dim> >("grid.cells"))
         {
-          Dune::ParameterTree fieldProps;
-          Dune::ParameterTreeParser parser;
-          parser.readINITree(fieldName+".props",fieldProps);
-          variance   = fieldProps.get<RF>              ("stochastic.variance");
-          corrLength = fieldProps.get<std::vector<RF> >("stochastic.corrLength");
-
           MPI_Comm_rank(MPI_COMM_WORLD,&rank);
           MPI_Comm_size(MPI_COMM_WORLD,&commSize);
 
