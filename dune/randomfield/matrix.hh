@@ -92,6 +92,66 @@ namespace Dune {
           }
     };
 
+    /**
+     * @brief Matern covariance function with nu = 3/2
+     */
+    class Matern32Covariance
+    {
+      public:
+
+        template<typename RF, long unsigned int dim>
+          RF operator()(const RF variance, const std::array<RF,dim>& x, const std::vector<RF>& lambda) const
+          {
+            RF sum = 0.;
+            for(unsigned int i = 0; i < dim; i++)
+            {
+              sum += (x[i] * x[i]) / (lambda[i] * lambda[i]);
+            }
+            RF h_eff = std::sqrt(sum);
+            return variance * (1. + std::sqrt(3.)*h_eff) * std::exp(-std::sqrt(3.) * h_eff);
+          }
+    };
+
+    /**
+     * @brief Matern covariance function with nu = 5/2
+     */
+    class Matern52Covariance
+    {
+      public:
+
+        template<typename RF, long unsigned int dim>
+          RF operator()(const RF variance, const std::array<RF,dim>& x, const std::vector<RF>& lambda) const
+          {
+            RF sum = 0.;
+            for(unsigned int i = 0; i < dim; i++)
+            {
+              sum += (x[i] * x[i]) / (lambda[i] * lambda[i]);
+            }
+            RF h_eff = std::sqrt(sum);
+            return variance * (1. + std::sqrt(5.)*h_eff + 5./3.*h_eff*h_eff) * std::exp(-std::sqrt(5.) * h_eff);
+          }
+    };
+
+    /**
+     * @brief Damped oscillation covariance function
+     */
+    class DampedOscillationCovariance
+    {
+      public:
+
+        template<typename RF, long unsigned int dim>
+          RF operator()(const RF variance, const std::array<RF,dim>& x, const std::vector<RF>& lambda) const
+          {
+            RF sum = 0.;
+            for(unsigned int i = 0; i < dim; i++)
+            {
+              sum += (x[i] * x[i]) / (lambda[i] * lambda[i]);
+            }
+            RF h_eff = std::sqrt(sum);
+            return variance * std::exp(-h_eff) * std::cos(h_eff);
+          }
+    };
+
     template<typename T>
       class RandomFieldMatrix
       {
@@ -316,6 +376,12 @@ namespace Dune {
               fillCovarianceMatrix<SphericalCovariance>();
             else if (covariance == "separableExponential")
               fillCovarianceMatrix<SeparableExponentialCovariance>();
+            else if (covariance == "matern32")
+              fillCovarianceMatrix<Matern32Covariance>();
+            else if (covariance == "matern52")
+              fillCovarianceMatrix<Matern52Covariance>();
+            else if (covariance == "dampedOscillation")
+              fillCovarianceMatrix<DampedOscillationCovariance>();
             else
               DUNE_THROW(Dune::Exception,"covariance structure " + covariance + " not known");
 
