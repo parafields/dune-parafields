@@ -35,14 +35,14 @@ namespace Dune {
     /**
      * @brief Gaussian random field in 2D or 3D
      */
-    template<typename GridTraits, typename Covariance, bool storeInvMat = true, bool storeInvRoot = false>
+    template<typename GridTraits, bool storeInvMat = true, bool storeInvRoot = false>
       class RandomField
       {
 
         public:
 
-          typedef RandomFieldTraits<GridTraits,Covariance,storeInvMat,storeInvRoot> Traits;
-          typedef typename Traits::RF                                               RF;
+          typedef RandomFieldTraits<GridTraits,storeInvMat,storeInvRoot> Traits;
+          typedef typename Traits::RF                                    RF;
 
         private:
 
@@ -194,7 +194,7 @@ namespace Dune {
             void writeToVTK(const std::string& fileName, const GridView& gv) const
             {
               Dune::VTKWriter<GridView> vtkWriter(gv,Dune::VTK::conforming);
-              std::shared_ptr<Dune::PDELab::VTKGridFunctionAdapter<RandomField<GridTraits,Covariance,storeInvMat,storeInvRoot> > > fieldPtr(new Dune::PDELab::VTKGridFunctionAdapter<RandomField<GridTraits,Covariance,storeInvMat,storeInvRoot> >(*this,fileName));
+              std::shared_ptr<Dune::PDELab::VTKGridFunctionAdapter<RandomField<GridTraits,storeInvMat,storeInvRoot> > > fieldPtr(new Dune::PDELab::VTKGridFunctionAdapter<RandomField<GridTraits,storeInvMat,storeInvRoot> >(*this,fileName));
               vtkWriter.addCellData(fieldPtr);
               vtkWriter.pwrite(fileName,"vtk","",Dune::VTK::appendedraw);
             }
@@ -526,12 +526,12 @@ namespace Dune {
     /**
      * @brief List of Gaussian random fields in 2D or 3D
      */
-    template<typename GridTraits, typename Covariance, bool storeInvMat = true, bool storeInvRoot = false>
+    template<typename GridTraits, bool storeInvMat = true, bool storeInvRoot = false>
       class RandomFieldList
       {
         public:
 
-          typedef RandomField<GridTraits, Covariance, storeInvMat, storeInvRoot> SubRandomField;
+          typedef RandomField<GridTraits, storeInvMat, storeInvRoot> SubRandomField;
 
         private:
 

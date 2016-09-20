@@ -70,102 +70,19 @@ namespace Dune {
           }
       };
 
-    /**
-     * @brief Spherical covariance function
-     */
-    class SphericalCovariance
-    {
-      public:
-
-        template<typename RF, long unsigned int dim>
-          RF operator()(const RF variance, const std::array<RF,dim>& x, const std::vector<RF>& lambda) const
-          {
-            RF sum = 0.;
-            for(unsigned int i = 0; i < dim; i++)
-            {
-              sum += (x[i] * x[i]) / (lambda[i] * lambda[i]);
-            }
-            RF h_eff = std::sqrt(sum);
-            if (h_eff > 1.)
-              return 0.;
-            else
-              return variance * (1. - 1.5 * h_eff + 0.5 * std::pow(h_eff, 3));
-          }
-    };
-
-    /**
-     * @brief Exponential covariance function
-     */
-    class ExponentialCovariance
-    {
-      public:
-
-        template<typename RF, long unsigned int dim>
-          RF operator()(const RF variance, const std::array<RF,dim>& x, const std::vector<RF>& lambda) const
-          {
-            RF sum = 0.;
-            for(unsigned int i = 0; i < dim; i++)
-            {
-              sum += (x[i] * x[i]) / (lambda[i] * lambda[i]);
-            }
-            RF h_eff = std::sqrt(sum);
-            return variance * std::exp(-h_eff);
-          }
-    };
-
-    /**
-     * @brief Gaussian covariance function
-     */
-    class GaussianCovariance
-    {
-      public:
-
-        template<typename RF, long unsigned int dim>
-          RF operator()(const RF variance, const std::array<RF,dim>& x, const std::vector<RF>& lambda) const
-          {
-            RF sum = 0.;
-            for(unsigned int i = 0; i < dim; i++)
-            {
-              sum += (x[i] * x[i]) / (lambda[i] * lambda[i]);
-            }
-            RF h_eff = std::sqrt(sum);
-            return variance * std::exp(-h_eff * h_eff);
-          }
-    };
-
-    /**
-     * @brief Separable exponential covariance function
-     */
-    class SeparableExponentialCovariance
-    {
-      public:
-
-        template<typename RF, unsigned int dim>
-          RF operator()(RF variance, std::array<RF,dim>& x, std::array<RF,dim>& lambda) const
-          {
-            RF sum = 0.;
-            for(unsigned int i = 0; i < dim; i++)
-            {
-              sum += std::abs(x[i] / lambda[i]);
-            }
-            RF h_eff = sum;
-            return variance * std::exp(-h_eff);
-          }
-    };
-
     template<typename Traits> class TrendPart;
     template<typename Traits> class TrendComponent;
     template<typename Traits> class StochasticPart;
     template<typename Traits> class RandomFieldMatrix;
-    template<typename GridTraits, typename Covariance, bool storeInvMat, bool storeInvRoot> class RandomField;
+    template<typename GridTraits, bool storeInvMat, bool storeInvRoot> class RandomField;
 
     /**
      * @brief Traits for the RandomField class
      */
-    template<typename GridTraits, typename Cov, bool storeInvMat, bool storeInvRoot>
+    template<typename GridTraits, bool storeInvMat, bool storeInvRoot>
       class RandomFieldTraits
       {
-        typedef RandomFieldTraits<GridTraits,Cov,storeInvMat,storeInvRoot> ThisType;
+        typedef RandomFieldTraits<GridTraits,storeInvMat,storeInvRoot> ThisType;
 
         public:
 
@@ -183,15 +100,13 @@ namespace Dune {
         enum {dimDomain = dim};
 #endif // HAVE_DUNE_PDELAB
 
-        typedef Cov Covariance;
-
         private:
 
         friend class TrendPart<ThisType>;
         friend class TrendComponent<ThisType>;
         friend class StochasticPart<ThisType>;
         friend class RandomFieldMatrix<ThisType>;
-        friend class RandomField<GridTraits,Covariance,storeInvMat,storeInvRoot>;
+        friend class RandomField<GridTraits,storeInvMat,storeInvRoot>;
 
         // MPI constants
         int rank, commSize;
@@ -205,9 +120,10 @@ namespace Dune {
         std::array<RF,dim>       meshsize;
         RF                       cellVolume;
 
-        RF              variance;
-        std::vector<RF> corrLength;
-        unsigned int    cgIterations;
+        const RF           variance;
+        std::vector<RF>    corrLength;
+        const std::string  covariance;
+        const unsigned int cgIterations;
 
         ptrdiff_t allocLocal, localN0, local0Start;
 
@@ -239,6 +155,7 @@ namespace Dune {
           extensions    (config.get<std::array<RF,dim> >          ("grid.extensions")),
           variance      (config.get<RF>                           ("stochastic.variance")),
           corrLength    (config.get<std::vector<RF> >             ("stochastic.corrLength")),
+          covariance    (config.get<std::string>                  ("stochastic.covariance")),
           cgIterations  (config.get<unsigned int>                 ("randomField.cgIterations",100)),
           cells         (config.get<std::array<unsigned int,dim> >("grid.cells"))
         {

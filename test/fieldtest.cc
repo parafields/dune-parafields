@@ -31,15 +31,15 @@ class GridTraits
 /**
  * @brief Test effect of (I - M^1/2 M^-1 M^1/2)
  */
-template<typename RandomFieldList>
-void diffRootInvRoot(const RandomFieldList& fieldList)
+template<typename RandomField>
+void diffRootInvRoot(const RandomField& field)
 {
-  const double fieldNorm = std::sqrt(fieldList * fieldList);
-  RandomFieldList copy(fieldList);
+  const double fieldNorm = std::sqrt(field * field);
+  RandomField copy(field);
   copy.timesMatrixRoot();
   copy.timesInverseMatrix();
   copy.timesMatrixRoot();
-  copy -= fieldList;
+  copy -= field;
   const double diffNorm = std::sqrt(copy * copy);
 
   std::cout << "root inv root";
@@ -51,15 +51,15 @@ void diffRootInvRoot(const RandomFieldList& fieldList)
 /**
  * @brief Test effect of (I - M^-1 M^1/2 M^1/2)
  */
-template<typename RandomFieldList>
-void diffRootRootInv(const RandomFieldList& fieldList)
+template<typename RandomField>
+void diffRootRootInv(const RandomField& field)
 {
-  const double fieldNorm = std::sqrt(fieldList * fieldList);
-  RandomFieldList copy(fieldList);
+  const double fieldNorm = std::sqrt(field * field);
+  RandomField copy(field);
   copy.timesMatrixRoot();
   copy.timesMatrixRoot();
   copy.timesInverseMatrix();
-  copy -= fieldList;
+  copy -= field;
   const double diffNorm = std::sqrt(copy * copy);
 
   std::cout << "root root inv";
@@ -71,15 +71,15 @@ void diffRootRootInv(const RandomFieldList& fieldList)
 /**
  * @brief Test effect of (I - M^1/2 M^1/2 M^-1)
  */
-template<typename RandomFieldList>
-void diffInvRootRoot(const RandomFieldList& fieldList)
+template<typename RandomField>
+void diffInvRootRoot(const RandomField& field)
 {
-  const double fieldNorm = std::sqrt(fieldList * fieldList);
-  RandomFieldList copy(fieldList);
+  const double fieldNorm = std::sqrt(field * field);
+  RandomField copy(field);
   copy.timesInverseMatrix();
   copy.timesMatrixRoot();
   copy.timesMatrixRoot();
-  copy -= fieldList;
+  copy -= field;
   const double diffNorm = std::sqrt(copy * copy);
 
   std::cout << "inv root root";
@@ -91,14 +91,14 @@ void diffInvRootRoot(const RandomFieldList& fieldList)
 /**
  * @brief Test effect of (I - M M^-1)
  */
-template<typename RandomFieldList>
-void diffInvMult(const RandomFieldList& fieldList)
+template<typename RandomField>
+void diffInvMult(const RandomField& field)
 {
-  const double fieldNorm = std::sqrt(fieldList * fieldList);
-  RandomFieldList copy(fieldList);
+  const double fieldNorm = std::sqrt(field * field);
+  RandomField copy(field);
   copy.timesInverseMatrix();
   copy.timesMatrix();
-  copy -= fieldList;
+  copy -= field;
   const double diffNorm = std::sqrt(copy * copy);
 
   std::cout << "inv mult     ";
@@ -110,14 +110,14 @@ void diffInvMult(const RandomFieldList& fieldList)
 /**
  * @brief Test effect of (I - M^-1 M)
  */
-template<typename RandomFieldList>
-void diffMultInv(const RandomFieldList& fieldList)
+template<typename RandomField>
+void diffMultInv(const RandomField& field)
 {
-  const double fieldNorm = std::sqrt(fieldList * fieldList);
-  RandomFieldList copy(fieldList);
+  const double fieldNorm = std::sqrt(field * field);
+  RandomField copy(field);
   copy.timesMatrix();
   copy.timesInverseMatrix();
-  copy -= fieldList;
+  copy -= field;
   const double diffNorm = std::sqrt(copy * copy);
 
   std::cout << "mult inv     ";
@@ -129,17 +129,18 @@ void diffMultInv(const RandomFieldList& fieldList)
 /**
  * @brief Run different matrix multiplication tests
  */
-template<typename GridTraits, typename Covariance, bool storeInvMat, bool storeInvRoot>
-void runTests(const Dune::ParameterTree& config)
+template<typename GridTraits, bool storeInvMat, bool storeInvRoot>
+void runTests(Dune::ParameterTree config, std::string covariance)
 {
-  Dune::RandomField::RandomFieldList<GridTraits,Covariance,storeInvMat,storeInvRoot> randomFieldList(config);
-  randomFieldList.generate();
+  config["stochastic.covariance"] = covariance;
+  Dune::RandomField::RandomField<GridTraits,storeInvMat,storeInvRoot> randomField(config);
+  randomField.generate();
 
-  diffRootInvRoot(randomFieldList);
-  diffRootRootInv(randomFieldList);
-  diffInvRootRoot(randomFieldList);
-  diffInvMult(randomFieldList);
-  diffMultInv(randomFieldList);
+  diffRootInvRoot(randomField);
+  diffRootRootInv(randomField);
+  diffInvRootRoot(randomField);
+  diffInvMult(randomField);
+  diffMultInv(randomField);
 }
 
 /**
@@ -156,15 +157,15 @@ void test2d()
   std::cout << "--------------" << std::endl;
   std::cout << "2D Exponential" << std::endl;
   std::cout << "--------------" << std::endl;
-  runTests<GridTraits,Dune::RandomField::ExponentialCovariance,INVMAT,INVROOT>(config);
+  runTests<GridTraits,INVMAT,INVROOT>(config,"exponential");
   std::cout << "--------------" << std::endl;
   std::cout << "2D Gaussian   " << std::endl;
   std::cout << "--------------" << std::endl;
-  runTests<GridTraits,Dune::RandomField::GaussianCovariance,   INVMAT,INVROOT>(config);
+  runTests<GridTraits,INVMAT,INVROOT>(config,"gaussian");
   std::cout << "--------------" << std::endl;
   std::cout << "2D Spherical  " << std::endl;
   std::cout << "--------------" << std::endl;
-  runTests<GridTraits,Dune::RandomField::SphericalCovariance,  INVMAT,INVROOT>(config);
+  runTests<GridTraits,INVMAT,INVROOT>(config,"spherical");
 }
 
 /**
@@ -181,15 +182,15 @@ void test3d()
   std::cout << "--------------" << std::endl;
   std::cout << "3D Exponential" << std::endl;
   std::cout << "--------------" << std::endl;
-  runTests<GridTraits,Dune::RandomField::ExponentialCovariance,INVMAT,INVROOT>(config);
+  runTests<GridTraits,INVMAT,INVROOT>(config,"exponential");
   std::cout << "--------------" << std::endl;
   std::cout << "3D Gaussian   " << std::endl;
   std::cout << "--------------" << std::endl;
-  runTests<GridTraits,Dune::RandomField::GaussianCovariance,   INVMAT,INVROOT>(config);
+  runTests<GridTraits,INVMAT,INVROOT>(config,"gaussian");
   std::cout << "--------------" << std::endl;
   std::cout << "3D Spherical  " << std::endl;
   std::cout << "--------------" << std::endl;
-  runTests<GridTraits,Dune::RandomField::SphericalCovariance,  INVMAT,INVROOT>(config);
+  runTests<GridTraits,INVMAT,INVROOT>(config,"spherical");
 }
 
 int main(int argc, char** argv)

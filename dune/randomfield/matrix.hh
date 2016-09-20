@@ -9,6 +9,89 @@
 namespace Dune {
   namespace RandomField {
 
+    /**
+     * @brief Spherical covariance function
+     */
+    class SphericalCovariance
+    {
+      public:
+
+        template<typename RF, long unsigned int dim>
+          RF operator()(const RF variance, const std::array<RF,dim>& x, const std::vector<RF>& lambda) const
+          {
+            RF sum = 0.;
+            for(unsigned int i = 0; i < dim; i++)
+            {
+              sum += (x[i] * x[i]) / (lambda[i] * lambda[i]);
+            }
+            RF h_eff = std::sqrt(sum);
+            if (h_eff > 1.)
+              return 0.;
+            else
+              return variance * (1. - 1.5 * h_eff + 0.5 * std::pow(h_eff, 3));
+          }
+    };
+
+    /**
+     * @brief Exponential covariance function
+     */
+    class ExponentialCovariance
+    {
+      public:
+
+        template<typename RF, long unsigned int dim>
+          RF operator()(const RF variance, const std::array<RF,dim>& x, const std::vector<RF>& lambda) const
+          {
+            RF sum = 0.;
+            for(unsigned int i = 0; i < dim; i++)
+            {
+              sum += (x[i] * x[i]) / (lambda[i] * lambda[i]);
+            }
+            RF h_eff = std::sqrt(sum);
+            return variance * std::exp(-h_eff);
+          }
+    };
+
+    /**
+     * @brief Gaussian covariance function
+     */
+    class GaussianCovariance
+    {
+      public:
+
+        template<typename RF, long unsigned int dim>
+          RF operator()(const RF variance, const std::array<RF,dim>& x, const std::vector<RF>& lambda) const
+          {
+            RF sum = 0.;
+            for(unsigned int i = 0; i < dim; i++)
+            {
+              sum += (x[i] * x[i]) / (lambda[i] * lambda[i]);
+            }
+            RF h_eff = std::sqrt(sum);
+            return variance * std::exp(-h_eff * h_eff);
+          }
+    };
+
+    /**
+     * @brief Separable exponential covariance function
+     */
+    class SeparableExponentialCovariance
+    {
+      public:
+
+        template<typename RF, long unsigned int dim>
+          RF operator()(const RF variance, const std::array<RF,dim>& x, const std::vector<RF>& lambda) const
+          {
+            RF sum = 0.;
+            for(unsigned int i = 0; i < dim; i++)
+            {
+              sum += std::abs(x[i] / lambda[i]);
+            }
+            RF h_eff = sum;
+            return variance * std::exp(-h_eff);
+          }
+    };
+
     template<typename T>
       class RandomFieldMatrix
       {
@@ -23,13 +106,13 @@ namespace Dune {
           enum {dim = Traits::dimDomain};
 
           const Dune::shared_ptr<Traits> traits;
-          const typename Traits::Covariance covariance;
 
           int rank, commSize;
           unsigned int              level;
           std::array<RF,dim>        meshsize;
           RF                        variance;
           std::vector<RF>           corrLength;
+          std::string               covariance;
           unsigned int              cgIterations;
 
           ptrdiff_t allocLocal, localN0, local0Start;
@@ -72,6 +155,7 @@ namespace Dune {
             meshsize                = (*traits).meshsize;
             variance                = (*traits).variance;
             corrLength              = (*traits).corrLength;
+            covariance              = (*traits).covariance;
             cgIterations            = (*traits).cgIterations;
             allocLocal              = (*traits).allocLocal;
             localN0                 = (*traits).localN0;
@@ -224,19 +308,16 @@ namespace Dune {
               fftw_free(fftTransformedMatrix);
             fftTransformedMatrix = (fftw_complex*) fftw_malloc( allocLocal * sizeof(fftw_complex) );
 
-            std::array<RF,dim>           coord;
-            std::array<unsigned int,dim> indices;
-
-            for (unsigned int index = 0; index < localExtendedDomainSize; index++)
-            {
-              (*traits).indexToIndices(index,indices,localExtendedCells);
-
-              for (unsigned int i = 0; i < dim; i++)
-                coord[i]  = std::min(indices[i] + localExtendedOffset[i], extendedCells[i] - indices[i] - localExtendedOffset[i]) * meshsize[i];
-
-              fftTransformedMatrix[index][0] = covariance(variance, coord, corrLength);
-              fftTransformedMatrix[index][1] = 0.;
-            }
+            if (covariance == "exponential")
+              fillCovarianceMatrix<ExponentialCovariance>();
+            else if (covariance == "gaussian")
+              fillCovarianceMatrix<GaussianCovariance>();
+            else if (covariance == "spherical")
+              fillCovarianceMatrix<SphericalCovariance>();
+            else if (covariance == "separableExponential")
+              fillCovarianceMatrix<SeparableExponentialCovariance>();
+            else
+              DUNE_THROW(Dune::Exception,"covariance structure " + covariance + " not known");
 
             forwardTransform(fftTransformedMatrix);
 
@@ -264,6 +345,26 @@ namespace Dune {
 
             if (rank == 0) std::cout << small << " small, " << smallNegative << " small negative and " << negative << " large negative eigenvalues in covariance matrix" << std::endl;
           }
+
+          template<typename Covariance>
+            void fillCovarianceMatrix() const
+            {
+              const Covariance             covariance;
+              std::array<RF,dim>           coord;
+              std::array<unsigned int,dim> indices;
+
+              for (unsigned int index = 0; index < localExtendedDomainSize; index++)
+              {
+                (*traits).indexToIndices(index,indices,localExtendedCells);
+
+                for (unsigned int i = 0; i < dim; i++)
+                  coord[i]  = std::min(indices[i] + localExtendedOffset[i], extendedCells[i] - indices[i] - localExtendedOffset[i]) * meshsize[i];
+
+                fftTransformedMatrix[index][0] = covariance(variance, coord, corrLength);
+                fftTransformedMatrix[index][1] = 0.;
+              }
+
+            }
 
           /**
            * @brief Perform a forward Fourier tranform of a vector
