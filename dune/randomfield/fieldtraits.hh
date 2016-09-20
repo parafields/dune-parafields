@@ -169,9 +169,6 @@ namespace Dune {
             intCells[i] = cells[i];
           loadBalance.loadbalance(intCells,commSize,procPerDim);
 
-          if (cells[dim-1] % commSize != 0)
-            DUNE_THROW(Dune::Exception,"number of cells in first dimension has to be multiple of numProc");
-
           if (corrLength.size() == 1)
           {
             if (rank == 0) std::cout << "homogeneous correlation length detected, extending" << std::endl;
@@ -193,6 +190,12 @@ namespace Dune {
          */
         void update()
         {
+          // ensures that FFTW can divide data equally between processes
+          if (cells[dim-1] % commSize != 0)
+            DUNE_THROW(Dune::Exception,"number of cells in first dimension has to be multiple of numProc");
+          if (dim == 1 && cells[0] % (commSize*commSize) != 0)
+            DUNE_THROW(Dune::Exception,"in 1D, number of cells has to be multiple of numProc^2");
+
           /// @todo determine factor automatically
           embeddingFactor = 4;
 
@@ -273,11 +276,21 @@ namespace Dune {
               ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],(ptrdiff_t)extendedCells[1],(ptrdiff_t)extendedCells[2]};
               allocLocal = fftw_mpi_local_size_3d(n[2] , n[1], n[0], comm, &localN0, &local0Start);
             }
-            else
+            else if (dim == 2)
             {
               ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],(ptrdiff_t)extendedCells[1]};
               allocLocal = fftw_mpi_local_size_2d(n[1], n[0], comm, &localN0, &local0Start);
             }
+            else if (dim == 1)
+            {
+              ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0]};
+              ptrdiff_t localN02, local0Start2;
+              allocLocal = fftw_mpi_local_size_1d(n[0], comm, FFTW_FORWARD, FFTW_ESTIMATE, &localN0, &local0Start, &localN02, &local0Start2);
+              if (localN0 != localN02 || local0Start != local0Start2)
+                DUNE_THROW(Dune::Exception,"1d size / offset results don't match");
+            }
+            else
+              DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
           }
 
         /**
@@ -289,10 +302,16 @@ namespace Dune {
           {
             return indices[0] + bound[0] * (indices[1] + bound[1]*indices[2]);
           }
-          else
+          else if (dim == 2)
           {
             return indices[1] * bound[0] + indices[0];
           }
+          else if (dim == 1)
+          {
+            return indices[0];
+          }
+          else
+            DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
         }
 
         /**
@@ -306,11 +325,17 @@ namespace Dune {
             indices[1] = (index / bound[0]) % bound[1];
             indices[2] = (index / bound[0]) / bound[1];
           }
-          else
+          else if (dim == 2)
           {
             indices[0] = index % bound[0];
             indices[1] = index / bound[0];
           }
+          else if (dim == 1)
+          {
+            indices[0] = index;
+          }
+          else
+            DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
         }
 
         /**

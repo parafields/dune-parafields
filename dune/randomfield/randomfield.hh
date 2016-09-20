@@ -251,11 +251,18 @@ namespace Dune {
                 stochasticPart *= 1./8.;
                 *invMatPart    *= 1./8.;
               }
-              else
+              else if ((*traits).dim == 2)
               {
                 stochasticPart *= 1./4.;
                 *invMatPart    *= 1./4.;
               }
+              else if ((*traits).dim == 1)
+              {
+                stochasticPart *= 1./2.;
+                *invMatPart    *= 1./2.;
+              }
+              else
+                DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
 
               if (storeInvRoot)
               {
@@ -263,8 +270,12 @@ namespace Dune {
 
                 if ((*traits).dim == 3)
                   *invRootPart *= 1./8.;
-                else
+                else if ((*traits).dim == 2)
                   *invRootPart *= 1./4.;
+                else if ((*traits).dim == 1)
+                  *invRootPart *= 1./2.;
+                else
+                  DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
 
                 invRootValid = true;
               }
@@ -280,11 +291,18 @@ namespace Dune {
                 stochasticPart *= 1./8.;
                 *invRootPart   *= 1./8.;
               }
-              else
+              else if ((*traits).dim == 2)
               {
                 stochasticPart *= 1./4.;
                 *invRootPart   *= 1./4.;
               }
+              else if ((*traits).dim == 1)
+              {
+                stochasticPart *= 1./2.;
+                *invRootPart   *= 1./2.;
+              }
+              else
+                DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
 
               if (storeInvMat)
               {

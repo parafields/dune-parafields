@@ -116,11 +116,17 @@ namespace Dune {
               localEvalOffset[1] = (rank%(procPerDim[0]*procPerDim[1]))/procPerDim[0] * localEvalCells[1];
               localEvalOffset[2] =  rank/(procPerDim[0]*procPerDim[1])                * localEvalCells[2];
             }
-            else
+            else if (dim == 2)
             {
               localEvalOffset[0] = rank%procPerDim[0] * localEvalCells[0];
               localEvalOffset[1] = rank/procPerDim[0] * localEvalCells[1];
             }
+            else if (dim == 1)
+            {
+              localEvalOffset[0] = rank * localEvalCells[0];
+            }
+            else
+              DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
 
             dataVector.resize(localDomainSize);
             evalVector.resize(localDomainSize);
@@ -164,9 +170,11 @@ namespace Dune {
               file << "    </DataItem>"                                                                     << std::endl;
               file << "    <DataItem Dimensions=\"3\" NumberType=\"Float\" Precision=\"4\" Format=\"XML\">" << std::endl;
               file << "     ";
-              file << extensions[0]/cells[0] << " "; // additional entry to visualize 2D files
-              file << extensions[dim-2]/cells[dim-2] << " ";
-              file << extensions[dim-1]/cells[dim-1] << std::endl;
+              for (unsigned int i = 0; i < 3 - dim; i++)
+                file << extensions[0]/cells[0] << " "; // additional entries to visualize 1D and 2D files
+              for (unsigned int i = 0; i < dim; i++)
+                file << extensions[i]/cells[i] << " ";
+              file << std::endl;
               file << "    </DataItem>"                                                                     << std::endl;
               file << "   </Geometry>"                                                                      << std::endl;
               file << "   <Attribute Name=\"";
@@ -312,7 +320,7 @@ namespace Dune {
                 output[0] = evalVector[index];
               }
             }
-            else
+            else if (dim == 2)
             {
               if (countIndices[0] == 2*dim && countIndices[1] != 2*dim)
               {
@@ -336,6 +344,28 @@ namespace Dune {
                 output[0] = evalVector[index];
               }
             }
+            else if (dim == 1)
+            {
+              if (countIndices[0] != 2*dim)
+              {
+                output[0] = overlap[countIndices[0]][0];
+              }
+              else
+              {
+                for (unsigned int i = 0; i < dim; i++)
+                {
+                  if (evalIndices[i] > localEvalCells[i])
+                    evalIndices[i]++;
+                  else if (evalIndices[i] == localEvalCells[i])
+                    evalIndices[i]--;
+                }
+
+                const unsigned int index = (*traits).indicesToIndex(evalIndices,localEvalCells);
+                output[0] = evalVector[index];
+              }
+            }
+            else
+              DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
           }
 
           /**
@@ -398,7 +428,7 @@ namespace Dune {
                       dataVector[newIndex + localCells[1]*localCells[0] + localCells[0] + 1] = oldValue;
                     }
               }
-              else
+              else if (dim == 2)
               {
                 for (oldIndices[1] = 0; oldIndices[1] < oldLocalCells[1]; oldIndices[1]++)
                   for (oldIndices[0] = 0; oldIndices[0] < oldLocalCells[0]; oldIndices[0]++)
@@ -416,6 +446,12 @@ namespace Dune {
                     dataVector[newIndex + localCells[0] + 1] = oldValue;
                   }
               }
+              else if (dim == 1)
+              {
+                DUNE_THROW(Dune::Exception,"not implemented");
+              }
+              else
+                DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
 
               evalValid = false;
 
@@ -465,6 +501,14 @@ namespace Dune {
               return;
             }
 
+            if (dim == 1)
+            {
+              evalVector = dataVector;
+              exchangeOverlap();
+              evalValid  = true;
+              return;
+            }
+
             MPI_Request request;
             MPI_Status status;
 
@@ -494,23 +538,28 @@ namespace Dune {
                 }
               }
             }
-            else
+            else if (dim == 2)
             {
               for (unsigned int i = 0; i < numSlices; i++)
               {
                 unsigned int iNew = i/procPerDim[0] + (i%procPerDim[0])*localCells[dim-1];
+
                 for (unsigned int j = 0; j < sliceSize; j++)
                 {
                   resorted[iNew * sliceSize + j] = dataVector[i * sliceSize + j];
                 }
               }
             }
+            else
+              DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
 
             unsigned int numComms;
             if (dim == 3)
               numComms = procPerDim[0]*procPerDim[1];
-            else
+            else if (dim == 2)
               numComms = procPerDim[0];
+            else
+              DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
 
             for (unsigned int i = 0; i < numComms; i++)
             {
@@ -540,7 +589,7 @@ namespace Dune {
             Dune::Timer timer(false);
             timer.start();
 
-            if (commSize == 1)
+            if (commSize == 1 || dim == 1)
             {
               dataVector = evalVector;
               return;
@@ -554,8 +603,10 @@ namespace Dune {
             unsigned int numComms;
             if (dim == 3)
               numComms = procPerDim[0]*procPerDim[1];
-            else
+            else if (dim == 2)
               numComms = procPerDim[0];
+            else
+              DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
 
             for (unsigned int i = 0; i < numComms; i++)
             {
@@ -593,7 +644,7 @@ namespace Dune {
                 }
               }
             }
-            else
+            else if (dim == 2)
             {
               for (unsigned int i = 0; i < numSlices; i++)
               {
@@ -604,6 +655,8 @@ namespace Dune {
                 }
               }
             }
+            else
+              DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
 
             MPI_Barrier((*traits).comm);
 
@@ -648,7 +701,7 @@ namespace Dune {
               neighbor[5] = (rank+(procPerDim[0]*procPerDim[1])           )%commSize;
 
             }
-            else
+            else if (dim == 2)
             {
               for (unsigned int i = 0; i < dim; i++)
               {
@@ -671,6 +724,13 @@ namespace Dune {
               neighbor[3] = (rank+procPerDim[0]           )%commSize;
 
             }
+            else if (dim == 1)
+            {
+              neighbor[0] = (rank+(commSize-1))%commSize;
+              neighbor[1] = (rank+1           )%commSize;
+            }
+            else
+              DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
 
             MPI_Request request;
             MPI_Status status;
