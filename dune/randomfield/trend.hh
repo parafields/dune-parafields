@@ -118,7 +118,7 @@ namespace Dune {
               }
             }
 
-            MPI_Allreduce(&(myNewShiftVector[0]),&(newShiftVector[0]),shiftVector.size(),MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+            MPI_Allreduce(&(myNewShiftVector[0]),&(newShiftVector[0]),shiftVector.size(),MPI_DOUBLE,MPI_SUM,(*traits).comm);
             shiftVector = newShiftVector;
           }
 
@@ -143,7 +143,7 @@ namespace Dune {
               }
             }
 
-            MPI_Allreduce(&(myNewShiftVector[0]),&(newShiftVector[0]),shiftVector.size(),MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+            MPI_Allreduce(&(myNewShiftVector[0]),&(newShiftVector[0]),shiftVector.size(),MPI_DOUBLE,MPI_SUM,(*traits).comm);
             shiftVector = newShiftVector;
           }
 

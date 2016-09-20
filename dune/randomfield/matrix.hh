@@ -443,13 +443,13 @@ namespace Dune {
               if (dim == 3)
               {
                 ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],(ptrdiff_t)extendedCells[1],(ptrdiff_t)extendedCells[2]};
-                plan_forward = fftw_mpi_plan_dft_3d(n[2], n[1], n[0], vector, vector, MPI_COMM_WORLD, FFTW_FORWARD, FFTW_ESTIMATE);
+                plan_forward = fftw_mpi_plan_dft_3d(n[2], n[1], n[0], vector, vector, (*traits).comm, FFTW_FORWARD, FFTW_ESTIMATE);
 
               }
               else
               {
                 ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],(ptrdiff_t)extendedCells[1]};
-                plan_forward = fftw_mpi_plan_dft_2d(n[1], n[0], vector, vector, MPI_COMM_WORLD, FFTW_FORWARD, FFTW_ESTIMATE);
+                plan_forward = fftw_mpi_plan_dft_2d(n[1], n[0], vector, vector, (*traits).comm, FFTW_FORWARD, FFTW_ESTIMATE);
 
               }
 
@@ -468,12 +468,12 @@ namespace Dune {
               if (dim == 3)
               {
                 ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],(ptrdiff_t)extendedCells[1],(ptrdiff_t)extendedCells[2]};
-                plan_backward = fftw_mpi_plan_dft_3d(n[2], n[1], n[0], vector, vector, MPI_COMM_WORLD, FFTW_BACKWARD, FFTW_ESTIMATE);
+                plan_backward = fftw_mpi_plan_dft_3d(n[2], n[1], n[0], vector, vector, (*traits).comm, FFTW_BACKWARD, FFTW_ESTIMATE);
               }
               else
               {
                 ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],(ptrdiff_t)extendedCells[1]};
-                plan_backward = fftw_mpi_plan_dft_2d(n[1], n[0], vector, vector, MPI_COMM_WORLD, FFTW_BACKWARD, FFTW_ESTIMATE);
+                plan_backward = fftw_mpi_plan_dft_2d(n[1], n[0], vector, vector, (*traits).comm, FFTW_BACKWARD, FFTW_ESTIMATE);
               }
 
               fftw_execute(plan_backward);
@@ -524,13 +524,13 @@ namespace Dune {
             myScalarProd = 0.;
             for (unsigned int i = 0; i < residual.size(); i++)
               myScalarProd += precResidual[i] * residual[i];
-            MPI_Allreduce(&myScalarProd,&scalarProd,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+            MPI_Allreduce(&myScalarProd,&scalarProd,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
 
             scalarProd2 = 0.;
             myScalarProd = 0.;
             for (unsigned int i = 0; i < residual.size(); i++)
               myScalarProd += residual[i] * residual[i];
-            MPI_Allreduce(&myScalarProd,&scalarProd2,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+            MPI_Allreduce(&myScalarProd,&scalarProd2,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
 
             if (std::sqrt(std::abs(scalarProd2)) < 1e-6)
               converged = true;
@@ -538,7 +538,7 @@ namespace Dune {
             RF firstValue = 0., myFirstVal = 0.;
             for (unsigned int i = 0; i < iter.size(); i++)
               myFirstVal += iter[i]*(0.5*matrixTimesIter[i] - solution[i]);
-            MPI_Allreduce(&myFirstVal,&firstValue,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+            MPI_Allreduce(&myFirstVal,&firstValue,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
 
             unsigned int count = 0;
             while(!converged && count < cgIterations)
@@ -549,13 +549,13 @@ namespace Dune {
               for (unsigned int i = 0; i < direction.size(); i++)
                 myAlphaDenominator += direction[i] * matrixTimesDirection[i];
 
-              MPI_Allreduce(&myAlphaDenominator,&alphaDenominator,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+              MPI_Allreduce(&myAlphaDenominator,&alphaDenominator,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
               alpha = scalarProd / alphaDenominator;
 
               RF oldValue = 0., myOldVal = 0.;
               for (unsigned int i = 0; i < iter.size(); i++)
                 myOldVal += iter[i]*(0.5*matrixTimesIter[i] - solution[i]);
-              MPI_Allreduce(&myOldVal,&oldValue,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+              MPI_Allreduce(&myOldVal,&oldValue,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
 
               for (unsigned int i = 0; i < iter.size(); i++)
               {
@@ -567,7 +567,7 @@ namespace Dune {
               RF value = 0., myVal = 0.;
               for (unsigned int i = 0; i < iter.size(); i++)
                 myVal += iter[i]*(0.5*matrixTimesIter[i] - solution[i]);
-              MPI_Allreduce(&myVal,&value,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+              MPI_Allreduce(&myVal,&value,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
 
               for (unsigned int i = 0; i < residual.size(); i++)
                 residual[i] = solution[i] - matrixTimesIter[i];
@@ -583,7 +583,7 @@ namespace Dune {
               for (unsigned int i = 0; i < residual.size(); i++)
                 myScalarProd += precResidual[i] * residual[i];
 
-              MPI_Allreduce(&myScalarProd,&scalarProd,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+              MPI_Allreduce(&myScalarProd,&scalarProd,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
               beta *= scalarProd;
 
               for (unsigned int i = 0; i < direction.size(); i++)
@@ -631,7 +631,7 @@ namespace Dune {
               const int embeddingFactor = (*traits).embeddingFactor;
               MPI_Request request;
 
-              MPI_Isend(&(field[0]), localDomainSize, MPI_DOUBLE, rank/embeddingFactor, 0, MPI_COMM_WORLD, &request);
+              MPI_Isend(&(field[0]), localDomainSize, MPI_DOUBLE, rank/embeddingFactor, 0, (*traits).comm, &request);
 
               if (rank*embeddingFactor < commSize)
               {
@@ -642,7 +642,7 @@ namespace Dune {
                 unsigned int receiveSize = std::min(embeddingFactor, commSize - rank*embeddingFactor);
                 for (unsigned int i = 0; i < receiveSize; i++)
                 {
-                  MPI_Recv(&(localCopy[0]), localDomainSize, MPI_DOUBLE, rank*embeddingFactor + i,   0, MPI_COMM_WORLD, &status);
+                  MPI_Recv(&(localCopy[0]), localDomainSize, MPI_DOUBLE, rank*embeddingFactor + i,   0, (*traits).comm, &status);
 
                   for (unsigned int index = 0; index < localDomainSize; index++)
                   {
@@ -655,7 +655,7 @@ namespace Dune {
                 }
               }
 
-              MPI_Barrier(MPI_COMM_WORLD);
+              MPI_Barrier((*traits).comm);
             }
           }
 
@@ -706,17 +706,17 @@ namespace Dune {
                     localCopy[i][index] = extendedField[extIndex + offset][0];
                   }
 
-                  MPI_Isend(&(localCopy[i][0]), localDomainSize, MPI_DOUBLE, rank*embeddingFactor + i, 0, MPI_COMM_WORLD, &(request[i]));
+                  MPI_Isend(&(localCopy[i][0]), localDomainSize, MPI_DOUBLE, rank*embeddingFactor + i, 0, (*traits).comm, &(request[i]));
                 }
 
-                MPI_Recv(&(field[0]), localDomainSize, MPI_DOUBLE, rank/embeddingFactor, 0, MPI_COMM_WORLD, &status);
+                MPI_Recv(&(field[0]), localDomainSize, MPI_DOUBLE, rank/embeddingFactor, 0, (*traits).comm, &status);
               }
               else
               {
-                MPI_Recv(&(field[0]), localDomainSize, MPI_DOUBLE, rank/embeddingFactor, 0, MPI_COMM_WORLD, &status);
+                MPI_Recv(&(field[0]), localDomainSize, MPI_DOUBLE, rank/embeddingFactor, 0, (*traits).comm, &status);
               }
 
-              MPI_Barrier(MPI_COMM_WORLD);
+              MPI_Barrier((*traits).comm);
             }
           }
 

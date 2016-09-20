@@ -62,8 +62,8 @@ namespace Dune {
            * @brief Constructor reading from file or creating homogeneous field
            */
           template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim> >
-            RandomField(const Dune::ParameterTree& config_, const std::string fileName = "", const LoadBalance loadBalance = LoadBalance())
-            : config(config_), traits(new Traits(config,loadBalance)), matrix(new RandomFieldMatrix<Traits>(traits)),
+            RandomField(const Dune::ParameterTree& config_, const std::string fileName = "", const LoadBalance loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
+            : config(config_), traits(new Traits(config,loadBalance,comm)), matrix(new RandomFieldMatrix<Traits>(traits)),
             trendPart(config,traits,fileName), stochasticPart(traits,fileName),
             invMatValid(false), invRootValid(false)
             {
@@ -137,8 +137,11 @@ namespace Dune {
           /**
            * @brief Generate a field with the desired correlation structure
            */
-          void generate()
+          void generate(bool allowNonWorldComm = false)
           {
+            if (((*traits).comm != MPI_COMM_WORLD) && !allowNonWorldComm)
+              DUNE_THROW(Dune::Exception,"generation of inconsistent fields prevented, set allowNonWorldComm = true if you really want this");
+
             (*matrix).generateField(stochasticPart);
             trendPart.generate();
           }
@@ -146,8 +149,11 @@ namespace Dune {
           /**
            * @brief Generate a field without correlation structure (i.e. noise)
            */
-          void generateUncorrelated()
+          void generateUncorrelated(bool allowNonWorldComm = false)
           {
+            if (((*traits).comm != MPI_COMM_WORLD) && !allowNonWorldComm)
+              DUNE_THROW(Dune::Exception,"generation of inconsistent fields prevented, set allowNonWorldComm = true if you really want this");
+
             (*matrix).generateUncorrelatedField(stochasticPart);
             trendPart.generateUncorrelated();
           }
@@ -549,7 +555,7 @@ namespace Dune {
            * @brief Constructor reading random fields from file
            */
           template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim> >
-            RandomFieldList(const Dune::ParameterTree& config, const std::string& fileName = "", const LoadBalance loadBalance = LoadBalance())
+            RandomFieldList(const Dune::ParameterTree& config, const std::string& fileName = "", const LoadBalance loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
             {
               std::stringstream typeStream(config.get<std::string>("randomField.types"));
               std::string type;
@@ -572,7 +578,7 @@ namespace Dune {
                 if (subFileName != "")
                   subFileName += "." + type;
 
-                list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >(type, Dune::shared_ptr<SubRandomField>(new SubRandomField(subConfig,subFileName,loadBalance))));
+                list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >(type, Dune::shared_ptr<SubRandomField>(new SubRandomField(subConfig,subFileName,loadBalance,comm))));
               }
 
               if (fieldNames.empty())
@@ -637,19 +643,19 @@ namespace Dune {
           /**
            * @brief Generate fields with the desired correlation structure
            */
-          void generate()
+          void generate(bool allowNonWorldComm = false)
           {
             for(Iterator it = fieldNames.begin(); it != fieldNames.end(); ++it)
-              list.find(*it)->second->generate();
+              list.find(*it)->second->generate(allowNonWorldComm);
           }
 
           /**
            * @brief Generate fields without correlation structure (i.e. noise)
            */
-          void generateUncorrelated()
+          void generateUncorrelated(bool allowNonWorldComm = false)
           {
             for(Iterator it = activeTypes.begin(); it != activeTypes.end(); ++it)
-              list.find(*it)->second->generateUncorrelated();
+              list.find(*it)->second->generateUncorrelated(allowNonWorldComm);
           }
 
           /**

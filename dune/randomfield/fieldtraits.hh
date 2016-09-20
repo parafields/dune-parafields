@@ -114,6 +114,7 @@ namespace Dune {
         std::array<int,dim> procPerDim;
 
         const Dune::ParameterTree& config;
+        const MPI_Comm             comm;
 
         const std::array<RF,dim> extensions;
         unsigned int             level;
@@ -150,8 +151,8 @@ namespace Dune {
         public:
 
         template<typename LoadBalance>
-          RandomFieldTraits(const Dune::ParameterTree& config_, const LoadBalance& loadBalance)
-          : config(config_),
+          RandomFieldTraits(const Dune::ParameterTree& config_, const LoadBalance& loadBalance, const MPI_Comm comm_)
+          : config(config_), comm(comm_),
           extensions    (config.get<std::array<RF,dim> >          ("grid.extensions")),
           variance      (config.get<RF>                           ("stochastic.variance")),
           corrLength    (config.get<std::vector<RF> >             ("stochastic.corrLength")),
@@ -159,8 +160,8 @@ namespace Dune {
           cgIterations  (config.get<unsigned int>                 ("randomField.cgIterations",100)),
           cells         (config.get<std::array<unsigned int,dim> >("grid.cells"))
         {
-          MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-          MPI_Comm_size(MPI_COMM_WORLD,&commSize);
+          MPI_Comm_rank(comm,&rank);
+          MPI_Comm_size(comm,&commSize);
 
           // dune-grid load balancers want int as data type
           std::array<int,dim> intCells;
@@ -270,12 +271,12 @@ namespace Dune {
             if (dim == 3)
             {
               ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],(ptrdiff_t)extendedCells[1],(ptrdiff_t)extendedCells[2]};
-              allocLocal = fftw_mpi_local_size_3d(n[2] , n[1], n[0], MPI_COMM_WORLD, &localN0, &local0Start);
+              allocLocal = fftw_mpi_local_size_3d(n[2] , n[1], n[0], comm, &localN0, &local0Start);
             }
             else
             {
               ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],(ptrdiff_t)extendedCells[1]};
-              allocLocal = fftw_mpi_local_size_2d(n[1], n[0], MPI_COMM_WORLD, &localN0, &local0Start);
+              allocLocal = fftw_mpi_local_size_2d(n[1], n[0], comm, &localN0, &local0Start);
             }
           }
 

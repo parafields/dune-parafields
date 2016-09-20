@@ -74,7 +74,7 @@ namespace Dune {
               readTimer.start();
 
               if (rank == 0) std::cout << "loading random field from file " << fileName << std::endl;
-              readParallelFromHDF5<RF,dim>(dataVector, localCells, localOffset, MPI_COMM_WORLD, "/stochastic", fileName+".stoch.h5");
+              readParallelFromHDF5<RF,dim>(dataVector, localCells, localOffset, (*traits).comm, "/stochastic", fileName+".stoch.h5");
 
               readTimer.stop();
               if (rank == 0) std::cout << "Time for loading random field from file " << fileName << ": " << readTimer.elapsed() << std::endl;
@@ -143,7 +143,7 @@ namespace Dune {
             writeTimer.start();
 
             if (rank == 0) std::cout << "writing random field to file " << fileName << std::endl;
-            writeParallelToHDF5<RF,dim>((*traits).cells, dataVector, localCells, localOffset, MPI_COMM_WORLD, "/stochastic", fileName+".stoch.h5");
+            writeParallelToHDF5<RF,dim>((*traits).cells, dataVector, localCells, localOffset, (*traits).comm, "/stochastic", fileName+".stoch.h5");
 
             if (rank == 0)
             {
@@ -260,7 +260,7 @@ namespace Dune {
               mySum += dataVector[i] * other.dataVector[i];
             }
 
-            MPI_Allreduce(&mySum,&sum,1,MPI_DOUBLE,MPI_SUM,MPI_COMM_WORLD);
+            MPI_Allreduce(&mySum,&sum,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
             return sum;
           }
 
@@ -514,15 +514,15 @@ namespace Dune {
 
             for (unsigned int i = 0; i < numComms; i++)
             {
-              MPI_Isend(&(resorted  [i*localDomainSize/numComms]), localDomainSize/numComms, MPI_DOUBLE, (rank/numComms)*numComms + i, 0, MPI_COMM_WORLD, &request);
+              MPI_Isend(&(resorted  [i*localDomainSize/numComms]), localDomainSize/numComms, MPI_DOUBLE, (rank/numComms)*numComms + i, 0, (*traits).comm, &request);
             }
 
             for (unsigned int i = 0; i < numComms; i++)
             {
-              MPI_Recv (&(evalVector[i*localDomainSize/numComms]), localDomainSize/numComms, MPI_DOUBLE, (rank/numComms)*numComms + i, 0, MPI_COMM_WORLD, &status);
+              MPI_Recv (&(evalVector[i*localDomainSize/numComms]), localDomainSize/numComms, MPI_DOUBLE, (rank/numComms)*numComms + i, 0, (*traits).comm, &status);
             }
 
-            MPI_Barrier(MPI_COMM_WORLD);
+            MPI_Barrier((*traits).comm);
 
             exchangeOverlap();
 
@@ -559,12 +559,12 @@ namespace Dune {
 
             for (unsigned int i = 0; i < numComms; i++)
             {
-              MPI_Isend(&(evalVector[i*localDomainSize/numComms]), localDomainSize/numComms, MPI_DOUBLE, (rank/numComms)*numComms + i, 0, MPI_COMM_WORLD, &request);
+              MPI_Isend(&(evalVector[i*localDomainSize/numComms]), localDomainSize/numComms, MPI_DOUBLE, (rank/numComms)*numComms + i, 0, (*traits).comm, &request);
             }
 
             for (unsigned int i = 0; i < numComms; i++)
             {
-              MPI_Recv (&(resorted  [i*localDomainSize/numComms]), localDomainSize/numComms, MPI_DOUBLE, (rank/numComms)*numComms + i, 0, MPI_COMM_WORLD, &status);
+              MPI_Recv (&(resorted  [i*localDomainSize/numComms]), localDomainSize/numComms, MPI_DOUBLE, (rank/numComms)*numComms + i, 0, (*traits).comm, &status);
             }
 
             unsigned int numSlices = procPerDim[0]*localDomainSize/localCells[0];
@@ -605,7 +605,7 @@ namespace Dune {
               }
             }
 
-            MPI_Barrier(MPI_COMM_WORLD);
+            MPI_Barrier((*traits).comm);
 
             timer.stop();
             if (rank == 0) std::cout << "Time for StochasticPart evalToData " << timer.lastElapsed() << std::endl;
@@ -677,14 +677,14 @@ namespace Dune {
 
             for (unsigned int i = 0; i < dim; i++)
             {
-              MPI_Isend(&(extract[2*i  ][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE, neighbor[2*i  ], 0, MPI_COMM_WORLD, &request);
-              MPI_Recv (&(overlap[2*i+1][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE, neighbor[2*i+1], 0, MPI_COMM_WORLD, &status);
+              MPI_Isend(&(extract[2*i  ][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE, neighbor[2*i  ], 0, (*traits).comm, &request);
+              MPI_Recv (&(overlap[2*i+1][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE, neighbor[2*i+1], 0, (*traits).comm, &status);
 
-              MPI_Isend(&(extract[2*i+1][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE, neighbor[2*i+1], 0, MPI_COMM_WORLD, &request);
-              MPI_Recv (&(overlap[2*i  ][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE, neighbor[2*i  ], 0, MPI_COMM_WORLD, &status);
+              MPI_Isend(&(extract[2*i+1][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE, neighbor[2*i+1], 0, (*traits).comm, &request);
+              MPI_Recv (&(overlap[2*i  ][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE, neighbor[2*i  ], 0, (*traits).comm, &status);
             }
 
-            MPI_Barrier(MPI_COMM_WORLD);
+            MPI_Barrier((*traits).comm);
           }
 
       };
