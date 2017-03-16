@@ -189,7 +189,7 @@ namespace Dune {
         {
           // ensures that FFTW can divide data equally between processes
           if (cells[dim-1] % commSize != 0)
-            DUNE_THROW(Dune::Exception,"number of cells in first dimension has to be multiple of numProc");
+            DUNE_THROW(Dune::Exception,"number of cells in last dimension has to be multiple of numProc");
           if (dim == 1 && cells[0] % (commSize*commSize) != 0)
             DUNE_THROW(Dune::Exception,"in 1D, number of cells has to be multiple of numProc^2");
 
