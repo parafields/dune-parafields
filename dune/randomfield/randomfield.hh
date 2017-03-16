@@ -28,6 +28,7 @@
 #include<dune/randomfield/trend.hh>
 #include<dune/randomfield/stochastic.hh>
 #include<dune/randomfield/matrix.hh>
+#include<dune/randomfield/mutators.hh>
 
 namespace Dune {
   namespace RandomField {
@@ -70,6 +71,7 @@ namespace Dune {
 
           const ParamTreeHelper                             treeHelper;
           const Dune::ParameterTree                         config;
+          const ValueTransform<RF>                          valueTransform;
           Dune::shared_ptr<Traits>                          traits;
           Dune::shared_ptr<RandomFieldMatrix<Traits> >      matrix;
           TrendPart<Traits>                                 trendPart;
@@ -85,8 +87,8 @@ namespace Dune {
            * @brief Constructor reading from file or creating homogeneous field
            */
           template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim> >
-            RandomField(const Dune::ParameterTree& config_, const std::string fileName = "", const LoadBalance loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
-            : config(config_), traits(new Traits(config,loadBalance,comm)), matrix(new RandomFieldMatrix<Traits>(traits)),
+            RandomField(const Dune::ParameterTree& config_, const std::string& fileName = "", const LoadBalance& loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
+            : config(config_), valueTransform(config), traits(new Traits(config,loadBalance,comm)), matrix(new RandomFieldMatrix<Traits>(traits)),
             trendPart(config,traits,fileName), stochasticPart(traits,fileName),
             invMatValid(false), invRootValid(false)
             {
@@ -101,8 +103,8 @@ namespace Dune {
            * @brief Constructor reading field and config from file
            */
           template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim> >
-            RandomField(const std::string fileName, const LoadBalance loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
-            : treeHelper(fileName), config(treeHelper.get()), traits(new Traits(config,loadBalance,comm)), matrix(new RandomFieldMatrix<Traits>(traits)),
+            RandomField(const std::string& fileName, const LoadBalance& loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
+            : treeHelper(fileName), config(treeHelper.get()), valueTransform(config), traits(new Traits(config,loadBalance,comm)), matrix(new RandomFieldMatrix<Traits>(traits)),
             trendPart(config,traits,fileName), stochasticPart(traits,fileName),
             invMatValid(false), invRootValid(false)
             {
@@ -116,8 +118,8 @@ namespace Dune {
           /**
            * @brief Constructor copying traits and covariance matrix
            */
-          RandomField(const RandomField& other, const std::string fileName)
-            : config(other.config), traits(other.traits), matrix(other.matrix),
+          RandomField(const RandomField& other, const std::string& fileName)
+            : config(other.config), valueTransform(other.valueTransform), traits(other.traits), matrix(other.matrix),
             trendPart(config,traits,fileName), stochasticPart(traits,fileName),
             invMatValid(false), invRootValid(false)
         {
@@ -132,7 +134,7 @@ namespace Dune {
            * @brief Copy constructor
            */
           RandomField(const RandomField& other)
-            : config(other.config), traits(other.traits), matrix(other.matrix),
+            : config(other.config), valueTransform(other.valueTransform), traits(other.traits), matrix(other.matrix),
             trendPart(other.trendPart), stochasticPart(other.stochasticPart),
             invMatValid(other.invMatValid), invRootValid(other.invRootValid)
         {
@@ -149,6 +151,7 @@ namespace Dune {
           RandomField& operator=(const RandomField& other)
           {
             config         = other.config;
+            valueTransform = other.valueTransform;
             traits         = other.traits;
             matrix         = other.matrix;
             trendPart      = other.trendPart;
@@ -220,6 +223,7 @@ namespace Dune {
             trendPart     .evaluate(location,trend);
 
             output = stochastic + trend;
+            valueTransform.apply(output);
           }
 
           /**
