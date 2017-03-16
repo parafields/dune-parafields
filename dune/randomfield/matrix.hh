@@ -10,6 +10,115 @@ namespace Dune {
   namespace RandomField {
 
     /**
+     * @brief Geometry transformation that is only scaling
+     */
+    template<typename RF, unsigned int dim>
+      class ScaledIdentityMatrix
+      {
+        RF value;
+
+        public:
+
+        ScaledIdentityMatrix(const Dune::ParameterTree& config)
+          : value(config.get<RF>("stochastic.corrLength"))
+        {
+          value = 1./value;
+        }
+
+        void transform(const std::array<RF,dim>& x, std::array<RF,dim>& xTrans)
+        {
+          for (unsigned int i = 0; i < dim; i++)
+            xTrans[i] = value * x[i];
+        }
+      };
+
+    /**
+     * @brief Geometry transformation with different scaling per dimension
+     */
+    template<typename RF, unsigned int dim>
+      class DiagonalMatrix
+      {
+        std::array<RF,dim> diagonalValues;
+
+        public:
+
+        DiagonalMatrix(const Dune::ParameterTree& config)
+          : diagonalValues(config.get<std::array<RF,dim> >("stochastic.corrLength"))
+        {
+          for (unsigned int i = 0; i < dim; i++)
+            diagonalValues[i] = 1./diagonalValues[i];
+        }
+
+        void transform(const std::array<RF,dim>& x, std::array<RF,dim>& xTrans)
+        {
+          for (unsigned int i = 0; i < dim; i++)
+            xTrans[i] = diagonalValues[i] * x[i];
+        }
+      };
+
+    /**
+     * @brief General geometry transformation
+     */
+    template<typename RF, unsigned int dim>
+      class GeneralMatrix
+      {
+        std::array<RF,dim*dim> matrixValues;
+
+        public:
+
+        GeneralMatrix(const Dune::ParameterTree& config)
+          : matrixValues(config.get<std::array<RF,dim*dim> >("stochastic.corrLength"))
+        {
+          std::array<RF,dim*dim> copy(matrixValues);
+          if (dim == 3)
+          {
+            matrixValues[0] = copy[4]*copy[8] - copy[5]*copy[7];
+            matrixValues[1] = copy[2]*copy[7] - copy[1]*copy[8];
+            matrixValues[2] = copy[1]*copy[5] - copy[2]*copy[4];
+            matrixValues[3] = copy[5]*copy[6] - copy[3]*copy[8];
+            matrixValues[4] = copy[0]*copy[8] - copy[2]*copy[6];
+            matrixValues[5] = copy[2]*copy[3] - copy[0]*copy[5];
+            matrixValues[6] = copy[3]*copy[7] - copy[4]*copy[6];
+            matrixValues[7] = copy[1]*copy[6] - copy[0]*copy[7];
+            matrixValues[8] = copy[0]*copy[4] - copy[1]*copy[3];
+
+            const RF det = copy[0]*(copy[4]*copy[8] - copy[5]*copy[7])
+              - copy[1]*(copy[3]*copy[8] - copy[5]*copy[6])
+              + copy[2]*(copy[3]*copy[7] - copy[4]*copy[6]);
+            for (unsigned int i = 0; i < dim*dim; i++)
+              matrixValues[i] /= det;
+          }
+          else if (dim == 2)
+          {
+            matrixValues[0] =   copy[3];
+            matrixValues[1] = - copy[1];
+            matrixValues[2] = - copy[2];
+            matrixValues[3] =   copy[0];
+
+            const RF det = copy[0]*copy[3] - copy[1]*copy[2];
+            for (unsigned int i = 0; i < dim*dim; i++)
+              matrixValues[i] /= det;
+          }
+          else if (dim == 1)
+          {
+            matrixValues[0] = 1./matrixValues[0];
+          }
+          else
+            DUNE_THROW(Dune::Exception,"not implemented");
+        }
+
+        void transform(const std::array<RF,dim>& x, std::array<RF,dim>& xTrans)
+        {
+          for (unsigned int i = 0; i < dim; i++)
+          {
+            xTrans[i] = 0.;
+            for (unsigned int j = 0; j < dim; j++)
+              xTrans[i] += matrixValues[i*dim+j] * x[j];
+          }
+        }
+      };
+
+    /**
      * @brief Spherical covariance function
      */
     class SphericalCovariance
@@ -17,13 +126,11 @@ namespace Dune {
       public:
 
         template<typename RF, long unsigned int dim>
-          RF operator()(const RF variance, const std::array<RF,dim>& x, const std::vector<RF>& lambda) const
+          RF operator()(const RF variance, const std::array<RF,dim>& x) const
           {
             RF sum = 0.;
             for(unsigned int i = 0; i < dim; i++)
-            {
-              sum += (x[i] * x[i]) / (lambda[i] * lambda[i]);
-            }
+              sum += x[i] * x[i];
             RF h_eff = std::sqrt(sum);
 
             if (dim == 3)
@@ -60,14 +167,13 @@ namespace Dune {
       public:
 
         template<typename RF, long unsigned int dim>
-          RF operator()(const RF variance, const std::array<RF,dim>& x, const std::vector<RF>& lambda) const
+          RF operator()(const RF variance, const std::array<RF,dim>& x) const
           {
             RF sum = 0.;
             for(unsigned int i = 0; i < dim; i++)
-            {
-              sum += (x[i] * x[i]) / (lambda[i] * lambda[i]);
-            }
+              sum += x[i] * x[i];
             RF h_eff = std::sqrt(sum);
+
             return variance * std::exp(-h_eff);
           }
     };
@@ -80,14 +186,13 @@ namespace Dune {
       public:
 
         template<typename RF, long unsigned int dim>
-          RF operator()(const RF variance, const std::array<RF,dim>& x, const std::vector<RF>& lambda) const
+          RF operator()(const RF variance, const std::array<RF,dim>& x) const
           {
             RF sum = 0.;
             for(unsigned int i = 0; i < dim; i++)
-            {
-              sum += (x[i] * x[i]) / (lambda[i] * lambda[i]);
-            }
+              sum += x[i] * x[i];
             RF h_eff = std::sqrt(sum);
+
             return variance * std::exp(-h_eff * h_eff);
           }
     };
@@ -100,14 +205,13 @@ namespace Dune {
       public:
 
         template<typename RF, long unsigned int dim>
-          RF operator()(const RF variance, const std::array<RF,dim>& x, const std::vector<RF>& lambda) const
+          RF operator()(const RF variance, const std::array<RF,dim>& x) const
           {
             RF sum = 0.;
             for(unsigned int i = 0; i < dim; i++)
-            {
-              sum += std::abs(x[i] / lambda[i]);
-            }
+              sum += std::abs(x[i]);
             RF h_eff = sum;
+
             return variance * std::exp(-h_eff);
           }
     };
@@ -120,14 +224,13 @@ namespace Dune {
       public:
 
         template<typename RF, long unsigned int dim>
-          RF operator()(const RF variance, const std::array<RF,dim>& x, const std::vector<RF>& lambda) const
+          RF operator()(const RF variance, const std::array<RF,dim>& x) const
           {
             RF sum = 0.;
             for(unsigned int i = 0; i < dim; i++)
-            {
-              sum += (x[i] * x[i]) / (lambda[i] * lambda[i]);
-            }
+              sum += x[i] * x[i];
             RF h_eff = std::sqrt(sum);
+
             return variance * (1. + std::sqrt(3.)*h_eff) * std::exp(-std::sqrt(3.) * h_eff);
           }
     };
@@ -140,14 +243,13 @@ namespace Dune {
       public:
 
         template<typename RF, long unsigned int dim>
-          RF operator()(const RF variance, const std::array<RF,dim>& x, const std::vector<RF>& lambda) const
+          RF operator()(const RF variance, const std::array<RF,dim>& x) const
           {
             RF sum = 0.;
             for(unsigned int i = 0; i < dim; i++)
-            {
-              sum += (x[i] * x[i]) / (lambda[i] * lambda[i]);
-            }
+              sum += x[i] * x[i];
             RF h_eff = std::sqrt(sum);
+
             return variance * (1. + std::sqrt(5.)*h_eff + 5./3.*h_eff*h_eff) * std::exp(-std::sqrt(5.) * h_eff);
           }
     };
@@ -160,14 +262,13 @@ namespace Dune {
       public:
 
         template<typename RF, long unsigned int dim>
-          RF operator()(const RF variance, const std::array<RF,dim>& x, const std::vector<RF>& lambda) const
+          RF operator()(const RF variance, const std::array<RF,dim>& x) const
           {
             RF sum = 0.;
             for(unsigned int i = 0; i < dim; i++)
-            {
-              sum += (x[i] * x[i]) / (lambda[i] * lambda[i]);
-            }
+              sum += x[i] * x[i];
             RF h_eff = std::sqrt(sum);
+
             if (dim == 3)
               return variance * std::exp(-h_eff) * std::cos(h_eff/std::sqrt(3.));
             else
@@ -191,6 +292,7 @@ namespace Dune {
           const Dune::shared_ptr<Traits> traits;
 
           int rank, commSize;
+          std::array<RF,dim>        extensions;
           unsigned int              level;
           std::array<RF,dim>        meshsize;
           RF                        variance;
@@ -231,10 +333,10 @@ namespace Dune {
           {
             rank                    = (*traits).rank;
             commSize                = (*traits).commSize;
+            extensions              = (*traits).extensions;
             level                   = (*traits).level;
             meshsize                = (*traits).meshsize;
             variance                = (*traits).variance;
-            corrLength              = (*traits).corrLength;
             covariance              = (*traits).covariance;
             cgIterations            = (*traits).cgIterations;
             allocLocal              = (*traits).allocLocal;
@@ -426,8 +528,24 @@ namespace Dune {
           template<typename Covariance>
             void fillCovarianceMatrix() const
             {
+              if ((*traits).config.get<std::string>("stochastic.anisotropy","none") == "none")
+                computeCovarianceMatrixEntries<Covariance,ScaledIdentityMatrix<RF,dim> >();
+              else if ((*traits).config.get<std::string>("stochastic.anisotropy") == "axiparallel")
+                computeCovarianceMatrixEntries<Covariance,DiagonalMatrix<RF,dim> >();
+              else if ((*traits).config.get<std::string>("stochastic.anisotropy") == "geometric")
+                computeCovarianceMatrixEntries<Covariance,GeneralMatrix<RF, dim> >();
+              else
+                DUNE_THROW(Dune::Exception,"stochastic.anisotropy must be \"none\", \"axiparallel\" or \"geometric\"");
+            }
+
+          template<typename Covariance, typename GeometryMatrix>
+            void computeCovarianceMatrixEntries() const
+            {
+              GeometryMatrix matrix((*traits).config);
+
               const Covariance             covariance;
               std::array<RF,dim>           coord;
+              std::array<RF,dim>           transCoord;
               std::array<unsigned int,dim> indices;
 
               for (unsigned int index = 0; index < localExtendedDomainSize; index++)
@@ -435,12 +553,17 @@ namespace Dune {
                 (*traits).indexToIndices(index,indices,localExtendedCells);
 
                 for (unsigned int i = 0; i < dim; i++)
-                  coord[i]  = std::min(indices[i] + localExtendedOffset[i], extendedCells[i] - indices[i] - localExtendedOffset[i]) * meshsize[i];
+                {
+                  coord[i]  = (indices[i] + localExtendedOffset[i]) * meshsize[i];
+                  if (coord[i] > 0.5 * extensions[i] * (*traits).embeddingFactor)
+                    coord[i] -= extensions[i] * (*traits).embeddingFactor;
+                }
 
-                fftTransformedMatrix[index][0] = covariance(variance, coord, corrLength);
+                matrix.transform(coord,transCoord);
+
+                fftTransformedMatrix[index][0] = covariance(variance, transCoord);
                 fftTransformedMatrix[index][1] = 0.;
               }
-
             }
 
           /**

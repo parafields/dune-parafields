@@ -122,7 +122,6 @@ namespace Dune {
         RF                       cellVolume;
 
         const RF           variance;
-        std::vector<RF>    corrLength;
         const std::string  covariance;
         const bool         periodic;
         const unsigned int cgIterations;
@@ -156,7 +155,6 @@ namespace Dune {
           : config(config_), comm(comm_),
           extensions     (config.get<std::array<RF,dim> >          ("grid.extensions")),
           variance       (config.get<RF>                           ("stochastic.variance")),
-          corrLength     (config.get<std::vector<RF> >             ("stochastic.corrLength")),
           covariance     (config.get<std::string>                  ("stochastic.covariance")),
           periodic       (config.get<bool>                         ("randomField.periodic",false)),
           cgIterations   (config.get<unsigned int>                 ("randomField.cgIterations",100)),
@@ -171,16 +169,6 @@ namespace Dune {
           for (unsigned int i = 0; i < dim; i++)
             intCells[i] = cells[i];
           loadBalance.loadbalance(intCells,commSize,procPerDim);
-
-          if (corrLength.size() == 1)
-          {
-            if (rank == 0) std::cout << "homogeneous correlation length detected, extending" << std::endl;
-            corrLength.resize(dim);
-            for (int i = 1; i < dim; i ++)
-              corrLength[i] = corrLength[0];
-          }
-          if (corrLength.size() != dim)
-            DUNE_THROW(Dune::Exception,"correlation length vector doesn't match dimension");
 
           level = 0;
 
