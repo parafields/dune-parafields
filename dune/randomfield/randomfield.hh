@@ -33,7 +33,7 @@ namespace Dune {
   namespace RandomField {
 
     /**
-     * @brief Gaussian random field in 2D or 3D
+     * @brief Gaussian random field in 1D, 2D or 3D
      */
     template<typename GridTraits, bool storeInvMat = true, bool storeInvRoot = false>
       class RandomField
@@ -548,7 +548,7 @@ namespace Dune {
       };
 
     /**
-     * @brief List of Gaussian random fields in 2D or 3D
+     * @brief List of Gaussian random fields in 1D, 2D or 3D
      */
     template<typename GridTraits, bool storeInvMat = true, bool storeInvRoot = false>
       class RandomFieldList
