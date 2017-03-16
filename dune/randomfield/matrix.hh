@@ -276,6 +276,72 @@ namespace Dune {
           }
     };
 
+    /**
+     * @brief Cauchy covariance function
+     */
+    class CauchyCovariance
+    {
+      public:
+
+        template<typename RF, long unsigned int dim>
+          RF operator()(const RF variance, const std::array<RF,dim>& x) const
+          {
+            RF sum = 0.;
+            for(unsigned int i = 0; i < dim; i++)
+              sum += x[i] * x[i];
+            RF h_eff = std::sqrt(sum);
+
+            return variance * std::pow(1. + std::pow(h_eff,2),-3);
+          }
+    };
+
+    /**
+     * @brief Cubic covariance function
+     */
+    class CubicCovariance
+    {
+      public:
+
+        template<typename RF, long unsigned int dim>
+          RF operator()(const RF variance, const std::array<RF,dim>& x) const
+          {
+            RF sum = 0.;
+            for(unsigned int i = 0; i < dim; i++)
+              sum += x[i] * x[i];
+            RF h_eff = std::sqrt(sum);
+
+            if (dim == 2 || dim == 1)
+            {
+              if (h_eff > 1.)
+                return 0.;
+              else
+                return variance * (1. - 7. * std::pow(h_eff,2) + 8.75 * std::pow(h_eff,3) - 3.5 * std::pow(h_eff,5) + 0.75 * std::pow(h_eff,7));
+            }
+            else
+              DUNE_THROW(Dune::Exception,"cubic covariance only applicable in 1D or 2D");
+          }
+    };
+
+    /**
+     * @brief White noise covariance function
+     */
+    class WhiteNoiseCovariance
+    {
+      public:
+
+        template<typename RF, long unsigned int dim>
+          RF operator()(const RF variance, const std::array<RF,dim>& x) const
+          {
+            for(unsigned int i = 0; i < dim; i++)
+            {
+              if (std::abs(x[i]) > 1e-10)
+                return 0.;
+            }
+
+            return variance;
+          }
+    };
+
     template<typename T>
       class RandomFieldMatrix
       {
@@ -495,6 +561,12 @@ namespace Dune {
               fillCovarianceMatrix<Matern52Covariance>();
             else if (covariance == "dampedOscillation")
               fillCovarianceMatrix<DampedOscillationCovariance>();
+            else if (covariance == "cauchy")
+              fillCovarianceMatrix<CauchyCovariance>();
+            else if (covariance == "cubic")
+              fillCovarianceMatrix<CubicCovariance>();
+            else if (covariance == "whiteNoise")
+              fillCovarianceMatrix<WhiteNoiseCovariance>();
             else
               DUNE_THROW(Dune::Exception,"covariance structure " + covariance + " not known");
 
