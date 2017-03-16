@@ -124,12 +124,13 @@ namespace Dune {
         const RF           variance;
         std::vector<RF>    corrLength;
         const std::string  covariance;
+        const bool         periodic;
         const unsigned int cgIterations;
 
         ptrdiff_t allocLocal, localN0, local0Start;
 
         // factor used in domain embedding
-        int embeddingFactor;
+        unsigned int embeddingFactor;
 
         // properties of random field
         std::array<unsigned int,dim> cells;
@@ -153,13 +154,14 @@ namespace Dune {
         template<typename LoadBalance>
           RandomFieldTraits(const Dune::ParameterTree& config_, const LoadBalance& loadBalance, const MPI_Comm comm_)
           : config(config_), comm(comm_),
-          extensions    (config.get<std::array<RF,dim> >          ("grid.extensions")),
-          variance      (config.get<RF>                           ("stochastic.variance")),
-          corrLength    (config.get<std::vector<RF> >             ("stochastic.corrLength")),
-          covariance    (config.get<std::string>                  ("stochastic.covariance")),
-          cgIterations  (config.get<unsigned int>                 ("randomField.cgIterations",100)),
+          extensions     (config.get<std::array<RF,dim> >          ("grid.extensions")),
+          variance       (config.get<RF>                           ("stochastic.variance")),
+          corrLength     (config.get<std::vector<RF> >             ("stochastic.corrLength")),
+          covariance     (config.get<std::string>                  ("stochastic.covariance")),
+          periodic       (config.get<bool>                         ("randomField.periodic",false)),
+          cgIterations   (config.get<unsigned int>                 ("randomField.cgIterations",100)),
           embeddingFactor(config.get<unsigned int>                 ("randomField.embeddingFactor",2)),
-          cells         (config.get<std::array<unsigned int,dim> >("grid.cells"))
+          cells          (config.get<std::array<unsigned int,dim> >("grid.cells"))
         {
           MPI_Comm_rank(comm,&rank);
           MPI_Comm_size(comm,&commSize);
@@ -181,6 +183,12 @@ namespace Dune {
             DUNE_THROW(Dune::Exception,"correlation length vector doesn't match dimension");
 
           level = 0;
+
+          if (periodic && embeddingFactor != 1)
+          {
+            std::cout << "periodic boundary conditions are synonymous with embeddingFactor == 1, enforcing consistency" << std::endl;
+            embeddingFactor = 1;
+          }
 
           fftw_mpi_init();
           update();
