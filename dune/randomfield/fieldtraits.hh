@@ -158,6 +158,7 @@ namespace Dune {
           corrLength    (config.get<std::vector<RF> >             ("stochastic.corrLength")),
           covariance    (config.get<std::string>                  ("stochastic.covariance")),
           cgIterations  (config.get<unsigned int>                 ("randomField.cgIterations",100)),
+          embeddingFactor(config.get<unsigned int>                 ("randomField.embeddingFactor",2)),
           cells         (config.get<std::array<unsigned int,dim> >("grid.cells"))
         {
           MPI_Comm_rank(comm,&rank);
@@ -195,9 +196,6 @@ namespace Dune {
             DUNE_THROW(Dune::Exception,"number of cells in first dimension has to be multiple of numProc");
           if (dim == 1 && cells[0] % (commSize*commSize) != 0)
             DUNE_THROW(Dune::Exception,"in 1D, number of cells has to be multiple of numProc^2");
-
-          /// @todo determine factor automatically
-          embeddingFactor = 4;
 
           for (unsigned int i = 0; i < dim; i++)
           {
