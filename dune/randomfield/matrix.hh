@@ -25,10 +25,30 @@ namespace Dune {
               sum += (x[i] * x[i]) / (lambda[i] * lambda[i]);
             }
             RF h_eff = std::sqrt(sum);
-            if (h_eff > 1.)
-              return 0.;
+
+            if (dim == 3)
+            {
+              if (h_eff > 1.)
+                return 0.;
+              else
+                return variance * (1. - 1.5 * h_eff + 0.5 * std::pow(h_eff, 3));
+            }
+            else if (dim == 2)
+            {
+              if (h_eff > 1.)
+                return 0.;
+              else
+                return variance * (1. - 2./M_PI*(h_eff*std::sqrt(1.-std::pow(h_eff,2)) + std::asin(h_eff)));
+            }
+            else if (dim == 1)
+            {
+              if (h_eff > 1.)
+                return 0.;
+              else
+                return variance * (1. - h_eff);
+            }
             else
-              return variance * (1. - 1.5 * h_eff + 0.5 * std::pow(h_eff, 3));
+              DUNE_THROW(Dune::Exception,"spherical covariance only defined for 1D, 2D and 3D");
           }
     };
 
@@ -148,7 +168,10 @@ namespace Dune {
               sum += (x[i] * x[i]) / (lambda[i] * lambda[i]);
             }
             RF h_eff = std::sqrt(sum);
-            return variance * std::exp(-h_eff) * std::cos(h_eff);
+            if (dim == 3)
+              return variance * std::exp(-h_eff) * std::cos(h_eff/std::sqrt(3.));
+            else
+              return variance * std::exp(-h_eff) * std::cos(h_eff);
           }
     };
 
