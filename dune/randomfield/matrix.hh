@@ -206,9 +206,6 @@ namespace Dune {
            */
           void update()
           {
-            Dune::Timer timer(false);
-            timer.start();
-
             rank                    = (*traits).rank;
             commSize                = (*traits).commSize;
             level                   = (*traits).level;
@@ -230,9 +227,6 @@ namespace Dune {
 
             if (fftTransformedMatrix != NULL)
               fillTransformedMatrix();
-
-            timer.stop();
-            if (rank == 0) std::cout << "Time for RandomMatrix update " << timer.lastElapsed() << std::endl;
           }
 
           /**
@@ -291,9 +285,6 @@ namespace Dune {
            */
           void generateField(StochasticPart<Traits>& stochasticPart) const
           {
-            Dune::Timer timer(false);
-            timer.start();
-
             if (fftTransformedMatrix == NULL)
               fillTransformedMatrix();
 
@@ -323,9 +314,6 @@ namespace Dune {
             stochasticPart.evalValid = false;
 
             fftw_free(extendedField);
-
-            timer.stop();
-            if (rank == 0) std::cout << "Time for RandomMatrix generate " << timer.lastElapsed() << std::endl;
           }
 
           /**
@@ -503,9 +491,6 @@ namespace Dune {
            */
           void innerCG(std::vector<RF>& iter, const std::vector<RF>& solution, bool precondition = true) const
           {
-            Dune::Timer timer(false);
-            timer.start();
-
             std::vector<RF> tempSolution = solution;
             std::vector<RF> matrixTimesSolution(iter.size());
             std::vector<RF> matrixTimesIter(iter.size());
@@ -611,9 +596,6 @@ namespace Dune {
             }
 
             if (rank == 0) std::cout << count << " iterations" << std::endl;
-
-            timer.stop();
-            if (rank == 0) std::cout << "Time for RandomMatrix innerCG " << timer.lastElapsed() << std::endl;
           }
 
           /**

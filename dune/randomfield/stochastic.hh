@@ -5,7 +5,6 @@
 #include<fstream>
 
 #include<dune/common/power.hh>
-#include<dune/common/timer.hh>
 //#include<dune/pdelab/gridfunctionspace/lfsindexcache.hh>
 
 #include<dune/randomfield/fieldtraits.hh>
@@ -70,14 +69,8 @@ namespace Dune {
               if(!fileExists(fileName+".stoch.h5"))
                 DUNE_THROW(Dune::Exception,"File is missing: " + fileName + ".stoch.h5");
 
-              Dune::Timer readTimer(false);
-              readTimer.start();
-
               if (rank == 0) std::cout << "loading random field from file " << fileName << std::endl;
               readParallelFromHDF5<RF,dim>(dataVector, localCells, localOffset, (*traits).comm, "/stochastic", fileName+".stoch.h5");
-
-              readTimer.stop();
-              if (rank == 0) std::cout << "Time for loading random field from file " << fileName << ": " << readTimer.elapsed() << std::endl;
 
               evalValid  = false;
             }
@@ -145,9 +138,6 @@ namespace Dune {
            */
           void writeToFile(const std::string& fileName) const
           {
-            Dune::Timer writeTimer(false);
-            writeTimer.start();
-
             if (rank == 0) std::cout << "writing random field to file " << fileName << std::endl;
             writeParallelToHDF5<RF,dim>((*traits).cells, dataVector, localCells, localOffset, (*traits).comm, "/stochastic", fileName+".stoch.h5");
 
@@ -191,9 +181,6 @@ namespace Dune {
               file << " </Domain>"                                                                          << std::endl;
               file << "</Xdmf>"                                                                             << std::endl;
             }
-
-            writeTimer.stop();
-            if (rank == 0) std::cout << "Time for writing random field to file " << fileName << ": " << writeTimer.elapsed() << std::endl;
           }
 
           /**
@@ -386,9 +373,6 @@ namespace Dune {
            */
           void refine()
           {
-            Dune::Timer timer(false);
-            timer.start();
-
             if (level != (*traits).level)
             {
               const std::vector<RF> oldData = dataVector;
@@ -454,9 +438,6 @@ namespace Dune {
                 DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
 
               evalValid = false;
-
-              timer.stop();
-              if (rank == 0) std::cout << "Time for StochasticPart refine " << timer.lastElapsed() << std::endl;
             }
           }
 
@@ -488,9 +469,6 @@ namespace Dune {
            */
           void dataToEval() const
           {
-            Dune::Timer timer(false);
-            timer.start();
-
             std::vector<RF> resorted(dataVector.size(),0.);
             std::vector<RF> temp = dataVector;
 
@@ -576,9 +554,6 @@ namespace Dune {
             exchangeOverlap();
 
             evalValid = true;
-
-            timer.stop();
-            if (rank == 0) std::cout << "Time for StochasticPart dataToEval " << timer.lastElapsed() << std::endl;
           }
 
           /**
@@ -586,9 +561,6 @@ namespace Dune {
            */
           void evalToData()
           {
-            Dune::Timer timer(false);
-            timer.start();
-
             if (commSize == 1 || dim == 1)
             {
               dataVector = evalVector;
@@ -659,9 +631,6 @@ namespace Dune {
               DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
 
             MPI_Barrier((*traits).comm);
-
-            timer.stop();
-            if (rank == 0) std::cout << "Time for StochasticPart evalToData " << timer.lastElapsed() << std::endl;
           }
 
           /**
