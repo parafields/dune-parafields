@@ -46,6 +46,29 @@ namespace Dune {
 
         private:
 
+          // to allow reading in constructor
+          class ParamTreeHelper
+          {
+            Dune::ParameterTree config;
+
+            public:
+
+            ParamTreeHelper(const std::string& fileName = "")
+            {
+              if (fileName != "")
+              {
+                Dune::ParameterTreeParser parser;
+                parser.readINITree(fileName+".field",config);
+              }
+            }
+
+            const Dune::ParameterTree& get() const
+            {
+              return config;
+            }
+          };
+
+          const ParamTreeHelper                             treeHelper;
           const Dune::ParameterTree                         config;
           Dune::shared_ptr<Traits>                          traits;
           Dune::shared_ptr<RandomFieldMatrix<Traits> >      matrix;
@@ -64,6 +87,22 @@ namespace Dune {
           template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim> >
             RandomField(const Dune::ParameterTree& config_, const std::string fileName = "", const LoadBalance loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
             : config(config_), traits(new Traits(config,loadBalance,comm)), matrix(new RandomFieldMatrix<Traits>(traits)),
+            trendPart(config,traits,fileName), stochasticPart(traits,fileName),
+            invMatValid(false), invRootValid(false)
+            {
+              if (storeInvMat)
+                invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+
+              if (storeInvRoot)
+                invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+            }
+
+          /**
+           * @brief Constructor reading field and config from file
+           */
+          template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim> >
+            RandomField(const std::string fileName, const LoadBalance loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
+            : treeHelper(fileName), config(treeHelper.get()), traits(new Traits(config,loadBalance,comm)), matrix(new RandomFieldMatrix<Traits>(traits)),
             trendPart(config,traits,fileName), stochasticPart(traits,fileName),
             invMatValid(false), invRootValid(false)
             {
@@ -190,6 +229,9 @@ namespace Dune {
           {
             stochasticPart.writeToFile(fileName);
             trendPart     .writeToFile(fileName);
+
+            std::ofstream file(fileName+".field",std::ofstream::trunc);
+            config.report(file);
           }
 
 #if HAVE_DUNE_PDELAB
@@ -559,8 +601,33 @@ namespace Dune {
 
         private:
 
-          std::vector<std::string> fieldNames;
-          std::vector<std::string> activeTypes;
+          // to allow reading in constructor
+          class ParamTreeHelper
+          {
+            Dune::ParameterTree config;
+
+            public:
+
+            ParamTreeHelper(const std::string& fileName = "")
+            {
+              if (fileName != "")
+              {
+                Dune::ParameterTreeParser parser;
+                parser.readINITree(fileName+".fieldList",config);
+              }
+            }
+
+            const Dune::ParameterTree& get() const
+            {
+              return config;
+            }
+          };
+
+          const ParamTreeHelper     treeHelper;
+          const Dune::ParameterTree config;
+          std::vector<std::string>  fieldNames;
+          std::vector<std::string>  activeTypes;
+
           std::map<std::string, Dune::shared_ptr<SubRandomField> > list;
           Dune::shared_ptr<SubRandomField> emptyPointer;
 
@@ -573,7 +640,8 @@ namespace Dune {
            * @brief Constructor reading random fields from file
            */
           template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim> >
-            RandomFieldList(const Dune::ParameterTree& config, const std::string& fileName = "", const LoadBalance loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
+            RandomFieldList(const Dune::ParameterTree& config_, const std::string& fileName = "", const LoadBalance loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
+            : config(config_)
             {
               std::stringstream typeStream(config.get<std::string>("randomField.types"));
               std::string type;
@@ -583,7 +651,7 @@ namespace Dune {
 
                 Dune::ParameterTree subConfig;
                 Dune::ParameterTreeParser parser;
-                parser.readINITree(type+".props",subConfig);
+                parser.readINITree(type+".field",subConfig);
                 // copy general keys to subConfig if necessary
                 if (!subConfig.hasKey("grid.extensions") && config.hasKey("grid.extensions"))
                   subConfig["grid.extensions"] = config["grid.extensions"];
@@ -597,6 +665,30 @@ namespace Dune {
                   subFileName += "." + type;
 
                 list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >(type, Dune::shared_ptr<SubRandomField>(new SubRandomField(subConfig,subFileName,loadBalance,comm))));
+              }
+
+              if (fieldNames.empty())
+                DUNE_THROW(Dune::Exception,"List of randomField types is empty");
+
+              activateFields(config.get<int>("randomField.active",fieldNames.size()));
+            }
+
+          /**
+           * @brief Constructor reading random fields and config from file
+           */
+          template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim> >
+            RandomFieldList(const std::string& fileName, const LoadBalance loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
+            : treeHelper(fileName), config(treeHelper.get())
+            {
+              std::stringstream typeStream(config.get<std::string>("randomField.types"));
+              std::string type;
+              while(std::getline(typeStream, type, ' '))
+              {
+                fieldNames.push_back(type);
+
+                std::string subFileName = fileName + "." + type;
+
+                list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >(type, Dune::shared_ptr<SubRandomField>(new SubRandomField(subFileName,loadBalance,comm))));
               }
 
               if (fieldNames.empty())
@@ -702,6 +794,9 @@ namespace Dune {
           {
             for(Iterator it = fieldNames.begin(); it != fieldNames.end(); ++it)
               list.find(*it)->second->writeToFile(fileName+"."+(*it));
+
+            std::ofstream file(fileName+".fieldList",std::ofstream::trunc);
+            config.report(file);
           }
 
 #if HAVE_DUNE_PDELAB
