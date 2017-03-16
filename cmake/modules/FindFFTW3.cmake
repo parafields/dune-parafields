@@ -101,10 +101,6 @@ HINTS ${FFTW3_ROOT_DIR} PATH_SUFFIXES include)
 mark_as_advanced(FFTW3_MPI_INCLUDE_DIR)
 list(APPEND _check_list FFTW3_MPI_INCLUDE_DIR)
 
-message("_libs: ${_libraries}")
-message("Libs: ${FFTW3_LIBRARIES}")
-message("use_mpi: ${_use_mpi}")
-
 # Handle the QUIETLY and REQUIRED arguments and set FFTW_FOUND to TRUE if
 # all listed variables are TRUE
 include(FindPackageHandleStandardArgs)
