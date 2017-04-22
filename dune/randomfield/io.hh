@@ -54,7 +54,7 @@ namespace Dune{
         assert(status > -1);
 
         // open the dataset
-        hid_t dataset_id = H5Dopen(file_id,data_name.c_str());
+        hid_t dataset_id = H5Dopen(file_id,data_name.c_str(),H5P_DEFAULT);
         assert(dataset_id > -1);
 
         // get the dataspace
@@ -179,7 +179,7 @@ namespace Dune{
         assert(filespace > -1);
 
         // Create the dataset with default properties and close filespace.
-        hid_t dset_id = H5Dcreate(file_id,data_name.c_str(),HDF5_DATA_TYPE,filespace,H5P_DEFAULT);
+        hid_t dset_id = H5Dcreate(file_id,data_name.c_str(),HDF5_DATA_TYPE,filespace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
         H5Sclose(filespace);
         assert(dset_id > -1);
 

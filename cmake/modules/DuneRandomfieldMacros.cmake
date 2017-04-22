@@ -9,7 +9,6 @@ if (HDF5_FOUND AND NOT HDF5_IS_PARALLEL)
 endif()
 
 dune_register_package_flags(LIBRARIES ${HDF5_LIBRARIES}
-                            INCLUDE_DIRS ${HDF5_INCLUDE_DIRS}
-                            COMPILE_DEFINITIONS H5_USE_16_API)
+                            INCLUDE_DIRS ${HDF5_INCLUDE_DIRS})
 
 include(AddHDF5Flags)
