@@ -600,11 +600,11 @@ namespace Dune {
           template<typename Covariance>
             void fillCovarianceMatrix() const
             {
-              if ((*traits).config.get<std::string>("stochastic.anisotropy","none") == "none")
+              if ((*traits).config.template get<std::string>("stochastic.anisotropy","none") == "none")
                 computeCovarianceMatrixEntries<Covariance,ScaledIdentityMatrix<RF,dim> >();
-              else if ((*traits).config.get<std::string>("stochastic.anisotropy") == "axiparallel")
+              else if ((*traits).config.template get<std::string>("stochastic.anisotropy") == "axiparallel")
                 computeCovarianceMatrixEntries<Covariance,DiagonalMatrix<RF,dim> >();
-              else if ((*traits).config.get<std::string>("stochastic.anisotropy") == "geometric")
+              else if ((*traits).config.template get<std::string>("stochastic.anisotropy") == "geometric")
                 computeCovarianceMatrixEntries<Covariance,GeneralMatrix<RF, dim> >();
               else
                 DUNE_THROW(Dune::Exception,"stochastic.anisotropy must be \"none\", \"axiparallel\" or \"geometric\"");
