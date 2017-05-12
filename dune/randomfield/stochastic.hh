@@ -66,6 +66,7 @@ namespace Dune {
 
             if (fileName != "")
             {
+#if HAVE_HDF5
               if(!fileExists(fileName+".stoch.h5"))
                 DUNE_THROW(Dune::Exception,"File is missing: " + fileName + ".stoch.h5");
 
@@ -73,6 +74,9 @@ namespace Dune {
               readParallelFromHDF5<RF,dim>(dataVector, localCells, localOffset, (*traits).comm, "/stochastic", fileName+".stoch.h5");
 
               evalValid  = false;
+#else //HAVE_HDF5
+              DUNE_THROW(Dune::NotImplemented,"Writing and reading field files requires parallel HDF5 support");
+#endif //HAVE_HDF5
             }
             else
             {
@@ -138,6 +142,7 @@ namespace Dune {
            */
           void writeToFile(const std::string& fileName) const
           {
+#if HAVE_HDF5
             if (rank == 0) std::cout << "writing random field to file " << fileName << std::endl;
             writeParallelToHDF5<RF,dim>((*traits).cells, dataVector, localCells, localOffset, (*traits).comm, "/stochastic", fileName+".stoch.h5");
 
@@ -181,6 +186,9 @@ namespace Dune {
               file << " </Domain>"                                                                          << std::endl;
               file << "</Xdmf>"                                                                             << std::endl;
             }
+#else //HAVE_HDF5
+              DUNE_THROW(Dune::NotImplemented,"Writing and reading field files requires parallel HDF5 support");
+#endif //HAVE_HDF5
           }
 
           /**

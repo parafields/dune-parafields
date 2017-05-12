@@ -23,6 +23,7 @@ namespace Dune{
       return (intStat == 0);
     }
 
+#if HAVE_HDF5 // only define IO methods if HDF5 present
     /// @todo take care of missing files
     /**
      * @brief Read data from an HDF5 file (parallel)
@@ -238,6 +239,7 @@ namespace Dune{
         //propably not needed. because the H5Dwrite blocks anyway
         MPI_Barrier(communicator);
       }
+#endif //HAVE_HDF5
 
   }
 }
