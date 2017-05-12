@@ -302,6 +302,9 @@ namespace Dune {
            */
           void writeToLegacyVTK(const std::string& fileName) const
           {
+            if ((*traits).commSize > 1)
+              DUNE_THROW(Dune::NotImplemented,"legacy VTK output doesn't work for parallel runs");
+
             LegacyVTKWriter<Traits> legacyWriter(config,fileName);
             legacyWriter.writeScalarData("field",*this);
           }
@@ -311,6 +314,9 @@ namespace Dune {
            */
           void writeToLegacyVTKSeparate(const std::string& fileName) const
           {
+            if ((*traits).commSize > 1)
+              DUNE_THROW(Dune::NotImplemented,"legacy VTK output doesn't work for parallel runs");
+
             LegacyVTKWriter<Traits> legacyWriter(config,fileName);
             legacyWriter.writeScalarData("stochastic",stochasticPart);
             for (unsigned int i = 0; i < trendPart.size(); i++)
