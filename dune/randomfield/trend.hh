@@ -145,6 +145,23 @@ namespace Dune {
           }
 
           /**
+           * @brief Name of type of this trend component
+           */
+          std::string name() const
+          {
+            if (TrendComponentType::isMean(componentType))
+              return "mean";
+            else if (TrendComponentType::isSlope(componentType))
+              return "slope";
+            else if (TrendComponentType::isDisk(componentType))
+              return std::string("disk") + std::to_string(componentCount);
+            else if (TrendComponentType::isBlock(componentType))
+              return std::string("block") + std::to_string(componentCount);
+            else
+              DUNE_THROW(Dune::Exception,"Trend component type not found!");
+          }
+
+          /**
            * @brief Generate trend component coefficients with correct variance
            */
           void generate()
@@ -541,6 +558,22 @@ namespace Dune {
           {
             componentVector[i].generateUncorrelated();
           }
+        }
+
+        /**
+         * @brief Number of stored trend components
+         */
+        unsigned int size() const
+        {
+          return componentVector.size();
+        }
+
+        /**
+         * @brief Access ith trend component
+         */
+        const TrendComponent<Traits>& getComponent(unsigned int i) const
+        {
+          return componentVector[i];
         }
 
         /**

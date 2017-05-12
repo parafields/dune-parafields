@@ -5,12 +5,12 @@
 #include<dune/common/parametertree.hh>
 #include<dune/common/shared_ptr.hh>
 
-#if HAVE_DUNE_PDELAB
+#if HAVE_DUNE_FUNCTIONS
 // for VTK output functionality
 #include<dune/grid/yaspgrid.hh>
 #include<dune/grid/io/file/vtk.hh>
-#include<dune/pdelab/gridfunctionspace/gridfunctionspaceutilities.hh>
-#endif // HAVE_DUNE_PDELAB
+#include<dune/functions/gridfunctions/analyticgridviewfunction.hh>
+#endif // HAVE_DUNE_FUNCTIONS
 
 // file check
 #include<sys/stat.h>
@@ -29,6 +29,7 @@
 #include<dune/randomfield/stochastic.hh>
 #include<dune/randomfield/matrix.hh>
 #include<dune/randomfield/mutators.hh>
+#include<dune/randomfield/legacyvtk.hh>
 
 namespace Dune {
   namespace RandomField {
@@ -256,19 +257,68 @@ namespace Dune {
             config.report(file);
           }
 
-#if HAVE_DUNE_PDELAB
           /**
-           * @brief Export random field as VTK file, requires dune-grid and PDELab
+           * @brief Export random field as flat unstructured VTK file, requires dune-grid and dune-functions
            */
           template<typename GridView>
             void writeToVTK(const std::string& fileName, const GridView& gv) const
             {
+#if HAVE_DUNE_FUNCTIONS
               Dune::VTKWriter<GridView> vtkWriter(gv,Dune::VTK::conforming);
-              std::shared_ptr<Dune::PDELab::VTKGridFunctionAdapter<RandomField<GridTraits,storeInvMat,storeInvRoot> > > fieldPtr(new Dune::PDELab::VTKGridFunctionAdapter<RandomField<GridTraits,storeInvMat,storeInvRoot> >(*this,fileName));
-              vtkWriter.addCellData(fieldPtr);
-              vtkWriter.pwrite(fileName,"vtk","",Dune::VTK::appendedraw);
+              auto f = Dune::Functions::makeAnalyticGridViewFunction([&](auto x){typename Traits::RangeType output; this->evaluate(x,output); return output;},gv);
+              vtkWriter.addCellData(f,VTK::FieldInfo(fileName,VTK::FieldInfo::Type::scalar,1));
+              vtkWriter.pwrite(fileName,"","",Dune::VTK::appendedraw);
+#else //HAVE_DUNE_FUNCTIONS
+              DUNE_THROW(Dune::NotImplemented,"Unstructured VTK output requires dune-grid and dune-functions");
+#endif //HAVE_DUNE_FUNCTIONS
             }
-#endif // HAVE_DUNE_PDELAB
+
+          /**
+           * @brief Export random field as unstructured VTK file, requires dune-grid and dune-functions
+           */
+          template<typename GridView>
+            void writeToVTKSeparate(const std::string& fileName, const GridView& gv) const
+            {
+#if HAVE_DUNE_FUNCTIONS
+              Dune::VTKWriter<GridView> vtkWriter(gv,Dune::VTK::conforming);
+              {
+                auto f = Dune::Functions::makeAnalyticGridViewFunction([&](auto x){typename Traits::RangeType output; stochasticPart.evaluate(x,output); return output;},gv);
+                vtkWriter.addCellData(f,VTK::FieldInfo("stochastic",VTK::FieldInfo::Type::scalar,1));
+              }
+              for (unsigned int i = 0; i < trendPart.size(); i++)
+              {
+                const TrendComponent<Traits>& component = trendPart.getComponent(i);
+                auto f = Dune::Functions::makeAnalyticGridViewFunction([&](auto x){typename Traits::RangeType output; component.evaluate(x,output); return output;},gv);
+                vtkWriter.addCellData(f,VTK::FieldInfo(component.name(),VTK::FieldInfo::Type::scalar,1));
+              }
+              vtkWriter.pwrite(fileName,"","",Dune::VTK::appendedraw);
+#else //HAVE_DUNE_FUNCTIONS
+              DUNE_THROW(Dune::NotImplemented,"Unstructured VTK output requires dune-grid and dune-functions");
+#endif //HAVE_DUNE_FUNCTIONS
+            }
+
+          /**
+           * @brief Export random field as flat Legacy VTK file
+           */
+          void writeToLegacyVTK(const std::string& fileName) const
+          {
+            LegacyVTKWriter<Traits> legacyWriter(config,fileName);
+            legacyWriter.writeScalarData("field",*this);
+          }
+
+          /**
+           * @brief Export random field as separate Legacy VTK entries
+           */
+          void writeToLegacyVTKSeparate(const std::string& fileName) const
+          {
+            LegacyVTKWriter<Traits> legacyWriter(config,fileName);
+            legacyWriter.writeScalarData("stochastic",stochasticPart);
+            for (unsigned int i = 0; i < trendPart.size(); i++)
+            {
+              const TrendComponent<Traits>& component = trendPart.getComponent(i);
+              legacyWriter.writeScalarData(component.name(),component);
+            }
+          }
 
           /**
            * @brief Make random field homogeneous
@@ -849,17 +899,51 @@ namespace Dune {
             config.report(file);
           }
 
-#if HAVE_DUNE_PDELAB
           /**
-           * @brief Export random fields as VTK files, requires dune-grid and PDELab
+           * @brief Export random fields as flat unstructured VTK files, requires dune-grid and dune-functions
            */
           template<typename GridView>
             void writeToVTK(const std::string& fileName, const GridView& gv) const
             {
+#if HAVE_DUNE_FUNCTIONS
               for (Iterator it = fieldNames.begin(); it != fieldNames.end(); ++it)
                 list.find(*it)->second->writeToVTK(fileName+"."+(*it),gv);
+#else //HAVE_DUNE_FUNCTIONS
+              DUNE_THROW(Dune::NotImplemented,"Unstructured VTK output requires dune-grid and dune-functions");
+#endif //HAVE_DUNE_FUNCTIONS
             }
-#endif // HAVE_DUNE_PDELAB
+
+          /**
+           * @brief Export random fields as unstructured VTK files, requires dune-grid and dune-functions
+           */
+          template<typename GridView>
+            void writeToVTKSeparate(const std::string& fileName, const GridView& gv) const
+            {
+#if HAVE_DUNE_FUNCTIONS
+              for (Iterator it = fieldNames.begin(); it != fieldNames.end(); ++it)
+                list.find(*it)->second->writeToVTKSeparate(fileName+"."+(*it),gv);
+#else //HAVE_DUNE_FUNCTIONS
+              DUNE_THROW(Dune::NotImplemented,"Unstructured VTK output requires dune-grid and dune-functions");
+#endif //HAVE_DUNE_FUNCTIONS
+            }
+
+          /**
+           * @brief Export random fields as flat Legacy VTK files
+           */
+          void writeToLegacyVTK(const std::string& fileName) const
+          {
+            for (Iterator it = fieldNames.begin(); it != fieldNames.end(); ++it)
+              list.find(*it)->second->writeToLegacyVTK(fileName+"."+(*it));
+          }
+
+          /**
+           * @brief Export random fields as separate Legacy VTK entries
+           */
+          void writeToLegacyVTKSeparate(const std::string& fileName) const
+          {
+            for (Iterator it = fieldNames.begin(); it != fieldNames.end(); ++it)
+              list.find(*it)->second->writeToLegacyVTKSeparate(fileName+"."+(*it));
+          }
 
           /**
            * @brief Set the random fields to zero
