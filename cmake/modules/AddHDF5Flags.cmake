@@ -1,4 +1,4 @@
-# module providing convenience mehtods for compiling binries with HDF5 support
+# module providing convenience methods for compiling binaries with HDF5 support
 #
 # Provides the following functions:
 #
