@@ -705,6 +705,7 @@ namespace Dune {
            * @brief Constructor reading random fields from file, but reusing covariance matrices
            */
           RandomFieldList(const RandomFieldList& other, const std::string& fileName)
+            : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
           {
             for(typename std::map<std::string, Dune::shared_ptr<SubRandomField> >::const_iterator it = other.list.begin(); it!= other.list.end(); ++it)
             {
