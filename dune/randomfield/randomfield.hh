@@ -45,7 +45,7 @@ namespace Dune {
           typedef RandomFieldTraits<GridTraits,storeInvMat,storeInvRoot> Traits;
           typedef typename Traits::RF                                    RF;
 
-        private:
+        protected:
 
           // to allow reading in constructor
           class ParamTreeHelper
@@ -614,14 +614,14 @@ namespace Dune {
     /**
      * @brief List of Gaussian random fields in 1D, 2D or 3D
      */
-    template<typename GridTraits, bool storeInvMat = true, bool storeInvRoot = false>
+    template<typename GridTraits, bool storeInvMat = true, bool storeInvRoot = false, template<typename, bool, bool> class RandomField = Dune::RandomField::RandomField>
       class RandomFieldList
       {
         public:
 
           typedef RandomField<GridTraits, storeInvMat, storeInvRoot> SubRandomField;
 
-        private:
+        protected:
 
           // to allow reading in constructor
           class ParamTreeHelper
