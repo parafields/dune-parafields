@@ -124,6 +124,7 @@ namespace Dune {
         const RF           variance;
         const std::string  covariance;
         const bool         periodic;
+        const bool         verbose;
         const unsigned int cgIterations;
 
         ptrdiff_t allocLocal, localN0, local0Start;
@@ -157,6 +158,7 @@ namespace Dune {
           variance       (config.get<RF>                           ("stochastic.variance")),
           covariance     (config.get<std::string>                  ("stochastic.covariance")),
           periodic       (config.get<bool>                         ("randomField.periodic",false)),
+          verbose        (config.get<bool>                         ("randomField.verbose",false)),
           cgIterations   (config.get<unsigned int>                 ("randomField.cgIterations",100)),
           embeddingFactor(config.get<unsigned int>                 ("randomField.embeddingFactor",2)),
           cells          (config.get<std::array<unsigned int,dim> >("grid.cells"))
@@ -174,7 +176,7 @@ namespace Dune {
 
           if (periodic && embeddingFactor != 1)
           {
-            std::cout << "periodic boundary conditions are synonymous with embeddingFactor == 1, enforcing consistency" << std::endl;
+            if (verbose && rank == 0) std::cout << "periodic boundary conditions are synonymous with embeddingFactor == 1, enforcing consistency" << std::endl;
             embeddingFactor = 1;
           }
 
@@ -227,7 +229,7 @@ namespace Dune {
             cellVolume              *= meshsize[i];
           }
 
-          if (rank == 0)
+          if (verbose && rank == 0)
           {
             std::cout << "RandomField size:        " << localDomainSize << std::endl;
             std::cout << "RandomField cells:       ";

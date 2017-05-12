@@ -575,8 +575,12 @@ namespace Dune {
             unsigned int small = 0;
             unsigned int negative = 0;
             unsigned int smallNegative = 0;
+            RF smallest = std::numeric_limits<RF>::max();
             for (unsigned int index = 0; index < localExtendedDomainSize; index++)
             {
+              if (fftTransformedMatrix[index][0] < smallest)
+                smallest = fftTransformedMatrix[index][0];
+
               if (fftTransformedMatrix[index][0] < 1e-6)
               {
                 if (fftTransformedMatrix[index][0] < 1e-10)
@@ -594,7 +598,7 @@ namespace Dune {
                 fftTransformedMatrix[index][0] = 0.;
             }
 
-            if (rank == 0) std::cout << small << " small, " << smallNegative << " small negative and " << negative << " large negative eigenvalues in covariance matrix" << std::endl;
+            if ((*traits).verbose && rank == 0) std::cout << small << " small, " << smallNegative << " small negative and " << negative << " large negative eigenvalues in covariance matrix, smallest " << smallest << std::endl;
           }
 
           template<typename Covariance>
@@ -813,7 +817,7 @@ namespace Dune {
               count++;
             }
 
-            if (rank == 0) std::cout << count << " iterations" << std::endl;
+            if ((*traits).verbose && rank == 0) std::cout << count << " iterations" << std::endl;
           }
 
           /**

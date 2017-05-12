@@ -70,7 +70,7 @@ namespace Dune {
               if(!fileExists(fileName+".stoch.h5"))
                 DUNE_THROW(Dune::Exception,"File is missing: " + fileName + ".stoch.h5");
 
-              if (rank == 0) std::cout << "loading random field from file " << fileName << std::endl;
+              if ((*traits).verbose && rank == 0) std::cout << "loading random field from file " << fileName << std::endl;
               readParallelFromHDF5<RF,dim>(dataVector, localCells, localOffset, (*traits).comm, "/stochastic", fileName+".stoch.h5");
 
               evalValid  = false;
@@ -80,7 +80,7 @@ namespace Dune {
             }
             else
             {
-              if (rank == 0) std::cout << "generating homogeneous random field" << std::endl;
+              if ((*traits).verbose && rank == 0) std::cout << "generating homogeneous random field" << std::endl;
 
               zero();
             }
@@ -143,7 +143,7 @@ namespace Dune {
           void writeToFile(const std::string& fileName) const
           {
 #if HAVE_HDF5
-            if (rank == 0) std::cout << "writing random field to file " << fileName << std::endl;
+            if ((*traits).verbose && rank == 0) std::cout << "writing random field to file " << fileName << std::endl;
             writeParallelToHDF5<RF,dim>((*traits).cells, dataVector, localCells, localOffset, (*traits).comm, "/stochastic", fileName+".stoch.h5");
 
             if (rank == 0)
