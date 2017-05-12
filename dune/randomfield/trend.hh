@@ -6,6 +6,10 @@
 #include<random>
 
 #include<dune/common/parametertreeparser.hh>
+#if HAVE_DUNE_PDELAB
+#include<dune/pdelab/gridfunctionspace/localfunctionspace.hh>
+#include<dune/pdelab/gridfunctionspace/lfsindexcache.hh>
+#endif //HAVE_DUNE_PDELAB
 
 namespace Dune {
   namespace RandomField {
@@ -88,6 +92,49 @@ namespace Dune {
           for (unsigned int i = 0; i < shiftVector.size(); i++)
             shiftVector[i] -= meanVector[i];
         }
+
+#if HAVE_DUNE_PDELAB
+          template<typename GFS, typename Field>
+            void construct(const GFS& gfs, const Field& field)
+            {
+              std::vector<RF> newShiftVector(shiftVector.size(),0.), myNewShiftVector(shiftVector.size(),0.);
+
+              typedef Dune::PDELab::LocalFunctionSpace<GFS> LFS;
+              typedef Dune::PDELab::LFSIndexCache<LFS> LFSCache;
+              LFS lfs(gfs);
+              LFSCache lfsCache(lfs);
+              typename Field::template ConstLocalView<LFSCache> localView(field);
+              std::vector<RF> vLocal;
+
+              typedef typename GFS::Traits::GridViewType::template Codim<0>::template Partition<Dune::Interior_Partition>::Iterator GridIterator;
+              const GridIterator endit = gfs.gridView().template end<0,Dune::Interior_Partition>();
+              for (GridIterator it = gfs.gridView().template begin<0,Dune::Interior_Partition>(); it != endit; ++it)
+              {
+                lfs.bind(*it);
+                vLocal.resize(lfs.size());
+                lfsCache.update();
+                localView.bind(lfsCache);
+                localView.read(vLocal);
+
+                typename Traits::RangeType shift, deltaShift;
+                RF delta = 1e-2;
+                const typename Traits::DomainType& x = (*it).geometry().global((*it).geometry().center());
+                evaluate(x,shift);
+                for (unsigned int i = 0; i < shiftVector.size(); i++)
+                {
+                  shiftVector[i] += delta;
+                  evaluate(x,deltaShift);
+                  shiftVector[i] -= delta;
+
+                  myNewShiftVector[i] += (deltaShift[0] - shift[0]) / delta * vLocal[0];
+                }
+              }
+
+              MPI_Allreduce(&(myNewShiftVector[0]),&(newShiftVector[0]),shiftVector.size(),MPI_DOUBLE,MPI_SUM,(*traits).comm);
+              shiftVector = newShiftVector;
+
+            }
+#endif // HAVE_DUNE_PDELAB
 
           /**
            * @brief Type of this trend component
@@ -463,6 +510,16 @@ namespace Dune {
               }
             }
           }
+
+#if HAVE_DUNE_PDELAB
+        template<typename GFS, typename Field>
+          TrendPart<Traits>(const TrendPart<Traits>& other, const GFS& gfs, const Field& field)
+          : traits(other.traits), componentVector(other.componentVector)
+          {
+            for (unsigned int i = 0; i < componentVector.size(); i++)
+              componentVector[i].construct(gfs,field);
+          }
+#endif // HAVE_DUNE_PDELAB
 
         /**
          * @brief Generate a trend part with desired covariance structure

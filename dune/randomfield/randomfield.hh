@@ -130,6 +130,24 @@ namespace Dune {
             invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
         }
 
+#if HAVE_DUNE_PDELAB
+           /**
+           * @brief Constructor converting from GridFunctionSpace and GridVector
+           */
+          template<typename GFS, typename Field>
+            RandomField(const RandomField& other, const GFS& gfs, const Field& field)
+            : config(other.config), valueTransform(other.valueTransform), traits(other.traits), matrix(other.matrix),
+            trendPart(other.trendPart,gfs,field), stochasticPart(other.stochasticPart,gfs,field),
+            invMatValid(false), invRootValid(false)
+        {
+          if (storeInvMat)
+            invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+
+          if (storeInvRoot)
+            invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+        }
+#endif // HAVE_DUNE_PDELAB
+
           /**
            * @brief Copy constructor
            */
@@ -712,6 +730,33 @@ namespace Dune {
               list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >((*it).first, Dune::shared_ptr<SubRandomField>(new SubRandomField(*(*it).second,fileName+"."+(*it).first))));
             }
           }
+
+#if HAVE_DUNE_PDELAB
+           /**
+           * @brief Constructor converting from GridFunctionSpace and GridVector
+           */
+          template<typename GFS, typename FieldList>
+            RandomFieldList(const RandomFieldList& other, const GFS& gfs, const FieldList& fieldList)
+            : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
+            {
+              for (Iterator it = activeTypes.begin(); it != activeTypes.end(); ++it)
+              {
+                if (fieldList.find(*it) == fieldList.end())
+                  DUNE_THROW(Dune::Exception,"Field name "+(*it)+" not found in grid function list");
+
+                Dune::shared_ptr<SubRandomField> otherField = other.list.find(*it)->second;
+                list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >(*it, Dune::shared_ptr<SubRandomField>(new SubRandomField(*otherField,gfs,*(fieldList.find(*it)->second)))));
+              }
+
+              for (Iterator it = fieldNames.begin(); it!= fieldNames.end(); ++it)
+              {
+                if (fieldList.find(*it) == fieldList.end())
+                {
+                  list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >(*it, Dune::shared_ptr<SubRandomField>(new SubRandomField(*(other.list.find(*it)->second)))));
+                }
+              }
+            }
+#endif // HAVE_DUNE_PDELAB
 
           /**
            * @brief Copy constructor

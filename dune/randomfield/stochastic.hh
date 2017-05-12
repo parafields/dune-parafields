@@ -5,7 +5,10 @@
 #include<fstream>
 
 #include<dune/common/power.hh>
-//#include<dune/pdelab/gridfunctionspace/lfsindexcache.hh>
+#if HAVE_DUNE_PDELAB
+#include<dune/pdelab/gridfunctionspace/localfunctionspace.hh>
+#include<dune/pdelab/gridfunctionspace/lfsindexcache.hh>
+#endif //HAVE_DUNE_PDELAB
 
 #include<dune/randomfield/fieldtraits.hh>
 
@@ -85,6 +88,42 @@ namespace Dune {
               zero();
             }
           }
+
+#if HAVE_DUNE_PDELAB
+          template<typename GFS, typename Field>
+            StochasticPart(const StochasticPart& other, const GFS& gfs, const Field& field)
+            : traits(other.traits)
+            {
+              update();
+
+              typedef Dune::PDELab::LocalFunctionSpace<GFS> LFS;
+              typedef Dune::PDELab::LFSIndexCache<LFS> LFSCache;
+              LFS lfs(gfs);
+              LFSCache lfsCache(lfs);
+              typename Field::template ConstLocalView<LFSCache> localView(field);
+              std::vector<RF> vLocal;
+
+              typedef typename GFS::Traits::GridViewType::template Codim<0>::template Partition<Dune::Interior_Partition>::Iterator GridIterator;
+              const GridIterator endit = gfs.gridView().template end<0,Dune::Interior_Partition>();
+              for (GridIterator it = gfs.gridView().template begin<0,Dune::Interior_Partition>(); it != endit; ++it)
+              {
+                lfs.bind(*it);
+                vLocal.resize(lfs.size());
+                lfsCache.update();
+                localView.bind(lfsCache);
+                localView.read(vLocal);
+
+                const typename Traits::DomainType& coords = (*it).geometry().center();
+                (*traits).coordsToIndices(coords,evalIndices,localEvalOffset);
+                const unsigned int index = (*traits).indicesToIndex(evalIndices,localEvalCells);
+
+                evalVector[index] = vLocal[0];
+              }
+
+              evalToData();
+              evalValid  = true;
+            }
+#endif // HAVE_DUNE_PDELAB
 
           /**
            * @brief Calculate container sizes after construction or refinement
