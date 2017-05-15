@@ -28,7 +28,7 @@ namespace Dune {
           typedef typename Traits::RF RF;
           enum {dim = Traits::dim};
 
-          const Dune::shared_ptr<Traits> traits;
+          const std::shared_ptr<Traits> traits;
 
           int rank, commSize;
           std::array<RF,dim>        extensions;
@@ -52,7 +52,7 @@ namespace Dune {
 
         public:
 
-          RandomFieldMatrix<Traits>(const Dune::shared_ptr<Traits>& traits_)
+          RandomFieldMatrix<Traits>(const std::shared_ptr<Traits>& traits_)
             : traits(traits_), covariance(), fftTransformedMatrix(NULL)
           {
             update();

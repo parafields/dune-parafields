@@ -98,7 +98,7 @@ namespace Dune {
     template<typename RF>
       class ValueTransform
       {
-        Dune::shared_ptr<MutatorBase<RF> > mutator;
+        std::shared_ptr<MutatorBase<RF> > mutator;
 
         public:
 

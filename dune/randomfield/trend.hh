@@ -57,7 +57,7 @@ namespace Dune {
 
           enum {dim = Traits::dim};
 
-          Dune::shared_ptr<Traits> traits;
+          std::shared_ptr<Traits> traits;
 
           TrendComponentType::Type componentType;
           unsigned int componentCount;
@@ -73,7 +73,7 @@ namespace Dune {
           /**
            * @brief Constructor
            */
-          TrendComponent<Traits>(const Dune::shared_ptr<Traits>& traits_, const std::vector<RF>& trendVector, const std::vector<RF>& meanVector_, const std::vector<RF>& varianceVector_, const TrendComponentType::Type& componentType_, unsigned int componentCount_ = 0)
+          TrendComponent<Traits>(const std::shared_ptr<Traits>& traits_, const std::vector<RF>& trendVector, const std::vector<RF>& meanVector_, const std::vector<RF>& varianceVector_, const TrendComponentType::Type& componentType_, unsigned int componentCount_ = 0)
             : traits(traits_), componentType(componentType_), componentCount(componentCount_), extensions((*traits).extensions),
             shiftVector(trendVector), meanVector(meanVector_), varianceVector(varianceVector_)
         {
@@ -398,7 +398,7 @@ namespace Dune {
 
         typedef typename Traits::RF RF;
 
-        Dune::shared_ptr<Traits> traits;
+        std::shared_ptr<Traits> traits;
         std::vector<TrendComponent<Traits> > componentVector;
 
         public:
@@ -406,7 +406,7 @@ namespace Dune {
         /**
          * @brief Constructor
          */
-        TrendPart<Traits>(const Dune::ParameterTree& config, const Dune::shared_ptr<Traits>& traits_, const std::string& fileName = "")
+        TrendPart<Traits>(const Dune::ParameterTree& config, const std::shared_ptr<Traits>& traits_, const std::string& fileName = "")
           : traits(traits_)
           {
             std::vector<RF> emptyVector, trendVector, meanVector, varianceVector;

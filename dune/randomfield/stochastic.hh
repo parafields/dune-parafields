@@ -34,7 +34,7 @@ namespace Dune {
 
           friend class RandomFieldMatrix<Traits>;
 
-          Dune::shared_ptr<Traits> traits;
+          std::shared_ptr<Traits> traits;
 
           int rank, commSize;
           std::array<RF,dim>           extensions;
@@ -62,7 +62,7 @@ namespace Dune {
           /**
            * @brief Constructor
            */
-          StochasticPart(const Dune::shared_ptr<Traits>& traits_, const std::string& fileName)
+          StochasticPart(const std::shared_ptr<Traits>& traits_, const std::string& fileName)
             : traits(traits_)
           {
             update();

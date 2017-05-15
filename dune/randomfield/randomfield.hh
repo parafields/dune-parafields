@@ -3,7 +3,6 @@
 #define	DUNE_RANDOMFIELD_RANDOMFIELD_HH
 
 #include<dune/common/parametertree.hh>
-#include<dune/common/shared_ptr.hh>
 
 #if HAVE_DUNE_FUNCTIONS
 // for VTK output functionality
@@ -59,17 +58,17 @@ namespace Dune {
             }
           };
 
-          const ParamTreeHelper                             treeHelper;
-          const Dune::ParameterTree                         config;
-          const ValueTransform<RF>                          valueTransform;
-          Dune::shared_ptr<Traits>                          traits;
-          Dune::shared_ptr<RandomFieldMatrix<Traits> >      matrix;
-          TrendPart<Traits>                                 trendPart;
-          StochasticPart<Traits>                            stochasticPart;
-          mutable Dune::shared_ptr<StochasticPart<Traits> > invMatPart;
-          mutable bool                                      invMatValid;
-          mutable Dune::shared_ptr<StochasticPart<Traits> > invRootPart;
-          mutable bool                                      invRootValid;
+          const ParamTreeHelper                            treeHelper;
+          const Dune::ParameterTree                        config;
+          const ValueTransform<RF>                         valueTransform;
+          std::shared_ptr<Traits>                          traits;
+          std::shared_ptr<RandomFieldMatrix<Traits> >      matrix;
+          TrendPart<Traits>                                trendPart;
+          StochasticPart<Traits>                           stochasticPart;
+          mutable std::shared_ptr<StochasticPart<Traits> > invMatPart;
+          mutable bool                                     invMatValid;
+          mutable std::shared_ptr<StochasticPart<Traits> > invRootPart;
+          mutable bool                                     invRootValid;
 
         public:
 
@@ -695,8 +694,8 @@ namespace Dune {
           std::vector<std::string>  fieldNames;
           std::vector<std::string>  activeTypes;
 
-          std::map<std::string, Dune::shared_ptr<SubRandomField> > list;
-          Dune::shared_ptr<SubRandomField> emptyPointer;
+          std::map<std::string, std::shared_ptr<SubRandomField> > list;
+          std::shared_ptr<SubRandomField> emptyPointer;
 
           typedef typename GridTraits::RangeField RF;
           typedef typename std::vector<std::string>::const_iterator Iterator;
@@ -731,7 +730,7 @@ namespace Dune {
                 if (subFileName != "")
                   subFileName += "." + type;
 
-                list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >(type, Dune::shared_ptr<SubRandomField>(new SubRandomField(subConfig,subFileName,loadBalance,comm))));
+                list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >(type, std::shared_ptr<SubRandomField>(new SubRandomField(subConfig,subFileName,loadBalance,comm))));
               }
 
               if (fieldNames.empty())
@@ -755,7 +754,7 @@ namespace Dune {
 
                 std::string subFileName = fileName + "." + type;
 
-                list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >(type, Dune::shared_ptr<SubRandomField>(new SubRandomField(subFileName,loadBalance,comm))));
+                list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >(type, std::shared_ptr<SubRandomField>(new SubRandomField(subFileName,loadBalance,comm))));
               }
 
               if (fieldNames.empty())
@@ -770,9 +769,9 @@ namespace Dune {
           RandomFieldList(const RandomFieldList& other, const std::string& fileName)
             : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
           {
-            for(typename std::map<std::string, Dune::shared_ptr<SubRandomField> >::const_iterator it = other.list.begin(); it!= other.list.end(); ++it)
+            for(typename std::map<std::string, std::shared_ptr<SubRandomField> >::const_iterator it = other.list.begin(); it!= other.list.end(); ++it)
             {
-              list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >((*it).first, Dune::shared_ptr<SubRandomField>(new SubRandomField(*(*it).second,fileName+"."+(*it).first))));
+              list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >((*it).first, std::shared_ptr<SubRandomField>(new SubRandomField(*(*it).second,fileName+"."+(*it).first))));
             }
           }
 
@@ -789,15 +788,15 @@ namespace Dune {
                 if (fieldList.find(*it) == fieldList.end())
                   DUNE_THROW(Dune::Exception,"Field name "+(*it)+" not found in grid function list");
 
-                Dune::shared_ptr<SubRandomField> otherField = other.list.find(*it)->second;
-                list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >(*it, Dune::shared_ptr<SubRandomField>(new SubRandomField(*otherField,gfs,*(fieldList.find(*it)->second)))));
+                std::shared_ptr<SubRandomField> otherField = other.list.find(*it)->second;
+                list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >(*it, std::shared_ptr<SubRandomField>(new SubRandomField(*otherField,gfs,*(fieldList.find(*it)->second)))));
               }
 
               for (Iterator it = fieldNames.begin(); it!= fieldNames.end(); ++it)
               {
                 if (fieldList.find(*it) == fieldList.end())
                 {
-                  list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >(*it, Dune::shared_ptr<SubRandomField>(new SubRandomField(*(other.list.find(*it)->second)))));
+                  list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >(*it, std::shared_ptr<SubRandomField>(new SubRandomField(*(other.list.find(*it)->second)))));
                 }
               }
             }
@@ -809,9 +808,9 @@ namespace Dune {
           RandomFieldList(const RandomFieldList& other)
             : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
           {
-            for(typename std::map<std::string, Dune::shared_ptr<SubRandomField> >::const_iterator it = other.list.begin(); it!= other.list.end(); ++it)
+            for(typename std::map<std::string, std::shared_ptr<SubRandomField> >::const_iterator it = other.list.begin(); it!= other.list.end(); ++it)
             {
-              list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >((*it).first, Dune::shared_ptr<SubRandomField>(new SubRandomField(*(*it).second))));
+              list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >((*it).first, std::shared_ptr<SubRandomField>(new SubRandomField(*(*it).second))));
             }
           }
 
@@ -824,9 +823,9 @@ namespace Dune {
             activeTypes = other.activeTypes;
 
             list.clear();
-            for(typename std::map<std::string, Dune::shared_ptr<SubRandomField> >::const_iterator it = other.list.begin(); it!= other.list.end(); ++it)
+            for(typename std::map<std::string, std::shared_ptr<SubRandomField> >::const_iterator it = other.list.begin(); it!= other.list.end(); ++it)
             {
-              list.insert(std::pair<std::string,Dune::shared_ptr<SubRandomField> >((*it).first, Dune::shared_ptr<SubRandomField>(new SubRandomField(*(*it).second))));
+              list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >((*it).first, std::shared_ptr<SubRandomField>(new SubRandomField(*(*it).second))));
             }
 
             return *this;
@@ -874,7 +873,7 @@ namespace Dune {
           /**
            * @brief Access to individual random field
            */
-          const Dune::shared_ptr<SubRandomField>& get(const std::string& type) const
+          const std::shared_ptr<SubRandomField>& get(const std::string& type) const
           {
             if (list.find(type) != list.end())
               return (list.find(type))->second;
