@@ -11,9 +11,13 @@
 
 #include<dune/common/fmatrix.hh>
 #include<dune/common/fvector.hh>
+#if HAVE_DUNE_GRID
 #include<dune/grid/yaspgrid.hh>
 #include<dune/grid/io/file/vtk.hh>
-#include<dune/pdelab/gridfunctionspace/gridfunctionspaceutilities.hh>
+#endif //HAVE_DUNE_GRID
+//#if HAVE_DUNE_PDELAB
+//#include<dune/pdelab/gridfunctionspace/gridfunctionspaceutilities.hh>
+//#endif //HAVE_DUNE_PDELAB
 #include<dune/randomfield/randomfield.hh>
 
 /**
@@ -32,6 +36,10 @@ class GridTraits
     typedef Dune::FieldVector<DF,dim> Domain;
 };
 
+#if HAVE_DUNE_GRID
+/**
+ * @brief Grid helper class for YaspGrid generation (for VTK output)
+ */
 template<typename GT>
 class GridHelper
 {
@@ -75,9 +83,9 @@ class GridHelper
     return Lvector;
   }
 
-  Dune::array<int,dim> N() const
+  std::array<int,dim> N() const
   {
-    Dune::array<int,dim> Nvector;
+    std::array<int,dim> Nvector;
 
     for (unsigned int i = 0; i < dim; i++)
       Nvector[i] = minCells[i];
@@ -90,6 +98,7 @@ class GridHelper
     return std::bitset<dim>(false);
   }
 };
+#endif //HAVE_DUNE_GRID
 
 /**
  * @brief Field generation specialized by dimension
@@ -115,15 +124,23 @@ void generate(const Dune::ParameterTree& config)
     field.writeToFile(hdf5Out);
   if (vtkOut  != "")
   {
+#if HAVE_DUNE_GRID
     const GridHelper<GridTraits> gh(config);
     Dune::YaspGrid<dim> yaspGrid(gh.L(),gh.N(),gh.B(),1);
     field.writeToVTK(vtkOut,yaspGrid.leafGridView());
+#else //HAVE_DUNE_GRID
+    DUNE_THROW(Dune::Exception,"unstructured VTK output requires dune-grid and dune-functions");
+#endif //HAVE_DUNE_GRID
   }
   if (vtkSepOut != "")
   {
+#if HAVE_DUNE_GRID
     const GridHelper<GridTraits> gh(config);
     Dune::YaspGrid<dim> yaspGrid(gh.L(),gh.N(),gh.B(),1);
     field.writeToVTKSeparate(vtkSepOut,yaspGrid.leafGridView());
+#else //HAVE_DUNE_GRID
+    DUNE_THROW(Dune::Exception,"unstructured VTK output requires dune-grid and dune-functions");
+#endif //HAVE_DUNE_GRID
   }
   if (legacyVtkOut != "")
     field.writeToLegacyVTK(legacyVtkOut+".vtk");
@@ -155,15 +172,23 @@ void generateList(const Dune::ParameterTree& config)
     field.writeToFile(hdf5Out);
   if (vtkOut  != "")
   {
+#if HAVE_DUNE_GRID
     const GridHelper<GridTraits> gh(config);
     Dune::YaspGrid<dim> yaspGrid(gh.L(),gh.N(),gh.B(),1);
     field.writeToVTK(vtkOut,yaspGrid.leafGridView());
+#else //HAVE_DUNE_GRID
+    DUNE_THROW(Dune::Exception,"unstructured VTK output requires dune-grid and dune-functions");
+#endif //HAVE_DUNE_GRID
   }
   if (vtkSepOut != "")
   {
+#if HAVE_DUNE_GRID
     const GridHelper<GridTraits> gh(config);
     Dune::YaspGrid<dim> yaspGrid(gh.L(),gh.N(),gh.B(),1);
     field.writeToVTKSeparate(vtkSepOut,yaspGrid.leafGridView());
+#else //HAVE_DUNE_GRID
+    DUNE_THROW(Dune::Exception,"unstructured VTK output requires dune-grid and dune-functions");
+#endif //HAVE_DUNE_GRID
   }
   if (legacyVtkOut != "")
     field.writeToLegacyVTK(legacyVtkOut);
