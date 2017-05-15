@@ -12,17 +12,6 @@
 #include<dune/functions/gridfunctions/analyticgridviewfunction.hh>
 #endif // HAVE_DUNE_FUNCTIONS
 
-// file check
-#include<sys/stat.h>
-
-#include<mpi.h>
-
-// hdf5 support
-#include<hdf5.h>
-
-#include <fftw3.h>
-#include <fftw3-mpi.h>
-
 #include<dune/randomfield/io.hh>
 #include<dune/randomfield/fieldtraits.hh>
 #include<dune/randomfield/trend.hh>

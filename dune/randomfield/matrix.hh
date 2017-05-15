@@ -7,6 +7,9 @@
 #include<array>
 #include<random>
 
+#include <fftw3.h>
+#include <fftw3-mpi.h>
+
 #include"dune/randomfield/covariance.hh"
 
 namespace Dune {

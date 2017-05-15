@@ -2,6 +2,12 @@
 #ifndef DUNE_RANDOMFIELD_IO_HH
 #define	DUNE_RANDOMFIELD_IO_HH
 
+#include<fstream>
+
+// hdf5 support
+#include<hdf5.h>
+
+
 /// @todo get rid of this
 #define HDF5_DATA_TYPE H5T_IEEE_F64LE  //define for 64 bit machine
 //#define HDF5_DATA_TYPE H5T_IEEE_F32LE //define for 32 bit machine
@@ -14,13 +20,8 @@ namespace Dune{
      */
     bool fileExists(std::string filename)
     {
-      struct stat fileInfo;
-      int intStat;
-
-      // Attempt to get the file attributes
-      intStat = stat(filename.c_str(),&fileInfo);
-      // if attributes were found the file exists
-      return (intStat == 0);
+      std::ifstream testfile(filename);
+      return testfile.good();
     }
 
 #if HAVE_HDF5 // only define IO methods if HDF5 present

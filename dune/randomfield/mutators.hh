@@ -2,34 +2,6 @@
 #ifndef DUNE_RANDOMFIELD_MUTATORS_HH
 #define	DUNE_RANDOMFIELD_MUTATORS_HH
 
-#include<dune/common/parametertree.hh>
-#include<dune/common/shared_ptr.hh>
-
-#if HAVE_DUNE_PDELAB
-// for VTK output functionality
-#include<dune/grid/yaspgrid.hh>
-#include<dune/grid/io/file/vtk.hh>
-#include<dune/pdelab/gridfunctionspace/gridfunctionspaceutilities.hh>
-#endif // HAVE_DUNE_PDELAB
-
-// file check
-#include<sys/stat.h>
-
-#include<mpi.h>
-
-// hdf5 support
-#include<hdf5.h>
-
-#include <fftw3.h>
-#include <fftw3-mpi.h>
-
-#include<dune/randomfield/io.hh>
-#include<dune/randomfield/fieldtraits.hh>
-#include<dune/randomfield/trend.hh>
-#include<dune/randomfield/stochastic.hh>
-#include<dune/randomfield/matrix.hh>
-#include<dune/randomfield/mutators.hh>
-
 namespace Dune {
   namespace RandomField {
 

@@ -5,6 +5,9 @@
 #include<array>
 #include<vector>
 
+#include <fftw3.h>
+#include <fftw3-mpi.h>
+
 #include<dune/common/parametertreeparser.hh>
 
 namespace Dune {
