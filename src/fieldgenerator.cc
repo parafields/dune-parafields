@@ -18,6 +18,7 @@
 //#if HAVE_DUNE_PDELAB
 //#include<dune/pdelab/gridfunctionspace/gridfunctionspaceutilities.hh>
 //#endif //HAVE_DUNE_PDELAB
+#include<dune/randomfield/io.hh>
 #include<dune/randomfield/randomfield.hh>
 
 /**
@@ -460,7 +461,12 @@ int main(int argc, char** argv)
     }
     else
     {
-      generateFields(helper,"randomfield.ini",argc,argv);
+      // no arguments
+      // print help message if randomfield.ini is missing
+      if (!Dune::RandomField::fileExists("randomfield.ini"))
+        printHelpMessage();
+      else
+        generateFields(helper,"randomfield.ini",argc,argv);
     }
 
     return 0;
