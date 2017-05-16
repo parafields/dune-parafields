@@ -698,7 +698,6 @@ namespace Dune {
           std::shared_ptr<SubRandomField> emptyPointer;
 
           typedef typename GridTraits::RangeField RF;
-          typedef typename std::vector<std::string>::const_iterator Iterator;
 
         public:
 
@@ -769,9 +768,9 @@ namespace Dune {
           RandomFieldList(const RandomFieldList& other, const std::string& fileName)
             : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
           {
-            for(typename std::map<std::string, std::shared_ptr<SubRandomField> >::const_iterator it = other.list.begin(); it!= other.list.end(); ++it)
+            for(const std::pair<std::string,std::shared_ptr<SubRandomField> >& pair : other.list)
             {
-              list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >((*it).first, std::shared_ptr<SubRandomField>(new SubRandomField(*(*it).second,fileName+"."+(*it).first))));
+              list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >(pair.first, std::shared_ptr<SubRandomField>(new SubRandomField(*(pair.second),fileName+"."+pair.first))));
             }
           }
 
@@ -783,20 +782,20 @@ namespace Dune {
             RandomFieldList(const RandomFieldList& other, const GFS& gfs, const FieldList& fieldList)
             : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
             {
-              for (Iterator it = activeTypes.begin(); it != activeTypes.end(); ++it)
+              for (const std::string& type : activeTypes)
               {
-                if (fieldList.find(*it) == fieldList.end())
-                  DUNE_THROW(Dune::Exception,"Field name "+(*it)+" not found in grid function list");
+                if (fieldList.find(type) == fieldList.end())
+                  DUNE_THROW(Dune::Exception,"Field name " + type + " not found in grid function list");
 
-                std::shared_ptr<SubRandomField> otherField = other.list.find(*it)->second;
-                list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >(*it, std::shared_ptr<SubRandomField>(new SubRandomField(*otherField,gfs,*(fieldList.find(*it)->second)))));
+                std::shared_ptr<SubRandomField> otherField = other.list.find(type)->second;
+                list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >(type, std::shared_ptr<SubRandomField>(new SubRandomField(*otherField,gfs,*(fieldList.find(type)->second)))));
               }
 
-              for (Iterator it = fieldNames.begin(); it!= fieldNames.end(); ++it)
+              for (const std::string& type : fieldNames)
               {
-                if (fieldList.find(*it) == fieldList.end())
+                if (fieldList.find(type) == fieldList.end())
                 {
-                  list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >(*it, std::shared_ptr<SubRandomField>(new SubRandomField(*(other.list.find(*it)->second)))));
+                  list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >(type, std::shared_ptr<SubRandomField>(new SubRandomField(*(other.list.find(type)->second)))));
                 }
               }
             }
@@ -808,9 +807,9 @@ namespace Dune {
           RandomFieldList(const RandomFieldList& other)
             : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
           {
-            for(typename std::map<std::string, std::shared_ptr<SubRandomField> >::const_iterator it = other.list.begin(); it!= other.list.end(); ++it)
+            for(const std::pair<std::string,std::shared_ptr<SubRandomField> >& pair : other.list)
             {
-              list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >((*it).first, std::shared_ptr<SubRandomField>(new SubRandomField(*(*it).second))));
+              list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >(pair.first, std::shared_ptr<SubRandomField>(new SubRandomField(*(pair.second)))));
             }
           }
 
@@ -823,9 +822,9 @@ namespace Dune {
             activeTypes = other.activeTypes;
 
             list.clear();
-            for(typename std::map<std::string, std::shared_ptr<SubRandomField> >::const_iterator it = other.list.begin(); it!= other.list.end(); ++it)
+            for(const std::pair<std::string,std::shared_ptr<SubRandomField> >& pair : other.list)
             {
-              list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >((*it).first, std::shared_ptr<SubRandomField>(new SubRandomField(*(*it).second))));
+              list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >(pair.first, std::shared_ptr<SubRandomField>(new SubRandomField(*(pair.second)))));
             }
 
             return *this;
@@ -849,8 +848,8 @@ namespace Dune {
            */
           void generate(bool allowNonWorldComm = false)
           {
-            for(Iterator it = fieldNames.begin(); it != fieldNames.end(); ++it)
-              list.find(*it)->second->generate(allowNonWorldComm);
+            for(const std::string& type : fieldNames)
+              list.find(type)->second->generate(allowNonWorldComm);
           }
 
           /**
@@ -858,8 +857,8 @@ namespace Dune {
            */
           void generateUncorrelated(bool allowNonWorldComm = false)
           {
-            for(Iterator it = activeTypes.begin(); it != activeTypes.end(); ++it)
-              list.find(*it)->second->generateUncorrelated(allowNonWorldComm);
+            for(const std::string& type : fieldNames)
+              list.find(type)->second->generateUncorrelated(allowNonWorldComm);
           }
 
           /**
@@ -886,8 +885,8 @@ namespace Dune {
            */
           void writeToFile(const std::string& fileName) const
           {
-            for(Iterator it = fieldNames.begin(); it != fieldNames.end(); ++it)
-              list.find(*it)->second->writeToFile(fileName+"."+(*it));
+            for(const std::string& type : fieldNames)
+              list.find(type)->second->writeToFile(fileName + "." + type);
 
             std::ofstream file(fileName+".fieldList",std::ofstream::trunc);
             config.report(file);
@@ -900,8 +899,8 @@ namespace Dune {
             void writeToVTK(const std::string& fileName, const GridView& gv) const
             {
 #if HAVE_DUNE_FUNCTIONS
-              for (Iterator it = fieldNames.begin(); it != fieldNames.end(); ++it)
-                list.find(*it)->second->writeToVTK(fileName+"."+(*it),gv);
+              for (const std::string& type : fieldNames)
+                list.find(type)->second->writeToVTK(fileName + "." + type,gv);
 #else //HAVE_DUNE_FUNCTIONS
               DUNE_THROW(Dune::NotImplemented,"Unstructured VTK output requires dune-grid and dune-functions");
 #endif //HAVE_DUNE_FUNCTIONS
@@ -914,8 +913,8 @@ namespace Dune {
             void writeToVTKSeparate(const std::string& fileName, const GridView& gv) const
             {
 #if HAVE_DUNE_FUNCTIONS
-              for (Iterator it = fieldNames.begin(); it != fieldNames.end(); ++it)
-                list.find(*it)->second->writeToVTKSeparate(fileName+"."+(*it),gv);
+              for (const std::string& type : fieldNames)
+                list.find(type)->second->writeToVTKSeparate(fileName + "." + type,gv);
 #else //HAVE_DUNE_FUNCTIONS
               DUNE_THROW(Dune::NotImplemented,"Unstructured VTK output requires dune-grid and dune-functions");
 #endif //HAVE_DUNE_FUNCTIONS
@@ -926,8 +925,8 @@ namespace Dune {
            */
           void writeToLegacyVTK(const std::string& fileName) const
           {
-            for (Iterator it = fieldNames.begin(); it != fieldNames.end(); ++it)
-              list.find(*it)->second->writeToLegacyVTK(fileName+"."+(*it));
+            for (const std::string& type : fieldNames)
+              list.find(type)->second->writeToLegacyVTK(fileName + "." + type);
           }
 
           /**
@@ -935,8 +934,8 @@ namespace Dune {
            */
           void writeToLegacyVTKSeparate(const std::string& fileName) const
           {
-            for (Iterator it = fieldNames.begin(); it != fieldNames.end(); ++it)
-              list.find(*it)->second->writeToLegacyVTKSeparate(fileName+"."+(*it));
+            for (const std::string& type : fieldNames)
+              list.find(type)->second->writeToLegacyVTKSeparate(fileName + "." + type);
           }
 
           /**
@@ -944,8 +943,8 @@ namespace Dune {
            */
           void zero()
           {
-            for(Iterator it = activeTypes.begin(); it != activeTypes.end(); ++it)
-              list.find(*it)->second->zero();
+            for(const std::string& type : activeTypes)
+              list.find(type)->second->zero();
           }
 
           /**
@@ -953,8 +952,8 @@ namespace Dune {
            */
           void refineMatrix()
           {
-            for(Iterator it = activeTypes.begin(); it != activeTypes.end(); ++it)
-              list.find(*it)->second->refineMatrix();
+            for(const std::string& type : activeTypes)
+              list.find(type)->second->refineMatrix();
           }
 
           /**
@@ -962,8 +961,8 @@ namespace Dune {
            */
           void refine()
           {
-            for(Iterator it = activeTypes.begin(); it != activeTypes.end(); ++it)
-              list.find(*it)->second->refine();
+            for(const std::string& type : activeTypes)
+              list.find(type)->second->refine();
           }
 
           /**
@@ -971,12 +970,12 @@ namespace Dune {
            */
           RandomFieldList& operator+=(const RandomFieldList& other)
           {
-            for(Iterator it = activeTypes.begin(); it != activeTypes.end(); ++it)
+            for(const std::string& type : activeTypes)
             {
-              if (other.list.find(*it) == other.list.end())
+              if (other.list.find(type) == other.list.end())
                 DUNE_THROW(Dune::Exception,"RandomFieldLists don't match in operator+=");
 
-              list.find(*it)->second->operator+=(*(other.list.find(*it)->second));
+              list.find(type)->second->operator+=(*(other.list.find(type)->second));
             }
 
             return *this;
@@ -987,12 +986,12 @@ namespace Dune {
            */
           RandomFieldList& operator-=(const RandomFieldList& other)
           {
-            for(Iterator it = activeTypes.begin(); it != activeTypes.end(); ++it)
+            for(const std::string& type : activeTypes)
             {
-              if (other.list.find(*it) == other.list.end())
+              if (other.list.find(type) == other.list.end())
                 DUNE_THROW(Dune::Exception,"RandomFieldLists don't match in operator+=");
 
-              list.find(*it)->second->operator-=(*(other.list.find(*it)->second));
+              list.find(type)->second->operator-=(*(other.list.find(type)->second));
             }
 
             return *this;
@@ -1003,8 +1002,8 @@ namespace Dune {
            */
           RandomFieldList& operator*=(const RF alpha)
           {
-            for(Iterator it = activeTypes.begin(); it != activeTypes.end(); ++it)
-              list.find(*it)->second->operator*=(alpha);
+            for(const std::string& type : activeTypes)
+              list.find(type)->second->operator*=(alpha);
 
             return *this;
           }
@@ -1014,12 +1013,12 @@ namespace Dune {
            */
           RandomFieldList& axpy(const RandomFieldList& other, const RF alpha)
           {
-            for(Iterator it = activeTypes.begin(); it != activeTypes.end(); ++it)
+            for(const std::string& type : activeTypes)
             {
-              if (other.list.find(*it) == other.list.end())
+              if (other.list.find(type) == other.list.end())
                 DUNE_THROW(Dune::Exception,"RandomFieldLists don't match in axpy");
 
-              list.find(*it)->second->axpy(*(other.list.find(*it)->second),alpha);
+              list.find(type)->second->axpy(*(other.list.find(type)->second),alpha);
             }
 
             return *this;
@@ -1032,12 +1031,12 @@ namespace Dune {
           {
             RF output = 0.;
 
-            for(Iterator it = activeTypes.begin(); it != activeTypes.end(); ++it)
+            for(const std::string& type : activeTypes)
             {
-              if (other.list.find(*it) == other.list.end())
+              if (other.list.find(type) == other.list.end())
                 DUNE_THROW(Dune::Exception,"RandomFieldLists don't match in operator*");
 
-              output += list.find(*it)->second->operator*(*(other.list.find(*it)->second));
+              output += list.find(type)->second->operator*(*(other.list.find(type)->second));
             }
 
             return output;
@@ -1048,8 +1047,8 @@ namespace Dune {
            */
           void timesMatrix()
           {
-            for(Iterator it = activeTypes.begin(); it != activeTypes.end(); ++it)
-              list.find(*it)->second->timesMatrix();
+            for(const std::string& type : activeTypes)
+              list.find(type)->second->timesMatrix();
           }
 
           /**
@@ -1057,8 +1056,8 @@ namespace Dune {
            */
           void timesInverseMatrix()
           {
-            for(Iterator it = activeTypes.begin(); it != activeTypes.end(); ++it)
-              list.find(*it)->second->timesInverseMatrix();
+            for(const std::string& type : activeTypes)
+              list.find(type)->second->timesInverseMatrix();
           }
 
           /**
@@ -1066,8 +1065,8 @@ namespace Dune {
            */
           void timesMatrixRoot()
           {
-            for(Iterator it = activeTypes.begin(); it != activeTypes.end(); ++it)
-              list.find(*it)->second->timesMatrixRoot();
+            for(const std::string& type : activeTypes)
+              list.find(type)->second->timesMatrixRoot();
           }
 
           /**
@@ -1075,14 +1074,14 @@ namespace Dune {
            */
           void timesInvMatRoot()
           {
-            for(Iterator it = activeTypes.begin(); it != activeTypes.end(); ++it)
-              list.find(*it)->second->timesInvMatRoot();
+            for(const std::string& type : activeTypes)
+              list.find(type)->second->timesInvMatRoot();
           }
 
           void localize(const typename GridTraits::Domain& center, const RF radius)
           {
-            for(Iterator it = activeTypes.begin(); it != activeTypes.end(); ++it)
-              list.find(*it)->second->localize(center,radius);
+            for(const std::string& type : activeTypes)
+              list.find(type)->second->localize(center,radius);
           }
 
       };
