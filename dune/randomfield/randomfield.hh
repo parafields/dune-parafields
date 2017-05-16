@@ -729,7 +729,7 @@ namespace Dune {
                 if (subFileName != "")
                   subFileName += "." + type;
 
-                list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >(type, std::shared_ptr<SubRandomField>(new SubRandomField(subConfig,subFileName,loadBalance,comm))));
+                list.insert({type, std::make_shared<SubRandomField>(subConfig,subFileName,loadBalance,comm)});
               }
 
               if (fieldNames.empty())
@@ -753,7 +753,7 @@ namespace Dune {
 
                 std::string subFileName = fileName + "." + type;
 
-                list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >(type, std::shared_ptr<SubRandomField>(new SubRandomField(subFileName,loadBalance,comm))));
+                list.insert({type, std::make_shared<SubRandomField>(subFileName,loadBalance,comm)});
               }
 
               if (fieldNames.empty())
@@ -770,7 +770,7 @@ namespace Dune {
           {
             for(const std::pair<std::string,std::shared_ptr<SubRandomField> >& pair : other.list)
             {
-              list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >(pair.first, std::shared_ptr<SubRandomField>(new SubRandomField(*(pair.second),fileName+"."+pair.first))));
+              list.insert({pair.first, std::make_shared<SubRandomField>(*(pair.second),fileName + "." + pair.first)});
             }
           }
 
@@ -788,14 +788,14 @@ namespace Dune {
                   DUNE_THROW(Dune::Exception,"Field name " + type + " not found in grid function list");
 
                 std::shared_ptr<SubRandomField> otherField = other.list.find(type)->second;
-                list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >(type, std::shared_ptr<SubRandomField>(new SubRandomField(*otherField,gfs,*(fieldList.find(type)->second)))));
+                list.insert({type, std::make_shared<SubRandomField>(*otherField,gfs,*(fieldList.find(type)->second))});
               }
 
               for (const std::string& type : fieldNames)
               {
                 if (fieldList.find(type) == fieldList.end())
                 {
-                  list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >(type, std::shared_ptr<SubRandomField>(new SubRandomField(*(other.list.find(type)->second)))));
+                  list.insert({type, std::make_shared<SubRandomField>(*(other.list.find(type)->second))});
                 }
               }
             }
@@ -809,7 +809,7 @@ namespace Dune {
           {
             for(const std::pair<std::string,std::shared_ptr<SubRandomField> >& pair : other.list)
             {
-              list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >(pair.first, std::shared_ptr<SubRandomField>(new SubRandomField(*(pair.second)))));
+              list.insert({pair.first, std::make_shared<SubRandomField>(*(pair.second))});
             }
           }
 
@@ -824,7 +824,7 @@ namespace Dune {
             list.clear();
             for(const std::pair<std::string,std::shared_ptr<SubRandomField> >& pair : other.list)
             {
-              list.insert(std::pair<std::string,std::shared_ptr<SubRandomField> >(pair.first, std::shared_ptr<SubRandomField>(new SubRandomField(*(pair.second)))));
+              list.insert({pair.first, std::make_shared<SubRandomField>(*(pair.second))});
             }
 
             return *this;
