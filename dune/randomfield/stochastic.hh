@@ -103,17 +103,15 @@ namespace Dune {
               typename Field::template ConstLocalView<LFSCache> localView(field);
               std::vector<RF> vLocal;
 
-              typedef typename GFS::Traits::GridViewType::template Codim<0>::template Partition<Dune::Interior_Partition>::Iterator GridIterator;
-              const GridIterator endit = gfs.gridView().template end<0,Dune::Interior_Partition>();
-              for (GridIterator it = gfs.gridView().template begin<0,Dune::Interior_Partition>(); it != endit; ++it)
+              for (const auto& elem : elements(gfs.gridView(),Dune::Partitions::interior))
               {
-                lfs.bind(*it);
+                lfs.bind(elem);
                 vLocal.resize(lfs.size());
                 lfsCache.update();
                 localView.bind(lfsCache);
                 localView.read(vLocal);
 
-                const typename Traits::DomainType& coords = (*it).geometry().center();
+                const typename Traits::DomainType& coords = elem.geometry().center();
                 (*traits).coordsToIndices(coords,evalIndices,localEvalOffset);
                 const unsigned int index = (*traits).indicesToIndex(evalIndices,localEvalCells);
 

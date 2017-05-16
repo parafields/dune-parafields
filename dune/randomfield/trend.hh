@@ -106,11 +106,9 @@ namespace Dune {
               typename Field::template ConstLocalView<LFSCache> localView(field);
               std::vector<RF> vLocal;
 
-              typedef typename GFS::Traits::GridViewType::template Codim<0>::template Partition<Dune::Interior_Partition>::Iterator GridIterator;
-              const GridIterator endit = gfs.gridView().template end<0,Dune::Interior_Partition>();
-              for (GridIterator it = gfs.gridView().template begin<0,Dune::Interior_Partition>(); it != endit; ++it)
+              for (const auto& elem : elements(gfs.gridView(),Dune::Partitions::interior))
               {
-                lfs.bind(*it);
+                lfs.bind(elem);
                 vLocal.resize(lfs.size());
                 lfsCache.update();
                 localView.bind(lfsCache);
@@ -118,7 +116,7 @@ namespace Dune {
 
                 typename Traits::RangeType shift, deltaShift;
                 RF delta = 1e-2;
-                const typename Traits::DomainType& x = (*it).geometry().global((*it).geometry().center());
+                const typename Traits::DomainType& x = elem.geometry().global(elem.geometry().center());
                 evaluate(x,shift);
                 for (unsigned int i = 0; i < shiftVector.size(); i++)
                 {
