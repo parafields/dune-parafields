@@ -118,7 +118,7 @@ void generate(const Dune::ParameterTree& config)
   const std::string legacyVtkSepOut  = config.template get<std::string>("output.legacyVtkSeparate","");
   if (hdf5Out == "" && vtkOut == "" && vtkSepOut == "" && legacyVtkOut == "" && legacyVtkSepOut == "")
     DUNE_THROW(Dune::Exception,std::string("no output file given, please specify field (HDF5) or VTK output file (or both)\n")
-        + std::string("example: -output.hdf5 field -output.vtk fieldVis"));
+        + std::string("example: -output.dune field -output.vtk fieldVis"));
 
   Dune::RandomField::RandomField<GridTraits> field(config);
   if (seed == 0)
@@ -171,7 +171,7 @@ void generateList(const Dune::ParameterTree& config)
   const std::string legacyVtkSepOut  = config.template get<std::string>("output.legacyVtkSeparate","");
   if (hdf5Out == "" && vtkOut == "" && vtkSepOut == "" && legacyVtkOut == "" && legacyVtkSepOut == "")
     DUNE_THROW(Dune::Exception,std::string("no output file given, please specify field (HDF5) or VTK output file (or both)\n")
-        + std::string("example: -output.hdf5 field -output.vtk fieldVis"));
+        + std::string("example: -output.dune field -output.vtk fieldVis"));
 
   Dune::RandomField::RandomFieldList<GridTraits> field(config);
   if (seed == 0)
@@ -277,7 +277,7 @@ void printHelpMessage()
     << "Script-specific Options:\n\n"
     << "-input.seed <number>\n"
     << "    specify fixed seed for internal random number generator\n\n"
-    << "-output.hdf5 <basename>\n"
+    << "-output.dune <basename>\n"
     << "    write field in native format (HDF5 + config files)\n\n"
     << "-output.vtk <basename>\n"
     << "    write field in VTK format (XML flavor)\n\n"
