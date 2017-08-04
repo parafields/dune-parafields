@@ -146,15 +146,14 @@ namespace Dune {
           /**
            * @brief Generate random field based on covariance matrix
            */
-          void generateField(StochasticPart<Traits>& stochasticPart) const
+          void generateField(unsigned int seed, StochasticPart<Traits>& stochasticPart) const
           {
+
             if (fftTransformedMatrix == NULL)
               fillTransformedMatrix();
 
             // initialize pseudo-random generator
-            unsigned int seed = (unsigned int) clock(); // create seed out of the current time
-            seed += rank;                               // different seed for each processor
-            seed += static_cast<int>(reinterpret_cast<uintptr_t>(&stochasticPart));  // different seeds for different fields
+            seed += rank; // different seed for each processor
             std::default_random_engine generator(seed);
             std::normal_distribution<RF> normalDist(0.,1.);
 
@@ -182,12 +181,10 @@ namespace Dune {
           /**
            * @brief Generate uncorrelated random field (i.e. noise)
            */
-          void generateUncorrelatedField(StochasticPart<Traits>& stochasticPart) const
+          void generateUncorrelatedField(unsigned int seed, StochasticPart<Traits>& stochasticPart) const
           {
             // initialize pseudo-random generator
-            unsigned int seed = (unsigned int) clock(); // create seed out of the current time
-            seed += rank;                               // different seed for each processor
-            seed += static_cast<int>(reinterpret_cast<uintptr_t>(&stochasticPart));  // different seeds for different fields
+            seed += rank; // different seed for each processor
             std::default_random_engine generator(seed);
             std::normal_distribution<RF> normalDist(0.,1.);
 

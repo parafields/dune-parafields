@@ -188,17 +188,45 @@ namespace Dune {
            */
           void generate(bool allowNonWorldComm = false)
           {
+            // create seed out of current time
+            unsigned int seed = (unsigned int) clock();
+            // different seeds for different fields
+            seed += static_cast<int>(reinterpret_cast<uintptr_t>(&stochasticPart));
+
+            generate(seed,allowNonWorldComm);
+          }
+
+          /**
+           * @brief Generate a field with desired correlation structure using seed
+           */
+          void generate(unsigned int seed, bool allowNonWorldComm = false)
+          {
             if (((*traits).comm != MPI_COMM_WORLD) && !allowNonWorldComm)
               DUNE_THROW(Dune::Exception,"generation of inconsistent fields prevented, set allowNonWorldComm = true if you really want this");
 
-            (*matrix).generateField(stochasticPart);
-            trendPart.generate();
+            std::cout << "generate with seed: " << seed << std::endl;
+
+            (*matrix).generateField(seed,stochasticPart);
+            trendPart.generate(seed);
           }
 
           /**
            * @brief Generate a field without correlation structure (i.e. noise)
            */
           void generateUncorrelated(bool allowNonWorldComm = false)
+          {
+            // create seed out of current time
+            unsigned int seed = (unsigned int) clock();
+            // different seeds for different fields
+            seed += static_cast<int>(reinterpret_cast<uintptr_t>(&stochasticPart));
+
+            generate(seed,allowNonWorldComm);
+          }
+
+          /**
+           * @brief Generate a field containing noise using seed
+           */
+          void generateUncorrelated(unsigned int seed, bool allowNonWorldComm = false)
           {
             if (((*traits).comm != MPI_COMM_WORLD) && !allowNonWorldComm)
               DUNE_THROW(Dune::Exception,"generation of inconsistent fields prevented, set allowNonWorldComm = true if you really want this");

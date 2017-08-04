@@ -162,15 +162,12 @@ namespace Dune {
           /**
            * @brief Generate trend component coefficients with correct variance
            */
-          void generate()
+          void generate(unsigned int seed)
           {
             std::vector<RF> newShiftVector(shiftVector.size(),0.), myNewShiftVector(shiftVector.size(),0.);
 
             if ((*traits).rank == 0)
             {
-              // initialize pseudo-random generator
-              unsigned int seed = (unsigned int) clock(); // create seed out of current time
-              seed += static_cast<unsigned int>(reinterpret_cast<uintptr_t>(this));  // different seeds for different components
               std::default_random_engine generator(seed);
               std::normal_distribution<RF> normalDist(0.,1.);
 
@@ -187,15 +184,12 @@ namespace Dune {
           /**
            * @brief Generate trend component coefficients that are noise
            */
-          void generateUncorrelated()
+          void generateUncorrelated(unsigned int seed)
           {
             std::vector<RF> newShiftVector(shiftVector.size(),0.), myNewShiftVector(shiftVector.size(),0.);
 
             if ((*traits).rank == 0)
             {
-              // initialize pseudo-random generator
-              unsigned int seed = (unsigned int) clock(); // create seed out of current time
-              seed += static_cast<unsigned int>(reinterpret_cast<uintptr_t>(this));  // different seeds for different components
               std::default_random_engine generator(seed);
               std::normal_distribution<RF> normalDist(0.,1.);
 
@@ -539,22 +533,28 @@ namespace Dune {
         /**
          * @brief Generate a trend part with desired covariance structure
          */
-        void generate()
+        void generate(unsigned int seed)
         {
+          // different seed than stochastic part
+          seed += (*traits).commSize;
           for (unsigned int i = 0; i < componentVector.size(); i++)
           {
-            componentVector[i].generate();
+            // different seed for each component
+            componentVector[i].generate(seed + i);
           }
         }
 
         /**
          * @brief Generate a trend part without correlation (i.e. noise)
          */
-        void generateUncorrelated()
+        void generateUncorrelated(unsigned int seed)
         {
+          // different seed than stochastic part
+          seed += (*traits).commSize;
           for (unsigned int i = 0; i < componentVector.size(); i++)
           {
-            componentVector[i].generateUncorrelated();
+            // different seed for each component
+            componentVector[i].generateUncorrelated(seed + i);
           }
         }
 

@@ -109,6 +109,8 @@ void generate(const Dune::ParameterTree& config)
 {
   typedef GridTraits<double,double,dim> GridTraits;
 
+  const unsigned int seed = config.template get<unsigned int>("input.seed",0);
+
   const std::string hdf5Out          = config.template get<std::string>("output.dune",             "");
   const std::string vtkOut           = config.template get<std::string>("output.vtk",              "");
   const std::string vtkSepOut        = config.template get<std::string>("output.vtkSeparate",      "");
@@ -119,7 +121,10 @@ void generate(const Dune::ParameterTree& config)
         + std::string("example: -output.hdf5 field -output.vtk fieldVis"));
 
   Dune::RandomField::RandomField<GridTraits> field(config);
-  field.generate();
+  if (seed == 0)
+    field.generate();
+  else
+    field.generate(seed);
 
   if (hdf5Out != "")
     field.writeToFile(hdf5Out);
@@ -157,6 +162,8 @@ void generateList(const Dune::ParameterTree& config)
 {
   typedef GridTraits<double,double,dim> GridTraits;
 
+  const unsigned int seed = config.template get<unsigned int>("input.seed",0);
+
   const std::string hdf5Out          = config.template get<std::string>("output.dune",             "");
   const std::string vtkOut           = config.template get<std::string>("output.vtk",              "");
   const std::string vtkSepOut        = config.template get<std::string>("output.vtkSeparate",      "");
@@ -167,7 +174,10 @@ void generateList(const Dune::ParameterTree& config)
         + std::string("example: -output.hdf5 field -output.vtk fieldVis"));
 
   Dune::RandomField::RandomFieldList<GridTraits> field(config);
-  field.generate();
+  if (seed == 0)
+    field.generate();
+  else
+    field.generate(seed);
 
   if (hdf5Out != "")
     field.writeToFile(hdf5Out);
@@ -263,7 +273,21 @@ void printHelpMessage()
     << "fieldgenerator list\n"
     << "    print an example for field lists to standard output\n\n"
     << "fieldgenerator -h | --help | help\n"
-    << "    print this help message" << std::endl;
+    << "    print this help message\n\n"
+    << "Script-specific Options:\n\n"
+    << "-input.seed <number>\n"
+    << "    specify fixed seed for internal random number generator\n\n"
+    << "-output.hdf5 <basename>\n"
+    << "    write field in native format (HDF5 + config files)\n\n"
+    << "-output.vtk <basename>\n"
+    << "    write field in VTK format (XML flavor)\n\n"
+    << "-output.vtkSeparate <basename>\n"
+    << "    write components of field in VTK (XML flavor)\n\n"
+    << "-output.legacyVtk <basename>\n"
+    << "    write field in VTK format (legacy ASCII file)\n\n"
+    << "-output.legacyVtkSeparate <basename>\n"
+    << "    write components of field in VTK (legacy ASCII file)\n\n"
+    << std::endl;
 }
 
 /**
