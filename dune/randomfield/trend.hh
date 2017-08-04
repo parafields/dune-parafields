@@ -4,6 +4,7 @@
 
 #include<fstream>
 #include<random>
+#include<memory>
 
 #include<dune/common/parametertreeparser.hh>
 #if HAVE_DUNE_PDELAB
