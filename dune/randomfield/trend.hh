@@ -92,15 +92,15 @@ namespace Dune {
           if (TrendComponentType::isMean(componentType) && trendVector.size() != 1)
             DUNE_THROW(Dune::Exception,
                 "Trend mean component must only contain one parameter");
-          
+
           if (TrendComponentType::isSlope(componentType) && trendVector.size() != dim)
             DUNE_THROW(Dune::Exception,
                 "Trend slope component must contain dim parameters: slope in each dimension");
-          
+
           if (TrendComponentType::isDisk(componentType) && trendVector.size() != dim+2)
             DUNE_THROW(Dune::Exception,
                 "Trend disk component must contain dim+2 parameters: position, radius, value");
-          
+
           if (TrendComponentType::isBlock(componentType) && trendVector.size() != (2*dim)+1)
             DUNE_THROW(Dune::Exception,
                 "Trend block component must contain (2*dim)+1 parameters: center, extent, value");

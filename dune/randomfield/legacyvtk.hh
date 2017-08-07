@@ -63,7 +63,7 @@ class LegacyVTKWriter
               domain[2] += spacing[2];
             if (Traits::dim >= 2)
               domain[1] = origin[1];
-            
+
             for (unsigned int j = 0; j < cells[1]; j++)
             {
               if (Traits::dim >= 2)

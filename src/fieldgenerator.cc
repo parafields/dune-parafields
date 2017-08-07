@@ -61,7 +61,7 @@ class GridHelper
     maxCells = config.get<std::vector<unsigned int> >("grid.cells");
 
     if (maxExt.size() != maxCells.size())
-      DUNE_THROW(Dune::Exception,"cell and extension vectors differ in size");    
+      DUNE_THROW(Dune::Exception,"cell and extension vectors differ in size");
 
     minCells = maxCells;
     for (int i = 0; i < levels - 1; i++)
@@ -455,7 +455,7 @@ int main(int argc, char** argv)
     if (argc != 1)
     {
       std::string arg(argv[1]);
-      
+
       if (arg == "minimal")
       {
         printMinimalExample();
