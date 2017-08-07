@@ -36,7 +36,13 @@ namespace Dune {
 
         private:
 
-          void optimize_dims (int i, const std::array<int,dim>& size, int P, std::array<int,dim>& dims, std::array<int,dim>& trydims, double& opt) const
+          void optimize_dims (
+              int i,
+              const std::array<int,dim>& size,
+              int P, std::array<int,dim>& dims,
+              std::array<int,dim>& trydims,
+              double& opt
+              ) const
           {
             if (i > 0) // test all subdivisions recursively
             {
@@ -155,7 +161,11 @@ namespace Dune {
         public:
 
         template<typename LoadBalance>
-          RandomFieldTraits(const Dune::ParameterTree& config_, const LoadBalance& loadBalance, const MPI_Comm comm_)
+          RandomFieldTraits(
+              const Dune::ParameterTree& config_,
+              const LoadBalance& loadBalance,
+              const MPI_Comm comm_
+              )
           : config(config_), comm(comm_),
           extensions     (config.get<std::array<RF,dim> >          ("grid.extensions")),
           variance       (config.get<RF>                           ("stochastic.variance")),
@@ -179,7 +189,9 @@ namespace Dune {
 
           if (periodic && embeddingFactor != 1)
           {
-            if (verbose && rank == 0) std::cout << "periodic boundary conditions are synonymous with embeddingFactor == 1, enforcing consistency" << std::endl;
+            if (verbose && rank == 0)
+              std::cout << "periodic boundary conditions are synonymous with embeddingFactor == 1,"
+                << " enforcing consistency" << std::endl;
             embeddingFactor = 1;
           }
 
@@ -272,7 +284,8 @@ namespace Dune {
           {
             if (dim == 3)
             {
-              ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],(ptrdiff_t)extendedCells[1],(ptrdiff_t)extendedCells[2]};
+              ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],
+                (ptrdiff_t)extendedCells[1],(ptrdiff_t)extendedCells[2]};
               allocLocal = fftw_mpi_local_size_3d(n[2] , n[1], n[0], comm, &localN0, &local0Start);
             }
             else if (dim == 2)
@@ -284,7 +297,8 @@ namespace Dune {
             {
               ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0]};
               ptrdiff_t localN02, local0Start2;
-              allocLocal = fftw_mpi_local_size_1d(n[0], comm, FFTW_FORWARD, FFTW_ESTIMATE, &localN0, &local0Start, &localN02, &local0Start2);
+              allocLocal = fftw_mpi_local_size_1d(n[0], comm, FFTW_FORWARD, FFTW_ESTIMATE,
+                  &localN0, &local0Start, &localN02, &local0Start2);
               if (localN0 != localN02 || local0Start != local0Start2)
                 DUNE_THROW(Dune::Exception,"1d size / offset results don't match");
             }
@@ -295,7 +309,10 @@ namespace Dune {
         /**
          * @brief Convert an index tuple into a one dimensional encoding
          */
-        unsigned int indicesToIndex(const std::array<unsigned int,dim>& indices, const std::array<unsigned int,dim>& bound) const
+        unsigned int indicesToIndex(
+            const std::array<unsigned int,dim>& indices,
+            const std::array<unsigned int,dim>& bound
+            ) const
         {
           if (dim == 3)
           {
@@ -316,7 +333,11 @@ namespace Dune {
         /**
          * @brief Convert a one dimensional encoding into the original index tuple
          */
-        void indexToIndices(const unsigned int index, std::array<unsigned int,dim>& indices, const std::array<unsigned int,dim>& bound) const
+        void indexToIndices(
+            const unsigned int index,
+            std::array<unsigned int,dim>& indices,
+            const std::array<unsigned int,dim>& bound
+            ) const
         {
           if (dim == 3)
           {
@@ -340,7 +361,11 @@ namespace Dune {
         /**
          * @brief Convert spatial coordinates into the corresponding integer indices
          */
-        void coordsToIndices(const DomainType& location, std::array<unsigned int,dim>& localIndices, const std::array<unsigned int,dim>& offset) const
+        void coordsToIndices(
+            const DomainType& location,
+            std::array<unsigned int,dim>& localIndices,
+            const std::array<unsigned int,dim>& offset
+            ) const
         {
           for (unsigned int i = 0; i < dim; i++)
           {
@@ -352,7 +377,11 @@ namespace Dune {
         /**
          * @brief Convert integer indices into corresponding spatial coordinates
          */
-        void indicesToCoords(const std::array<unsigned int,dim>& localIndices, const std::array<unsigned int,dim>& offset, DomainType& location) const
+        void indicesToCoords(
+            const std::array<unsigned int,dim>& localIndices,
+            const std::array<unsigned int,dim>& offset,
+            DomainType& location
+            ) const
         {
           for (unsigned int i = 0; i < dim; i++)
           {

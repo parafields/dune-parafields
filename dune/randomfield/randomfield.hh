@@ -202,7 +202,8 @@ namespace Dune {
           void generate(unsigned int seed, bool allowNonWorldComm = false)
           {
             if (((*traits).comm != MPI_COMM_WORLD) && !allowNonWorldComm)
-              DUNE_THROW(Dune::Exception,"generation of inconsistent fields prevented, set allowNonWorldComm = true if you really want this");
+              DUNE_THROW(Dune::Exception,
+                  "generation of inconsistent fields prevented, set allowNonWorldComm = true if you really want this");
 
             std::cout << "generate with seed: " << seed << std::endl;
 
@@ -229,7 +230,8 @@ namespace Dune {
           void generateUncorrelated(unsigned int seed, bool allowNonWorldComm = false)
           {
             if (((*traits).comm != MPI_COMM_WORLD) && !allowNonWorldComm)
-              DUNE_THROW(Dune::Exception,"generation of inconsistent fields prevented, set allowNonWorldComm = true if you really want this");
+              DUNE_THROW(Dune::Exception,
+                  "generation of inconsistent fields prevented, set allowNonWorldComm = true if you really want this");
 
             (*matrix).generateUncorrelatedField(stochasticPart);
             trendPart.generateUncorrelated();
@@ -240,7 +242,11 @@ namespace Dune {
            * @brief Evaluate the random field in the coordinates of an element
            */
           template<typename Element>
-            void evaluate(const Element& elem, const typename Traits::DomainType& xElem, typename Traits::RangeType& output) const
+            void evaluate(
+                const Element& elem,
+                const typename Traits::DomainType& xElem,
+                typename Traits::RangeType& output
+                ) const
             {
               const typename Traits::DomainType location = elem.geometry().global(xElem);
               evaluate(location,output);
@@ -281,7 +287,8 @@ namespace Dune {
             {
 #if HAVE_DUNE_FUNCTIONS
               Dune::VTKWriter<GridView> vtkWriter(gv,Dune::VTK::conforming);
-              auto f = Dune::Functions::makeAnalyticGridViewFunction([&](auto x){typename Traits::RangeType output; this->evaluate(x,output); return output;},gv);
+              auto f = Dune::Functions::makeAnalyticGridViewFunction([&](auto x)
+                  {typename Traits::RangeType output; this->evaluate(x,output); return output;},gv);
               vtkWriter.addCellData(f,VTK::FieldInfo(fileName,VTK::FieldInfo::Type::scalar,1));
               vtkWriter.pwrite(fileName,"","",Dune::VTK::appendedraw);
 #else //HAVE_DUNE_FUNCTIONS
@@ -298,13 +305,15 @@ namespace Dune {
 #if HAVE_DUNE_FUNCTIONS
               Dune::VTKWriter<GridView> vtkWriter(gv,Dune::VTK::conforming);
               {
-                auto f = Dune::Functions::makeAnalyticGridViewFunction([&](auto x){typename Traits::RangeType output; stochasticPart.evaluate(x,output); return output;},gv);
+                auto f = Dune::Functions::makeAnalyticGridViewFunction([&](auto x)
+                    {typename Traits::RangeType output; stochasticPart.evaluate(x,output); return output;},gv);
                 vtkWriter.addCellData(f,VTK::FieldInfo("stochastic",VTK::FieldInfo::Type::scalar,1));
               }
               for (unsigned int i = 0; i < trendPart.size(); i++)
               {
                 const TrendComponent<Traits>& component = trendPart.getComponent(i);
-                auto f = Dune::Functions::makeAnalyticGridViewFunction([&](auto x){typename Traits::RangeType output; component.evaluate(x,output); return output;},gv);
+                auto f = Dune::Functions::makeAnalyticGridViewFunction([&](auto x)
+                    {typename Traits::RangeType output; component.evaluate(x,output); return output;},gv);
                 vtkWriter.addCellData(f,VTK::FieldInfo(component.name(),VTK::FieldInfo::Type::scalar,1));
               }
               vtkWriter.pwrite(fileName,"","",Dune::VTK::appendedraw);
@@ -513,14 +522,10 @@ namespace Dune {
             stochasticPart *= alpha;
 
             if (storeInvMat)
-            {
               *invMatPart *= alpha;
-            }
 
             if (storeInvRoot)
-            {
               *invRootPart *= alpha;
-            }
 
             return *this;
           }
@@ -686,7 +691,8 @@ namespace Dune {
     /**
      * @brief List of Gaussian random fields in 1D, 2D or 3D
      */
-    template<typename GridTraits, bool storeInvMat = true, bool storeInvRoot = false, template<typename, bool, bool> class RandomField = Dune::RandomField::RandomField>
+    template<typename GridTraits, bool storeInvMat = true, bool storeInvRoot = false,
+      template<typename, bool, bool> class RandomField = Dune::RandomField::RandomField>
       class RandomFieldList
       {
         public:
@@ -733,7 +739,12 @@ namespace Dune {
            * @brief Constructor reading random fields from file
            */
           template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim> >
-            RandomFieldList(const Dune::ParameterTree& config_, const std::string& fileName = "", const LoadBalance loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
+            RandomFieldList(
+                const Dune::ParameterTree& config_,
+                const std::string& fileName = "",
+                const LoadBalance loadBalance = LoadBalance(),
+                const MPI_Comm comm = MPI_COMM_WORLD
+                )
             : config(config_)
             {
               std::stringstream typeStream(config.get<std::string>("randomField.types"));
@@ -745,19 +756,22 @@ namespace Dune {
                 Dune::ParameterTree subConfig;
                 Dune::ParameterTreeParser parser;
                 parser.readINITree(type+".field",subConfig);
+
                 // copy general keys to subConfig if necessary
                 if (!subConfig.hasKey("grid.extensions") && config.hasKey("grid.extensions"))
                   subConfig["grid.extensions"] = config["grid.extensions"];
                 if (!subConfig.hasKey("grid.cells") && config.hasKey("grid.cells"))
                   subConfig["grid.cells"] = config["grid.cells"];
-                if (!subConfig.hasKey("randomField.cgIterations") && config.hasKey("randomField.cgIterations"))
+                if (!subConfig.hasKey("randomField.cgIterations")
+                    && config.hasKey("randomField.cgIterations"))
                   subConfig["randomField.cgIterations"] = config["randomField.cgIterations"];
 
                 std::string subFileName = fileName;
                 if (subFileName != "")
                   subFileName += "." + type;
 
-                list.insert({type, std::make_shared<SubRandomField>(subConfig,subFileName,loadBalance,comm)});
+                list.insert({type,
+                    std::make_shared<SubRandomField>(subConfig,subFileName,loadBalance,comm)});
               }
 
               if (fieldNames.empty())
@@ -770,7 +784,11 @@ namespace Dune {
            * @brief Constructor reading random fields and config from file
            */
           template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim> >
-            RandomFieldList(const std::string& fileName, const LoadBalance loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
+            RandomFieldList(
+                const std::string& fileName,
+                const LoadBalance loadBalance = LoadBalance(),
+                const MPI_Comm comm = MPI_COMM_WORLD
+                )
             : treeHelper(fileName), config(treeHelper.get())
             {
               std::stringstream typeStream(config.get<std::string>("randomField.types"));
@@ -797,9 +815,8 @@ namespace Dune {
             : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
           {
             for(const std::pair<std::string,std::shared_ptr<SubRandomField> >& pair : other.list)
-            {
-              list.insert({pair.first, std::make_shared<SubRandomField>(*(pair.second),fileName + "." + pair.first)});
-            }
+              list.insert({pair.first,
+                  std::make_shared<SubRandomField>(*(pair.second),fileName + "." + pair.first)});
           }
 
 #if HAVE_DUNE_PDELAB
@@ -816,16 +833,14 @@ namespace Dune {
                   DUNE_THROW(Dune::Exception,"Field name " + type + " not found in grid function list");
 
                 std::shared_ptr<SubRandomField> otherField = other.list.find(type)->second;
-                list.insert({type, std::make_shared<SubRandomField>(*otherField,gfs,*(fieldList.find(type)->second))});
+                list.insert({type,
+                    std::make_shared<SubRandomField>(*otherField,gfs,*(fieldList.find(type)->second))});
               }
 
               for (const std::string& type : fieldNames)
-              {
                 if (fieldList.find(type) == fieldList.end())
-                {
-                  list.insert({type, std::make_shared<SubRandomField>(*(other.list.find(type)->second))});
-                }
-              }
+                  list.insert({type,
+                      std::make_shared<SubRandomField>(*(other.list.find(type)->second))});
             }
 #endif // HAVE_DUNE_PDELAB
 
@@ -836,9 +851,7 @@ namespace Dune {
             : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
           {
             for(const std::pair<std::string,std::shared_ptr<SubRandomField> >& pair : other.list)
-            {
               list.insert({pair.first, std::make_shared<SubRandomField>(*(pair.second))});
-            }
           }
 
           /**
@@ -851,9 +864,7 @@ namespace Dune {
 
             list.clear();
             for(const std::pair<std::string,std::shared_ptr<SubRandomField> >& pair : other.list)
-            {
               list.insert({pair.first, std::make_shared<SubRandomField>(*(pair.second))});
-            }
 
             return *this;
           }

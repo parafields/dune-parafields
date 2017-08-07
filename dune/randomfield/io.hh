@@ -36,7 +36,8 @@ namespace Dune{
           const std::array<unsigned int,dim>& local_offset,
           const MPI_Comm& communicator,
           const std::string& data_name,
-          const std::string& data_filename)
+          const std::string& data_filename
+          )
       {
         // setup file access template with parallel IO access
         hid_t access_pList = H5Pcreate(H5P_FILE_ACCESS);
@@ -137,7 +138,8 @@ namespace Dune{
           const std::array<unsigned int,dim>& local_offset,
           const MPI_Comm& communicator,
           const std::string& data_name,
-          const std::string& data_filename)
+          const std::string& data_filename
+          )
       {
         //Info variable needed for HDF5
         MPI_Info mpiInfo = MPI_INFO_NULL;
@@ -181,7 +183,8 @@ namespace Dune{
         assert(filespace > -1);
 
         // Create the dataset with default properties and close filespace.
-        hid_t dset_id = H5Dcreate(file_id,data_name.c_str(),HDF5_DATA_TYPE,filespace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
+        hid_t dset_id = H5Dcreate(file_id,data_name.c_str(),HDF5_DATA_TYPE,
+            filespace,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
         H5Sclose(filespace);
         assert(dset_id > -1);
 

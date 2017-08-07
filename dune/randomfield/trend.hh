@@ -74,31 +74,50 @@ namespace Dune {
           /**
            * @brief Constructor
            */
-          TrendComponent<Traits>(const std::shared_ptr<Traits>& traits_, const std::vector<RF>& trendVector, const std::vector<RF>& meanVector_, const std::vector<RF>& varianceVector_, const TrendComponentType::Type& componentType_, unsigned int componentCount_ = 0)
-            : traits(traits_), componentType(componentType_), componentCount(componentCount_), extensions((*traits).extensions),
+          TrendComponent<Traits>(
+              const std::shared_ptr<Traits>& traits_,
+              const std::vector<RF>& trendVector,
+              const std::vector<RF>& meanVector_,
+              const std::vector<RF>& varianceVector_,
+              const TrendComponentType::Type& componentType_,
+              unsigned int componentCount_ = 0
+              )
+            : traits(traits_), componentType(componentType_),
+            componentCount(componentCount_), extensions((*traits).extensions),
             shiftVector(trendVector), meanVector(meanVector_), varianceVector(varianceVector_)
         {
           if (trendVector.size() != meanVector.size() || trendVector.size() != varianceVector.size())
             DUNE_THROW(Dune::Exception,"trend component size does not match");
 
           if (TrendComponentType::isMean(componentType) && trendVector.size() != 1)
-            DUNE_THROW(Dune::Exception,"Trend mean component must only contain one parameter");
+            DUNE_THROW(Dune::Exception,
+                "Trend mean component must only contain one parameter");
+          
           if (TrendComponentType::isSlope(componentType) && trendVector.size() != dim)
-            DUNE_THROW(Dune::Exception,"Trend slope component must contain dim parameters: slope in each dimension");
+            DUNE_THROW(Dune::Exception,
+                "Trend slope component must contain dim parameters: slope in each dimension");
+          
           if (TrendComponentType::isDisk(componentType) && trendVector.size() != dim+2)
-            DUNE_THROW(Dune::Exception,"Trend disk component must contain dim+2 parameters: position, radius, value");
+            DUNE_THROW(Dune::Exception,
+                "Trend disk component must contain dim+2 parameters: position, radius, value");
+          
           if (TrendComponentType::isBlock(componentType) && trendVector.size() != (2*dim)+1)
-            DUNE_THROW(Dune::Exception,"Trend block component must contain (2*dim)+1 parameters: center, extent, value");
+            DUNE_THROW(Dune::Exception,
+                "Trend block component must contain (2*dim)+1 parameters: center, extent, value");
 
           for (unsigned int i = 0; i < shiftVector.size(); i++)
             shiftVector[i] -= meanVector[i];
         }
 
 #if HAVE_DUNE_PDELAB
+          /**
+           * @brief Construct trend component from PDELab solution vector
+           */
           template<typename GFS, typename Field>
             void construct(const GFS& gfs, const Field& field)
             {
-              std::vector<RF> newShiftVector(shiftVector.size(),0.), myNewShiftVector(shiftVector.size(),0.);
+              std::vector<RF> newShiftVector(shiftVector.size(),0.),
+                myNewShiftVector(shiftVector.size(),0.);
 
               typedef Dune::PDELab::LocalFunctionSpace<GFS> LFS;
               typedef Dune::PDELab::LFSIndexCache<LFS> LFSCache;
@@ -117,7 +136,7 @@ namespace Dune {
 
                 typename Traits::RangeType shift, deltaShift;
                 RF delta = 1e-2;
-                const typename Traits::DomainType& x = elem.geometry().global(elem.geometry().center());
+                const typename Traits::DomainType& x = elem.geometry().center();
                 evaluate(x,shift);
                 for (unsigned int i = 0; i < shiftVector.size(); i++)
                 {
@@ -129,7 +148,8 @@ namespace Dune {
                 }
               }
 
-              MPI_Allreduce(&(myNewShiftVector[0]),&(newShiftVector[0]),shiftVector.size(),MPI_DOUBLE,MPI_SUM,(*traits).comm);
+              MPI_Allreduce(&(myNewShiftVector[0]),&(newShiftVector[0]),
+                  shiftVector.size(),MPI_DOUBLE,MPI_SUM,(*traits).comm);
               shiftVector = newShiftVector;
 
             }
@@ -165,7 +185,8 @@ namespace Dune {
            */
           void generate(unsigned int seed)
           {
-            std::vector<RF> newShiftVector(shiftVector.size(),0.), myNewShiftVector(shiftVector.size(),0.);
+            std::vector<RF> newShiftVector(shiftVector.size(),0.),
+              myNewShiftVector(shiftVector.size(),0.);
 
             if ((*traits).rank == 0)
             {
@@ -178,7 +199,8 @@ namespace Dune {
               }
             }
 
-            MPI_Allreduce(&(myNewShiftVector[0]),&(newShiftVector[0]),shiftVector.size(),MPI_DOUBLE,MPI_SUM,(*traits).comm);
+            MPI_Allreduce(&(myNewShiftVector[0]),&(newShiftVector[0]),
+                shiftVector.size(),MPI_DOUBLE,MPI_SUM,(*traits).comm);
             shiftVector = newShiftVector;
           }
 
@@ -187,7 +209,8 @@ namespace Dune {
            */
           void generateUncorrelated(unsigned int seed)
           {
-            std::vector<RF> newShiftVector(shiftVector.size(),0.), myNewShiftVector(shiftVector.size(),0.);
+            std::vector<RF> newShiftVector(shiftVector.size(),0.),
+              myNewShiftVector(shiftVector.size(),0.);
 
             if ((*traits).rank == 0)
             {
@@ -200,7 +223,8 @@ namespace Dune {
               }
             }
 
-            MPI_Allreduce(&(myNewShiftVector[0]),&(newShiftVector[0]),shiftVector.size(),MPI_DOUBLE,MPI_SUM,(*traits).comm);
+            MPI_Allreduce(&(myNewShiftVector[0]),&(newShiftVector[0]),
+                shiftVector.size(),MPI_DOUBLE,MPI_SUM,(*traits).comm);
             shiftVector = newShiftVector;
           }
 
@@ -328,9 +352,10 @@ namespace Dune {
 
               RF distSquared = 0.;
               for (unsigned int i = 0; i < dim; i++)
-                distSquared += (location[i] - (meanVector[i] + shiftVector[i])) * (location[i] - (meanVector[i] + shiftVector[i]));
+                distSquared += std::pow(location[i] - (meanVector[i] + shiftVector[i]),2);
 
-              output[0] = std::exp(- distSquared/((meanVector[dim] + shiftVector[dim])*(meanVector[dim] + shiftVector[dim]))) * (meanVector[dim+1] + shiftVector[dim+1]);
+              output[0] = std::exp(- distSquared / std::pow(meanVector[dim] + shiftVector[dim],2)
+                  * (meanVector[dim+1] + shiftVector[dim+1]);
             }
             else if (TrendComponentType::isBlock(componentType))
             {
@@ -338,7 +363,8 @@ namespace Dune {
 
               for (unsigned int i = 0; i < dim; i++)
               {
-                if (std::abs(location[i] - (meanVector[i] + shiftVector[i])) > 0.5 * (meanVector[dim+i] + shiftVector[dim+i]))
+                if (std::abs(location[i] - (meanVector[i] + shiftVector[i]))
+                    > 0.5 * (meanVector[dim+i] + shiftVector[dim+i]))
                   return;
               }
 
@@ -356,21 +382,13 @@ namespace Dune {
             if ((*traits).rank == 0)
             {
               if (TrendComponentType::isMean(componentType))
-              {
                 file << "mean =";
-              }
               else if (TrendComponentType::isSlope(componentType))
-              {
                 file << "slope =";
-              }
               else if (TrendComponentType::isDisk(componentType))
-              {
                 file << "disk" << componentCount << " =";
-              }
               else if (TrendComponentType::isBlock(componentType))
-              {
                 file << "block" << componentCount << " =";
-              }
               else
                 DUNE_THROW(Dune::Exception,"Trend component type not found!");
 
@@ -399,7 +417,11 @@ namespace Dune {
         /**
          * @brief Constructor
          */
-        TrendPart<Traits>(const Dune::ParameterTree& config, const std::shared_ptr<Traits>& traits_, const std::string& fileName = "")
+        TrendPart<Traits>(
+            const Dune::ParameterTree& config,
+            const std::shared_ptr<Traits>& traits_,
+            const std::string& fileName = ""
+            )
           : traits(traits_)
           {
             std::vector<RF> emptyVector, trendVector, meanVector, varianceVector;
@@ -422,7 +444,8 @@ namespace Dune {
                 trendVector = trendConfig.get<std::vector<RF> >("mean");
               }
 
-              componentVector.push_back(TrendComponent<Traits>(traits,trendVector, meanVector,varianceVector,TrendComponentType::Mean));
+              componentVector.emplace_back(traits,trendVector,
+                  meanVector,varianceVector,TrendComponentType::Mean);
             }
 
             meanVector = config.get<std::vector<RF> >("slope.mean",emptyVector);
@@ -443,7 +466,8 @@ namespace Dune {
                 trendVector = trendConfig.get<std::vector<RF> >("slope");
               }
 
-              componentVector.push_back(TrendComponent<Traits>(traits,trendVector,meanVector,varianceVector,TrendComponentType::Slope));
+              componentVector.emplace_back(traits,trendVector,
+                  meanVector,varianceVector,TrendComponentType::Slope);
             }
 
             int count = 0;
@@ -477,7 +501,8 @@ namespace Dune {
                   trendVector = trendConfig.get<std::vector<RF> >("disk"+s.str());
                 }
 
-                componentVector.push_back(TrendComponent<Traits>(traits,trendVector,meanVector,varianceVector,TrendComponentType::Disk,count));
+                componentVector.emplace_back(traits,trendVector,
+                    meanVector,varianceVector,TrendComponentType::Disk,count);
 
                 count++;
               }
@@ -514,7 +539,8 @@ namespace Dune {
                   trendVector = trendConfig.get<std::vector<RF> >("block"+s.str());
                 }
 
-                componentVector.push_back(TrendComponent<Traits>(traits,trendVector,meanVector,varianceVector,TrendComponentType::Block,count));
+                componentVector.emplace_back(traits,trendVector,
+                    meanVector,varianceVector,TrendComponentType::Block,count);
 
                 count++;
               }

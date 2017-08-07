@@ -73,8 +73,10 @@ namespace Dune {
               if(!fileExists(fileName+".stoch.h5"))
                 DUNE_THROW(Dune::Exception,"File is missing: " + fileName + ".stoch.h5");
 
-              if ((*traits).verbose && rank == 0) std::cout << "loading random field from file " << fileName << std::endl;
-              readParallelFromHDF5<RF,dim>(dataVector, localCells, localOffset, (*traits).comm, "/stochastic", fileName+".stoch.h5");
+              if ((*traits).verbose && rank == 0)
+                std::cout << "loading random field from file " << fileName << std::endl;
+              readParallelFromHDF5<RF,dim>(dataVector, localCells, localOffset,
+                  (*traits).comm, "/stochastic", fileName+".stoch.h5");
 
               evalValid  = false;
 #else //HAVE_HDF5
@@ -83,7 +85,8 @@ namespace Dune {
             }
             else
             {
-              if ((*traits).verbose && rank == 0) std::cout << "generating homogeneous random field" << std::endl;
+              if ((*traits).verbose && rank == 0)
+                std::cout << "generating homogeneous random field" << std::endl;
 
               zero();
             }
@@ -180,51 +183,58 @@ namespace Dune {
           void writeToFile(const std::string& fileName) const
           {
 #if HAVE_HDF5
-            if ((*traits).verbose && rank == 0) std::cout << "writing random field to file " << fileName << std::endl;
-            writeParallelToHDF5<RF,dim>((*traits).cells, dataVector, localCells, localOffset, (*traits).comm, "/stochastic", fileName+".stoch.h5");
+            if ((*traits).verbose && rank == 0)
+              std::cout << "writing random field to file " << fileName << std::endl;
+            writeParallelToHDF5<RF,dim>((*traits).cells, dataVector, localCells, localOffset,
+                (*traits).comm, "/stochastic", fileName+".stoch.h5");
 
             if (rank == 0)
             {
               std::ofstream file(fileName+".xdmf",std::ofstream::trunc);
 
-              file << "<?xml version=\"1.0\" ?>"                                                            << std::endl;
-              file << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>"                                              << std::endl;
-              file << "<Xdmf Version=\"2.0\">"                                                              << std::endl;
-              file << " <Domain>"                                                                           << std::endl;
-              file << "  <Grid Name=\"StructuredGrid\" GridType=\"Uniform\">"                               << std::endl;
-              file << "   <Topology TopologyType=\"3DRectMesh\" NumberOfElements=\"";
+              file
+                << "<?xml version=\"1.0\" ?>\n"
+                << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n"
+                << "<Xdmf Version=\"2.0\">\n"
+                << " <Domain>\n"
+                << "  <Grid Name=\"StructuredGrid\" GridType=\"Uniform\">\n"
+                << "   <Topology TopologyType=\"3DRectMesh\" NumberOfElements=\"";
               for (unsigned int i = 0; i < dim; i++)
                 file << cells[dim-(i+1)] << " ";
-              file << "\"/>"                                                                                << std::endl;
-              file << "   <Geometry GeometryType=\"origin_dxdydz\">" << std::endl;
-              file << "    <DataItem Dimensions=\"3\" NumberType=\"Float\" Precision=\"4\" Format=\"XML\">" << std::endl;
-              file << "     0. 0. 0."                                                                       << std::endl;
-              file << "    </DataItem>"                                                                     << std::endl;
-              file << "    <DataItem Dimensions=\"3\" NumberType=\"Float\" Precision=\"4\" Format=\"XML\">" << std::endl;
+              file
+                << "\"/>\n"
+                << "   <Geometry GeometryType=\"origin_dxdydz\">\n"
+                << "    <DataItem Dimensions=\"3\" NumberType=\"Float\" Precision=\"4\" Format=\"XML\">\n"
+                << "     0. 0. 0.\n"
+                << "    </DataItem>\n"
+                << "    <DataItem Dimensions=\"3\" NumberType=\"Float\" Precision=\"4\" Format=\"XML\">\n"
               file << "     ";
               for (unsigned int i = 0; i < 3 - dim; i++)
                 file << extensions[0]/cells[0] << " "; // additional entries to visualize 1D and 2D files
               for (unsigned int i = 0; i < dim; i++)
                 file << extensions[i]/cells[i] << " ";
-              file << std::endl;
-              file << "    </DataItem>"                                                                     << std::endl;
-              file << "   </Geometry>"                                                                      << std::endl;
-              file << "   <Attribute Name=\"";
-              file << fileName;
-              file << "\" AttributeType=\"Scalar\" Center=\"Cell\">"                                        << std::endl;
-              file << "    <DataItem Dimensions=\"";
+              file
+                << "\n"
+                << "    </DataItem>\n"
+                << "   </Geometry>\n"
+                << "   <Attribute Name=\"";
+                << fileName
+                << "\" AttributeType=\"Scalar\" Center=\"Cell\">\n"
+                << "    <DataItem Dimensions=\"";
               for (unsigned int i = 0; i < dim; i++)
                 file << cells[dim-(i+1)] << " ";
-              file << "\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">"                             << std::endl;
-              file << "     " << fileName+".stoch.h5" << ":/stochastic"                                     << std::endl;
-              file << "    </DataItem>"                                                                     << std::endl;
-              file << "   </Attribute>"                                                                     << std::endl;
-              file << "  </Grid>"                                                                           << std::endl;
-              file << " </Domain>"                                                                          << std::endl;
-              file << "</Xdmf>"                                                                             << std::endl;
+              file
+                << "\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n"
+                << "     " << fileName+".stoch.h5" << ":/stochastic\n"
+                << "    </DataItem>\n"
+                << "   </Attribute>\n"
+                << "  </Grid>\n"
+                << " </Domain>\n"
+                << "</Xdmf>"
+                << std::endl;
             }
 #else //HAVE_HDF5
-              DUNE_THROW(Dune::NotImplemented,"Writing and reading field files requires parallel HDF5 support");
+            DUNE_THROW(Dune::NotImplemented,"Writing and reading field files requires parallel HDF5 support");
 #endif //HAVE_HDF5
           }
 
@@ -585,14 +595,12 @@ namespace Dune {
               DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
 
             for (unsigned int i = 0; i < numComms; i++)
-            {
-              MPI_Isend(&(resorted  [i*localDomainSize/numComms]), localDomainSize/numComms, MPI_DOUBLE, (rank/numComms)*numComms + i, 0, (*traits).comm, &request);
-            }
+              MPI_Isend(&(resorted  [i*localDomainSize/numComms]), localDomainSize/numComms,
+                  MPI_DOUBLE, (rank/numComms)*numComms + i, 0, (*traits).comm, &request);
 
             for (unsigned int i = 0; i < numComms; i++)
-            {
-              MPI_Recv (&(evalVector[i*localDomainSize/numComms]), localDomainSize/numComms, MPI_DOUBLE, (rank/numComms)*numComms + i, 0, (*traits).comm, &status);
-            }
+              MPI_Recv (&(evalVector[i*localDomainSize/numComms]), localDomainSize/numComms,
+                  MPI_DOUBLE, (rank/numComms)*numComms + i, 0, (*traits).comm, &status);
 
             MPI_Barrier((*traits).comm);
 
@@ -626,14 +634,12 @@ namespace Dune {
               DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
 
             for (unsigned int i = 0; i < numComms; i++)
-            {
-              MPI_Isend(&(evalVector[i*localDomainSize/numComms]), localDomainSize/numComms, MPI_DOUBLE, (rank/numComms)*numComms + i, 0, (*traits).comm, &request);
-            }
+              MPI_Isend(&(evalVector[i*localDomainSize/numComms]), localDomainSize/numComms,
+                  MPI_DOUBLE, (rank/numComms)*numComms + i, 0, (*traits).comm, &request);
 
             for (unsigned int i = 0; i < numComms; i++)
-            {
-              MPI_Recv (&(resorted  [i*localDomainSize/numComms]), localDomainSize/numComms, MPI_DOUBLE, (rank/numComms)*numComms + i, 0, (*traits).comm, &status);
-            }
+              MPI_Recv (&(resorted  [i*localDomainSize/numComms]), localDomainSize/numComms,
+                  MPI_DOUBLE, (rank/numComms)*numComms + i, 0, (*traits).comm, &status);
 
             unsigned int numSlices = procPerDim[0]*localDomainSize/localCells[0];
             unsigned int sliceSize = localDomainSize/numSlices;
@@ -694,23 +700,28 @@ namespace Dune {
                 const unsigned int iNextNext = (i+2)%dim;
                 for (evalIndices[iNext] = 0; evalIndices[iNext] < localEvalCells[iNext]; evalIndices[iNext]++)
                 {
-                  for (evalIndices[iNextNext] = 0; evalIndices[iNextNext] < localEvalCells[iNextNext]; evalIndices[iNextNext]++)
+                  for (evalIndices[iNextNext] = 0;
+                      evalIndices[iNextNext] < localEvalCells[iNextNext]; evalIndices[iNextNext]++)
                   {
                     evalIndices[i] = 0;
                     const unsigned int index  = (*traits).indicesToIndex(evalIndices,localEvalCells);
-                    extract[2*i  ][evalIndices[iNext] + evalIndices[iNextNext] * localEvalCells[iNext]] = evalVector[index];
+                    extract[2*i  ][evalIndices[iNext] + evalIndices[iNextNext] * localEvalCells[iNext]]
+                      = evalVector[index];
 
                     evalIndices[i] = localEvalCells[i] - 1;
                     const unsigned int index2 = (*traits).indicesToIndex(evalIndices,localEvalCells);
-                    extract[2*i+1][evalIndices[iNext] + evalIndices[iNextNext] * localEvalCells[iNext]] = evalVector[index2];
+                    extract[2*i+1][evalIndices[iNext] + evalIndices[iNextNext] * localEvalCells[iNext]]
+                      = evalVector[index2];
                   }
                 }
               }
 
               neighbor[0] = (rank/procPerDim[0])*procPerDim[0] + (rank+(procPerDim[0]-1))%procPerDim[0];
               neighbor[1] = (rank/procPerDim[0])*procPerDim[0] + (rank+1                )%procPerDim[0];
-              neighbor[2] = (rank/(procPerDim[0]*procPerDim[1]))*(procPerDim[0]*procPerDim[1]) + (rank+(procPerDim[0]*procPerDim[1]-procPerDim[0]))%(procPerDim[0]*procPerDim[1]);
-              neighbor[3] = (rank/(procPerDim[0]*procPerDim[1]))*(procPerDim[0]*procPerDim[1]) + (rank+procPerDim[0]                              )%(procPerDim[0]*procPerDim[1]);
+              neighbor[2] = (rank/(procPerDim[0]*procPerDim[1]))*(procPerDim[0]*procPerDim[1])
+                + (rank+(procPerDim[0]*procPerDim[1]-procPerDim[0]))%(procPerDim[0]*procPerDim[1]);
+              neighbor[3] = (rank/(procPerDim[0]*procPerDim[1]))*(procPerDim[0]*procPerDim[1])
+                + (rank+procPerDim[0]                              )%(procPerDim[0]*procPerDim[1]);
               neighbor[4] = (rank+(commSize-(procPerDim[0]*procPerDim[1])))%commSize;
               neighbor[5] = (rank+(procPerDim[0]*procPerDim[1])           )%commSize;
 
@@ -751,11 +762,15 @@ namespace Dune {
 
             for (unsigned int i = 0; i < dim; i++)
             {
-              MPI_Isend(&(extract[2*i  ][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE, neighbor[2*i  ], 0, (*traits).comm, &request);
-              MPI_Recv (&(overlap[2*i+1][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE, neighbor[2*i+1], 0, (*traits).comm, &status);
+              MPI_Isend(&(extract[2*i  ][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE,
+                  neighbor[2*i  ], 0, (*traits).comm, &request);
+              MPI_Recv (&(overlap[2*i+1][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE,
+                  neighbor[2*i+1], 0, (*traits).comm, &status);
 
-              MPI_Isend(&(extract[2*i+1][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE, neighbor[2*i+1], 0, (*traits).comm, &request);
-              MPI_Recv (&(overlap[2*i  ][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE, neighbor[2*i  ], 0, (*traits).comm, &status);
+              MPI_Isend(&(extract[2*i+1][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE,
+                  neighbor[2*i+1], 0, (*traits).comm, &request);
+              MPI_Recv (&(overlap[2*i  ][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE,
+                  neighbor[2*i  ], 0, (*traits).comm, &status);
             }
 
             MPI_Barrier((*traits).comm);

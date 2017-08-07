@@ -267,7 +267,10 @@ namespace Dune {
                 fftTransformedMatrix[index][0] = 0.;
             }
 
-            if ((*traits).verbose && rank == 0) std::cout << small << " small, " << smallNegative << " small negative and " << negative << " large negative eigenvalues in covariance matrix, smallest " << smallest << std::endl;
+            if ((*traits).verbose && rank == 0)
+              std::cout << small << " small, " << smallNegative << " small negative and "
+                << negative << " large negative eigenvalues in covariance matrix, smallest "
+                << smallest << std::endl;
           }
 
           template<typename Covariance>
@@ -280,7 +283,8 @@ namespace Dune {
               else if ((*traits).config.template get<std::string>("stochastic.anisotropy") == "geometric")
                 computeCovarianceMatrixEntries<Covariance,GeneralMatrix<RF, dim> >();
               else
-                DUNE_THROW(Dune::Exception,"stochastic.anisotropy must be \"none\", \"axiparallel\" or \"geometric\"");
+                DUNE_THROW(Dune::Exception,
+                    "stochastic.anisotropy must be \"none\", \"axiparallel\" or \"geometric\"");
             }
 
           template<typename Covariance, typename GeometryMatrix>
@@ -321,18 +325,22 @@ namespace Dune {
 
               if (dim == 3)
               {
-                ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],(ptrdiff_t)extendedCells[1],(ptrdiff_t)extendedCells[2]};
-                plan_forward = fftw_mpi_plan_dft_3d(n[2], n[1], n[0], vector, vector, (*traits).comm, FFTW_FORWARD, FFTW_ESTIMATE);
+                ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],
+                  (ptrdiff_t)extendedCells[1],(ptrdiff_t)extendedCells[2]};
+                plan_forward = fftw_mpi_plan_dft_3d(n[2], n[1], n[0], vector, vector,
+                    (*traits).comm, FFTW_FORWARD, FFTW_ESTIMATE);
               }
               else if (dim == 2)
               {
                 ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],(ptrdiff_t)extendedCells[1]};
-                plan_forward = fftw_mpi_plan_dft_2d(n[1], n[0], vector, vector, (*traits).comm, FFTW_FORWARD, FFTW_ESTIMATE);
+                plan_forward = fftw_mpi_plan_dft_2d(n[1], n[0], vector, vector,
+                    (*traits).comm, FFTW_FORWARD, FFTW_ESTIMATE);
               }
               else if (dim == 1)
               {
                 ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0]};
-                plan_forward = fftw_mpi_plan_dft_1d(n[0], vector, vector, (*traits).comm, FFTW_FORWARD, FFTW_ESTIMATE);
+                plan_forward = fftw_mpi_plan_dft_1d(n[0], vector, vector,
+                    (*traits).comm, FFTW_FORWARD, FFTW_ESTIMATE);
               }
               else
                 DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
@@ -351,18 +359,22 @@ namespace Dune {
 
               if (dim == 3)
               {
-                ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],(ptrdiff_t)extendedCells[1],(ptrdiff_t)extendedCells[2]};
-                plan_backward = fftw_mpi_plan_dft_3d(n[2], n[1], n[0], vector, vector, (*traits).comm, FFTW_BACKWARD, FFTW_ESTIMATE);
+                ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],
+                  (ptrdiff_t)extendedCells[1],(ptrdiff_t)extendedCells[2]};
+                plan_backward = fftw_mpi_plan_dft_3d(n[2], n[1], n[0], vector, vector,
+                    (*traits).comm, FFTW_BACKWARD, FFTW_ESTIMATE);
               }
               else if (dim == 2)
               {
                 ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],(ptrdiff_t)extendedCells[1]};
-                plan_backward = fftw_mpi_plan_dft_2d(n[1], n[0], vector, vector, (*traits).comm, FFTW_BACKWARD, FFTW_ESTIMATE);
+                plan_backward = fftw_mpi_plan_dft_2d(n[1], n[0], vector, vector,
+                    (*traits).comm, FFTW_BACKWARD, FFTW_ESTIMATE);
               }
               else if (dim == 1)
               {
                 ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0]};
-                plan_backward = fftw_mpi_plan_dft_1d(n[0], vector, vector, (*traits).comm, FFTW_BACKWARD, FFTW_ESTIMATE);
+                plan_backward = fftw_mpi_plan_dft_1d(n[0], vector, vector,
+                    (*traits).comm, FFTW_BACKWARD, FFTW_ESTIMATE);
               }
               else
                 DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
@@ -516,7 +528,8 @@ namespace Dune {
               const int embeddingFactor = (*traits).embeddingFactor;
               MPI_Request request;
 
-              MPI_Isend(&(field[0]), localDomainSize, MPI_DOUBLE, rank/embeddingFactor, 0, (*traits).comm, &request);
+              MPI_Isend(&(field[0]), localDomainSize, MPI_DOUBLE,
+                  rank/embeddingFactor, 0, (*traits).comm, &request);
 
               if (rank*embeddingFactor < commSize)
               {
@@ -527,13 +540,15 @@ namespace Dune {
                 unsigned int receiveSize = std::min(embeddingFactor, commSize - rank*embeddingFactor);
                 for (unsigned int i = 0; i < receiveSize; i++)
                 {
-                  MPI_Recv(&(localCopy[0]), localDomainSize, MPI_DOUBLE, rank*embeddingFactor + i,   0, (*traits).comm, &status);
+                  MPI_Recv(&(localCopy[0]), localDomainSize, MPI_DOUBLE,
+                      rank*embeddingFactor + i,   0, (*traits).comm, &status);
 
                   for (unsigned int index = 0; index < localDomainSize; index++)
                   {
                     (*traits).indexToIndices(index,indices,localCells);
                     const unsigned int offset =  i * localExtendedDomainSize/embeddingFactor;
-                    const unsigned int extIndex = (*traits).indicesToIndex(indices,localExtendedCells) + offset;
+                    const unsigned int extIndex
+                      = (*traits).indicesToIndex(indices,localExtendedCells) + offset;
 
                     extendedField[extIndex][0] = localCopy[index];
                   }
@@ -591,14 +606,17 @@ namespace Dune {
                     localCopy[i][index] = extendedField[extIndex + offset][0];
                   }
 
-                  MPI_Isend(&(localCopy[i][0]), localDomainSize, MPI_DOUBLE, rank*embeddingFactor + i, 0, (*traits).comm, &(request[i]));
+                  MPI_Isend(&(localCopy[i][0]), localDomainSize, MPI_DOUBLE,
+                      rank*embeddingFactor + i, 0, (*traits).comm, &(request[i]));
                 }
 
-                MPI_Recv(&(field[0]), localDomainSize, MPI_DOUBLE, rank/embeddingFactor, 0, (*traits).comm, &status);
+                MPI_Recv(&(field[0]), localDomainSize, MPI_DOUBLE,
+                    rank/embeddingFactor, 0, (*traits).comm, &status);
               }
               else
               {
-                MPI_Recv(&(field[0]), localDomainSize, MPI_DOUBLE, rank/embeddingFactor, 0, (*traits).comm, &status);
+                MPI_Recv(&(field[0]), localDomainSize, MPI_DOUBLE,
+                    rank/embeddingFactor, 0, (*traits).comm, &status);
               }
 
               MPI_Barrier((*traits).comm);

@@ -315,7 +315,8 @@ namespace Dune {
               if (h_eff > 1.)
                 return 0.;
               else
-                return variance * (1. - 7. * std::pow(h_eff,2) + 8.75 * std::pow(h_eff,3) - 3.5 * std::pow(h_eff,5) + 0.75 * std::pow(h_eff,7));
+                return variance * (1. - 7. * std::pow(h_eff,2) + 8.75 * std::pow(h_eff,3)
+                    - 3.5 * std::pow(h_eff,5) + 0.75 * std::pow(h_eff,7));
             }
             else
               DUNE_THROW(Dune::NotImplemented,"cubic covariance only applicable in 1D or 2D");
