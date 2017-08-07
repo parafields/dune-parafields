@@ -208,7 +208,7 @@ namespace Dune {
                 << "     0. 0. 0.\n"
                 << "    </DataItem>\n"
                 << "    <DataItem Dimensions=\"3\" NumberType=\"Float\" Precision=\"4\" Format=\"XML\">\n"
-              file << "     ";
+                << "     ";
               for (unsigned int i = 0; i < 3 - dim; i++)
                 file << extensions[0]/cells[0] << " "; // additional entries to visualize 1D and 2D files
               for (unsigned int i = 0; i < dim; i++)
@@ -217,7 +217,7 @@ namespace Dune {
                 << "\n"
                 << "    </DataItem>\n"
                 << "   </Geometry>\n"
-                << "   <Attribute Name=\"";
+                << "   <Attribute Name=\""
                 << fileName
                 << "\" AttributeType=\"Scalar\" Center=\"Cell\">\n"
                 << "    <DataItem Dimensions=\"";

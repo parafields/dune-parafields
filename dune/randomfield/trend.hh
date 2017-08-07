@@ -355,7 +355,7 @@ namespace Dune {
                 distSquared += std::pow(location[i] - (meanVector[i] + shiftVector[i]),2);
 
               output[0] = std::exp(- distSquared / std::pow(meanVector[dim] + shiftVector[dim],2)
-                  * (meanVector[dim+1] + shiftVector[dim+1]);
+                  * (meanVector[dim+1] + shiftVector[dim+1]));
             }
             else if (TrendComponentType::isBlock(componentType))
             {
@@ -548,6 +548,9 @@ namespace Dune {
           }
 
 #if HAVE_DUNE_PDELAB
+        /**
+         * @brief Constructor based on PDELab solution
+         */
         template<typename GFS, typename Field>
           TrendPart<Traits>(const TrendPart<Traits>& other, const GFS& gfs, const Field& field)
           : traits(other.traits), componentVector(other.componentVector)
