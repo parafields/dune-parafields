@@ -1,6 +1,9 @@
 #ifndef DUNE_RANDOMFIELD_LEGACYVTK
 #define DUNE_RANDOMFIELD_LEGACYVTK
 
+/**
+ * @brief Simple legacy format VTK writer class
+ */
 template<typename Traits>
 class LegacyVTKWriter
 {
@@ -15,18 +18,29 @@ class LegacyVTKWriter
 
   public:
 
-    LegacyVTKWriter(const Dune::ParameterTree& config, const std::string& fileName, const MPI_Comm& comm = MPI_COMM_WORLD)
+    /**
+     * @brief Constructor
+     */
+    LegacyVTKWriter(
+        const Dune::ParameterTree& config,
+        const std::string& fileName,
+        const MPI_Comm& comm = MPI_COMM_WORLD
+        )
       : file(fileName+".vtk",std::ofstream::trunc), preambleWritten(false),
       extensions(config.template get<std::vector<typename Traits::RF> >("grid.extensions")),
       cells     (config.template get<std::vector<unsigned int>        >("grid.cells"))
     {
-      //DUNE_THROW(Dune::Exception,"prevent parallel runs");
+      int commSize;
+      MPI_Comm_size(comm,&commSize);
+      if (commSize > 1)
+        DUNE_THROW(Dune::Exception,"Legacy VTK writer doesn't work for parallel runs");
+
       // VTK is always 3D
       if (extensions.size() < 2)
         extensions.push_back(0.);
       if (extensions.size() < 3)
         extensions.push_back(0.);
-      
+
       if (cells.size() < 2)
         cells.push_back(1);
       if (cells.size() < 3)
@@ -36,7 +50,6 @@ class LegacyVTKWriter
       {
         spacing.push_back(extensions[i]/cells[i]);
         origin.push_back(-0.5 * extensions[i]/cells[i]);
-        //origin.push_back(0.);
       }
 
       dataPoints = 1;
@@ -44,6 +57,9 @@ class LegacyVTKWriter
         dataPoints *= cells[i];
     }
 
+    /**
+     * @brief Add scalar data set to VTK file
+     */
     template<typename Field>
       void writeScalarData(const std::string& dataName, const Field& field) const
       {
@@ -82,6 +98,9 @@ class LegacyVTKWriter
 
   private:
 
+    /**
+     * @brief Write preamble (header of file)
+     */
     void writePreamble() const
     {
       file << "# vtk DataFile Version 2.0\n"
