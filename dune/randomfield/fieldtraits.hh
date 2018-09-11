@@ -81,6 +81,7 @@ namespace Dune {
 
     template<typename Traits> class TrendPart;
     template<typename Traits> class TrendComponent;
+    template<typename Traits> class ImageComponent;
     template<typename Traits> class StochasticPart;
     template<typename Traits> class RandomFieldMatrix;
     template<typename GridTraits, bool storeInvMat, bool storeInvRoot> class RandomField;
@@ -113,6 +114,7 @@ namespace Dune {
 
         friend class TrendPart<ThisType>;
         friend class TrendComponent<ThisType>;
+        friend class ImageComponent<ThisType>;
         friend class StochasticPart<ThisType>;
         friend class RandomFieldMatrix<ThisType>;
         friend class RandomField<GridTraits,storeInvMat,storeInvRoot>;

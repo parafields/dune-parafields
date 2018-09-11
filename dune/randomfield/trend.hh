@@ -12,6 +12,8 @@
 #include<dune/pdelab/gridfunctionspace/lfsindexcache.hh>
 #endif //HAVE_DUNE_PDELAB
 
+#include<dune/randomfield/pngreader.hh>
+
 namespace Dune {
   namespace RandomField {
 
@@ -21,7 +23,7 @@ namespace Dune {
     struct TrendComponentType
     {
 
-      enum Type {Mean, Slope, Disk, Block};
+      enum Type {Mean, Slope, Disk, Block, Image};
 
       static bool isMean(Type i)
       {
@@ -41,6 +43,11 @@ namespace Dune {
       static bool isBlock(Type i)
       {
         return (i == Block);
+      }
+
+      static bool isImage(Type i)
+      {
+        return (i == Image);
       }
 
     };
@@ -402,6 +409,91 @@ namespace Dune {
       };
 
     /**
+     * @brief Component of random field based on pixel image
+     */
+    template<typename Traits>
+      class ImageComponent
+      : public TrendComponent<Traits>
+      {
+        using RF = typename TrendComponent<Traits>::RF;
+
+        enum {dim = TrendComponent<Traits>::dim};
+
+        const std::string imageFile;
+        const PNGReader   pngReader;
+
+        std::array<RF,dim> extensions;
+
+        public:
+
+        /**
+         * @brief Constructor
+         */
+        ImageComponent<Traits>(
+            const std::shared_ptr<Traits>& traits,
+            const std::vector<RF>& trendVector,
+            const std::vector<RF>& meanVector,
+            const std::vector<RF>& varianceVector,
+            const std::string& imageFile_
+            )
+          : TrendComponent<Traits>(traits,trendVector,meanVector,varianceVector,TrendComponentType::Image),
+          imageFile(imageFile_), pngReader(imageFile), extensions((*traits).extensions)
+        {
+          if (trendVector.size() != meanVector.size() || trendVector.size() != varianceVector.size())
+            DUNE_THROW(Dune::Exception,"trend component size does not match");
+
+          if (trendVector.size() != 1)
+            DUNE_THROW(Dune::Exception,
+                "Image component must only contain one parameter");
+
+          if (dim != 2)
+            DUNE_THROW(Dune::Exception,"image trend components requre dim == 2");
+        }
+
+#if HAVE_DUNE_PDELAB
+        /**
+         * @brief Constructor based on PDELab solution
+         */
+        template<typename GFS, typename Field>
+          ImageComponent<Traits>(const ImageComponent<Traits>& other, const GFS& gfs, const Field& field)
+          : TrendComponent<Traits>(other,gfs,field),
+          imageFile(other.imageFile), pngReader(other.pngReader), extensions(other.extensions)
+        {}
+#endif // HAVE_DUNE_PDELAB
+
+        /**
+         * @brief Name of type of this trend component
+         */
+        std::string name() const
+        {
+          return "image";
+        }
+
+        /**
+         * @brief Evaluate the trend component at a given location
+         */
+        void evaluate(const typename Traits::DomainType& location, typename Traits::RangeType& output) const
+        {
+          output[0] = (this->meanVector[0] + this->shiftVector[0]) * pngReader.evaluate(location,extensions);
+        }
+
+        /**
+         * @brief Write the trend component to hard disk
+         */
+        void writeToFile(std::ofstream& file) const
+        {
+          if ((*(this->traits)).rank == 0)
+          {
+            file << "image =";
+            for (unsigned int i = 0; i < this->shiftVector.size(); i++)
+              file << " " << this->meanVector[i] + this->shiftVector[i];
+            file << std::endl;
+          }
+        }
+
+      };
+
+    /**
      * @brief Part of random field that consists of deterministic components
      */
     template<typename Traits>
@@ -411,6 +503,7 @@ namespace Dune {
 
         std::shared_ptr<Traits> traits;
         std::vector<TrendComponent<Traits> > componentVector;
+        std::shared_ptr<ImageComponent<Traits> > imageComponent;
 
         public:
 
@@ -423,129 +516,151 @@ namespace Dune {
             const std::string& fileName = ""
             )
           : traits(traits_)
+        {
+          std::vector<RF> emptyVector, trendVector, meanVector, varianceVector;
+
+          meanVector = config.get<std::vector<RF> >("mean.mean",emptyVector);
+
+          if (!meanVector.empty())
           {
-            std::vector<RF> emptyVector, trendVector, meanVector, varianceVector;
+            varianceVector = config.get<std::vector<RF> >("mean.variance");
 
-            meanVector = config.get<std::vector<RF> >("mean.mean",emptyVector);
-
-            if (!meanVector.empty())
+            if (fileName == "")
             {
-              varianceVector = config.get<std::vector<RF> >("mean.variance");
-
-              if (fileName == "")
-              {
-                trendVector = meanVector;
-              }
-              else
-              {
-                Dune::ParameterTree trendConfig;
-                Dune::ParameterTreeParser parser;
-                parser.readINITree(fileName+".trend",trendConfig);
-                trendVector = trendConfig.get<std::vector<RF> >("mean");
-              }
-
-              componentVector.emplace_back(traits,trendVector,
-                  meanVector,varianceVector,TrendComponentType::Mean);
+              trendVector = meanVector;
+            }
+            else
+            {
+              Dune::ParameterTree trendConfig;
+              Dune::ParameterTreeParser parser;
+              parser.readINITree(fileName+".trend",trendConfig);
+              trendVector = trendConfig.get<std::vector<RF> >("mean");
             }
 
-            meanVector = config.get<std::vector<RF> >("slope.mean",emptyVector);
+            componentVector.emplace_back(traits,trendVector,
+                meanVector,varianceVector,TrendComponentType::Mean);
+          }
 
-            if (!meanVector.empty())
+          meanVector = config.get<std::vector<RF> >("slope.mean",emptyVector);
+
+          if (!meanVector.empty())
+          {
+            varianceVector = config.get<std::vector<RF> >("slope.variance");
+
+            if (fileName == "")
             {
-              varianceVector = config.get<std::vector<RF> >("slope.variance");
-
-              if (fileName == "")
-              {
-                trendVector = meanVector;
-              }
-              else
-              {
-                Dune::ParameterTree trendConfig;
-                Dune::ParameterTreeParser parser;
-                parser.readINITree(fileName+".trend",trendConfig);
-                trendVector = trendConfig.get<std::vector<RF> >("slope");
-              }
-
-              componentVector.emplace_back(traits,trendVector,
-                  meanVector,varianceVector,TrendComponentType::Slope);
+              trendVector = meanVector;
+            }
+            else
+            {
+              Dune::ParameterTree trendConfig;
+              Dune::ParameterTreeParser parser;
+              parser.readINITree(fileName+".trend",trendConfig);
+              trendVector = trendConfig.get<std::vector<RF> >("slope");
             }
 
-            int count = 0;
-            std::stringstream s;
-            bool endReached = false;
+            componentVector.emplace_back(traits,trendVector,
+                meanVector,varianceVector,TrendComponentType::Slope);
+          }
 
-            while(!endReached)
-            {
-              s.clear();
-              s.str(std::string());
-              s << count;
-              meanVector = config.get<std::vector<RF> >("disk"+s.str()+".mean",emptyVector);
+          int count = 0;
+          std::stringstream s;
+          bool endReached = false;
 
-              if (meanVector.empty())
-              {
-                endReached = true;
-              }
-              else
-              {
-                varianceVector = config.get<std::vector<RF> >("disk"+s.str()+".variance");
-
-                if (fileName == "")
-                {
-                  trendVector = meanVector;
-                }
-                else
-                {
-                  Dune::ParameterTree trendConfig;
-                  Dune::ParameterTreeParser parser;
-                  parser.readINITree(fileName+".trend",trendConfig);
-                  trendVector = trendConfig.get<std::vector<RF> >("disk"+s.str());
-                }
-
-                componentVector.emplace_back(traits,trendVector,
-                    meanVector,varianceVector,TrendComponentType::Disk,count);
-
-                count++;
-              }
-            }
-
-            count = 0;
+          while(!endReached)
+          {
             s.clear();
-            endReached = false;
+            s.str(std::string());
+            s << count;
+            meanVector = config.get<std::vector<RF> >("disk"+s.str()+".mean",emptyVector);
 
-            while(!endReached)
+            if (meanVector.empty())
             {
-              s.clear();
-              s.str(std::string());
-              s << count;
-              meanVector = config.get<std::vector<RF> >("block"+s.str()+".mean",emptyVector);
+              endReached = true;
+            }
+            else
+            {
+              varianceVector = config.get<std::vector<RF> >("disk"+s.str()+".variance");
 
-              if (meanVector.empty())
+              if (fileName == "")
               {
-                endReached = true;
+                trendVector = meanVector;
               }
               else
               {
-                varianceVector = config.get<std::vector<RF> >("block"+s.str()+".variance");
-
-                if (fileName == "")
-                {
-                  trendVector = meanVector;
-                }
-                else
-                {
-                  Dune::ParameterTree trendConfig;
-                  Dune::ParameterTreeParser parser;
-                  parser.readINITree(fileName+".trend",trendConfig);
-                  trendVector = trendConfig.get<std::vector<RF> >("block"+s.str());
-                }
-
-                componentVector.emplace_back(traits,trendVector,
-                    meanVector,varianceVector,TrendComponentType::Block,count);
-
-                count++;
+                Dune::ParameterTree trendConfig;
+                Dune::ParameterTreeParser parser;
+                parser.readINITree(fileName+".trend",trendConfig);
+                trendVector = trendConfig.get<std::vector<RF> >("disk"+s.str());
               }
+
+              componentVector.emplace_back(traits,trendVector,
+                  meanVector,varianceVector,TrendComponentType::Disk,count);
+
+              count++;
             }
           }
+
+          count = 0;
+          s.clear();
+          endReached = false;
+
+          while(!endReached)
+          {
+            s.clear();
+            s.str(std::string());
+            s << count;
+            meanVector = config.get<std::vector<RF> >("block"+s.str()+".mean",emptyVector);
+
+            if (meanVector.empty())
+            {
+              endReached = true;
+            }
+            else
+            {
+              varianceVector = config.get<std::vector<RF> >("block"+s.str()+".variance");
+
+              if (fileName == "")
+              {
+                trendVector = meanVector;
+              }
+              else
+              {
+                Dune::ParameterTree trendConfig;
+                Dune::ParameterTreeParser parser;
+                parser.readINITree(fileName+".trend",trendConfig);
+                trendVector = trendConfig.get<std::vector<RF> >("block"+s.str());
+              }
+
+              componentVector.emplace_back(traits,trendVector,
+                  meanVector,varianceVector,TrendComponentType::Block,count);
+
+              count++;
+            }
+          }
+
+          meanVector = config.get<std::vector<RF> >("image.mean",emptyVector);
+
+          if (!meanVector.empty())
+          {
+            varianceVector = config.get<std::vector<RF> >("image.variance");
+
+            if (fileName == "")
+            {
+              trendVector = meanVector;
+            }
+            else
+            {
+              Dune::ParameterTree trendConfig;
+              Dune::ParameterTreeParser parser;
+              parser.readINITree(fileName+".trend",trendConfig);
+              trendVector = trendConfig.get<std::vector<RF> >("image");
+            }
+
+            const std::string imageFile = config.get<std::string>("image.filename");
+            imageComponent = std::make_shared<ImageComponent<Traits> >(traits,trendVector,meanVector,varianceVector,imageFile);
+          }
+        }
 
 #if HAVE_DUNE_PDELAB
         /**
@@ -557,6 +672,12 @@ namespace Dune {
           {
             for (unsigned int i = 0; i < componentVector.size(); i++)
               componentVector[i].construct(gfs,field);
+
+            if (other.imageComponent)
+            {
+              imageComponent = std::make_shared<ImageComponent<Traits> >(*(other.imageComponent));
+              imageComponent->construct(gfs,field);
+            }
           }
 #endif // HAVE_DUNE_PDELAB
 
@@ -572,6 +693,9 @@ namespace Dune {
             // different seed for each component
             componentVector[i].generate(seed + i);
           }
+
+          if (imageComponent)
+            imageComponent->generate(seed + componentVector.size());
         }
 
         /**
@@ -586,10 +710,13 @@ namespace Dune {
             // different seed for each component
             componentVector[i].generateUncorrelated(seed + i);
           }
+
+          if (imageComponent)
+            imageComponent->generateUncorrelated(seed + componentVector.size());
         }
 
         /**
-         * @brief Number of stored trend components
+         * @brief Number of stored trend components (excluding image)
          */
         unsigned int size() const
         {
@@ -597,11 +724,19 @@ namespace Dune {
         }
 
         /**
-         * @brief Access ith trend component
+         * @brief Access ith trend component (excluding image)
          */
         const TrendComponent<Traits>& getComponent(unsigned int i) const
         {
           return componentVector[i];
+        }
+
+        /**
+         * @brief Access image component if available
+         */
+        const std::shared_ptr<const ImageComponent<Traits> >& getImageComponent() const
+        {
+          return imageComponent;
         }
 
         /**
@@ -611,6 +746,9 @@ namespace Dune {
         {
           for (unsigned int i = 0; i < componentVector.size(); i++)
             componentVector[i].timesMatrix();
+
+          if (imageComponent)
+            imageComponent->timesMatrix();
         }
 
         /**
@@ -620,6 +758,9 @@ namespace Dune {
         {
           for (unsigned int i = 0; i < componentVector.size(); i++)
             componentVector[i].timesInverseMatrix();
+
+          if (imageComponent)
+            imageComponent->timesInverseMatrix();
         }
 
         /**
@@ -629,6 +770,9 @@ namespace Dune {
         {
           for (unsigned int i = 0; i < componentVector.size(); i++)
             componentVector[i].timesMatrixRoot();
+
+          if (imageComponent)
+            imageComponent->timesMatrixRoot();
         }
 
         /**
@@ -638,6 +782,9 @@ namespace Dune {
         {
           for (unsigned int i = 0; i < componentVector.size(); i++)
             componentVector[i].timesInvMatRoot();
+
+          if (imageComponent)
+            imageComponent->timesInvMatRoot();
         }
 
         /**
@@ -647,6 +794,9 @@ namespace Dune {
         {
           for (unsigned int i = 0; i < componentVector.size(); i++)
             componentVector[i] += other.componentVector[i];
+
+          if (imageComponent)
+            *imageComponent += *(other.imageComponent);
 
           return *this;
         }
@@ -659,6 +809,9 @@ namespace Dune {
           for (unsigned int i = 0; i < componentVector.size(); i++)
             componentVector[i] -= other.componentVector[i];
 
+          if (imageComponent)
+            *imageComponent -= *(other.imageComponent);
+
           return *this;
         }
 
@@ -669,6 +822,9 @@ namespace Dune {
         {
           for (unsigned int i = 0; i < componentVector.size(); i++)
             componentVector[i] *= alpha;
+
+          if (imageComponent)
+            *imageComponent *= alpha;
 
           return *this;
         }
@@ -681,6 +837,9 @@ namespace Dune {
           for (unsigned int i = 0; i < componentVector.size(); i++)
             componentVector[i].axpy(other.componentVector[i],alpha);
 
+          if (imageComponent)
+            imageComponent->axpy(*(other.imageComponent),alpha);
+
           return *this;
         }
 
@@ -691,6 +850,9 @@ namespace Dune {
         {
           for (unsigned int i = 0; i < componentVector.size(); i++)
             componentVector[i].zero();
+
+          if (imageComponent)
+            imageComponent->zero();
         }
 
         /**
@@ -702,6 +864,9 @@ namespace Dune {
 
           for (unsigned int i = 0; i < componentVector.size(); i++)
             output += componentVector[i] * other.componentVector[i];
+
+          if (imageComponent)
+            output += *imageComponent * *(other.imageComponent);
 
           return output;
         }
@@ -717,6 +882,12 @@ namespace Dune {
           for (unsigned int i = 0; i < componentVector.size(); i++)
           {
             componentVector[i].evaluate(x,compOutput);
+            output[0] += compOutput[0];
+          }
+
+          if (imageComponent)
+          {
+            imageComponent->evaluate(x,compOutput);
             output[0] += compOutput[0];
           }
         }
@@ -739,6 +910,9 @@ namespace Dune {
 
               componentVector[i].writeToFile(file,count);
             }
+
+            if (imageComponent)
+              imageComponent->writeToFile(file);
           }
         }
 
