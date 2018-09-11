@@ -31,10 +31,10 @@ class GridTraits
 
     enum {dim = dimension};
 
-    typedef RF                        RangeField;
-    typedef Dune::FieldVector<RF,1>   Scalar;
-    typedef DF                        DomainField;
-    typedef Dune::FieldVector<DF,dim> Domain;
+    using RangeField  = RF;
+    using Scalar      = Dune::FieldVector<RF,1>;
+    using DomainField = DF;
+    using Domain      = Dune::FieldVector<DF,dim>;
 };
 
 #if HAVE_DUNE_GRID
@@ -46,7 +46,7 @@ class GridHelper
 {
   enum {dim = GT::dim};
 
-  typedef typename GT::DomainField DF;
+  using DF = typename GT::DomainField;
 
   int levels;
   std::vector<DF> maxExt;
@@ -107,7 +107,7 @@ class GridHelper
 template<unsigned int dim>
 void generate(const Dune::ParameterTree& config)
 {
-  typedef GridTraits<double,double,dim> GridTraits;
+  using GridTraits = GridTraits<double,double,dim>;
 
   const unsigned int seed = config.template get<unsigned int>("input.seed",0);
 
@@ -174,7 +174,7 @@ void generate(const Dune::ParameterTree& config)
 template<unsigned int dim>
 void generateList(const Dune::ParameterTree& config)
 {
-  typedef GridTraits<double,double,dim> GridTraits;
+  using GridTraits = GridTraits<double,double,dim>;
 
   const unsigned int seed = config.template get<unsigned int>("input.seed",0);
 

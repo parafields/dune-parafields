@@ -22,10 +22,10 @@ class GridTraits
 
     enum {dim = dimension};
 
-    typedef RF                        RangeField;
-    typedef Dune::FieldVector<RF,1>   Scalar;
-    typedef DF                        DomainField;
-    typedef Dune::FieldVector<DF,dim> Domain;
+    using RangeField  = RF;
+    using Scalar      = Dune::FieldVector<RF,1>;
+    using DomainField = DF;
+    using Domain      = Dune::FieldVector<DF,dim>;
 };
 
 /**
@@ -152,7 +152,7 @@ void test2d()
   Dune::ParameterTreeParser parser;
   parser.readINITree("randomfield2d.ini",config);
 
-  typedef GridTraits<double,double,2> GridTraits;
+  using GridTraits = GridTraits<double,double,2>;
 
   std::cout << "--------------" << std::endl;
   std::cout << "2D Exponential" << std::endl;
@@ -177,7 +177,7 @@ void test3d()
   Dune::ParameterTreeParser parser;
   parser.readINITree("randomfield3d.ini",config);
 
-  typedef GridTraits<double,double,3> GridTraits;
+  using GridTraits = GridTraits<double,double,3>;
 
   std::cout << "--------------" << std::endl;
   std::cout << "3D Exponential" << std::endl;

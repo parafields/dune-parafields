@@ -28,13 +28,10 @@ namespace Dune {
     template<typename GridTraits, bool storeInvMat = true, bool storeInvRoot = false>
       class RandomField
       {
-
-        public:
-
-          typedef RandomFieldTraits<GridTraits,storeInvMat,storeInvRoot> Traits;
-          typedef typename Traits::RF                                    RF;
-
         protected:
+          
+          using Traits = RandomFieldTraits<GridTraits,storeInvMat,storeInvRoot>;
+          using RF     = typename Traits::RF;
 
           // to allow reading in constructor
           class ParamTreeHelper
@@ -792,7 +789,7 @@ namespace Dune {
       {
         public:
 
-          typedef RandomField<GridTraits, storeInvMat, storeInvRoot> SubRandomField;
+          using SubRandomField = RandomField<GridTraits, storeInvMat, storeInvRoot>;
 
         protected:
 
@@ -826,14 +823,15 @@ namespace Dune {
           std::map<std::string, std::shared_ptr<SubRandomField> > list;
           std::shared_ptr<SubRandomField> emptyPointer;
 
-          typedef typename GridTraits::RangeField RF;
+          using Traits = RandomFieldTraits<GridTraits, storeInvMat, storeInvRoot>;
+          using RF     = typename Traits::RF;
 
         public:
 
           /**
            * @brief Constructor reading random fields from file
            */
-          template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim> >
+          template<typename LoadBalance = DefaultLoadBalance<Traits::dim> >
             RandomFieldList(
                 const Dune::ParameterTree& config_,
                 const std::string& fileName = "",
@@ -878,7 +876,7 @@ namespace Dune {
           /**
            * @brief Constructor reading random fields and config from file
            */
-          template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim> >
+          template<typename LoadBalance = DefaultLoadBalance<Traits::dim> >
             RandomFieldList(
                 const std::string& fileName,
                 const LoadBalance loadBalance = LoadBalance(),

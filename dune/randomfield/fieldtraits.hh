@@ -91,16 +91,16 @@ namespace Dune {
     template<typename GridTraits, bool storeInvMat, bool storeInvRoot>
       class RandomFieldTraits
       {
-        typedef RandomFieldTraits<GridTraits,storeInvMat,storeInvRoot> ThisType;
+        using ThisType = RandomFieldTraits<GridTraits,storeInvMat,storeInvRoot>;
 
         public:
 
         enum {dim = GridTraits::dim};
 
-        typedef typename GridTraits::RangeField  RF;
-        typedef typename GridTraits::DomainField DomainField;
-        typedef typename GridTraits::Domain      DomainType;
-        typedef typename GridTraits::Scalar      RangeType;
+        using RF          = typename GridTraits::RangeField;
+        using DomainField = typename GridTraits::DomainField;
+        using DomainType  = typename GridTraits::Domain;
+        using RangeType   = typename GridTraits::Scalar;
 
 #if HAVE_DUNE_PDELAB
         // allows treating a RandomField as a PDELab function

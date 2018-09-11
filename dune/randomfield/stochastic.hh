@@ -18,17 +18,10 @@ namespace Dune {
     /*
      * @brief Part of random field that consists of cell values
      */
-    template<typename T>
+    template<typename Traits>
       class StochasticPart
       {
-
-        public:
-
-          typedef T Traits;
-
-        private:
-
-          typedef typename Traits::RF RF;
+          using RF = typename Traits::RF;
 
           enum {dim = Traits::dim};
 
@@ -99,8 +92,8 @@ namespace Dune {
             {
               update();
 
-              typedef Dune::PDELab::LocalFunctionSpace<GFS> LFS;
-              typedef Dune::PDELab::LFSIndexCache<LFS> LFSCache;
+              using LFS      = Dune::PDELab::LocalFunctionSpace<GFS>;
+              using LFSCache = Dune::PDELab::LFSIndexCache<LFS>;
               LFS lfs(gfs);
               LFSCache lfsCache(lfs);
               typename Field::template ConstLocalView<LFSCache> localView(field);

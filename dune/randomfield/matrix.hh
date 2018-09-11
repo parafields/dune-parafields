@@ -15,17 +15,10 @@
 namespace Dune {
   namespace RandomField {
 
-    template<typename T>
+    template<typename Traits>
       class RandomFieldMatrix
       {
-
-        public:
-
-          typedef T Traits;
-
-        private:
-
-          typedef typename Traits::RF RF;
+          using RF = typename Traits::RF;
           enum {dim = Traits::dim};
 
           const std::shared_ptr<Traits> traits;

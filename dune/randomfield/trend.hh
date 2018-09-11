@@ -52,9 +52,9 @@ namespace Dune {
       class TrendComponent
       {
 
-        private:
+        protected:
 
-          typedef typename Traits::RF RF;
+          using RF = typename Traits::RF;
 
           enum {dim = Traits::dim};
 
@@ -119,8 +119,8 @@ namespace Dune {
               std::vector<RF> newShiftVector(shiftVector.size(),0.),
                 myNewShiftVector(shiftVector.size(),0.);
 
-              typedef Dune::PDELab::LocalFunctionSpace<GFS> LFS;
-              typedef Dune::PDELab::LFSIndexCache<LFS> LFSCache;
+              using LFS      = Dune::PDELab::LocalFunctionSpace<GFS>;
+              using LFSCache = Dune::PDELab::LFSIndexCache<LFS>;
               LFS lfs(gfs);
               LFSCache lfsCache(lfs);
               typename Field::template ConstLocalView<LFSCache> localView(field);
@@ -405,9 +405,9 @@ namespace Dune {
      * @brief Part of random field that consists of deterministic components
      */
     template<typename Traits>
-      class TrendPart {
-
-        typedef typename Traits::RF RF;
+      class TrendPart
+      {
+        using RF = typename Traits::RF;
 
         std::shared_ptr<Traits> traits;
         std::vector<TrendComponent<Traits> > componentVector;
