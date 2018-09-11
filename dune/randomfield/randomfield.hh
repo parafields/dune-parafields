@@ -468,6 +468,101 @@ namespace Dune {
           }
 
           /**
+           * @brief Double spatial resolution of covariance matrix
+           */
+          void coarsenMatrix()
+          {
+            (*traits).coarsen();
+            (*matrix).update();
+          }
+
+          /**
+           * @brief Reduce spatial resolution of random field
+           */
+          void coarsen()
+          {
+            if (storeInvMat && invMatValid)
+            {
+              (*invMatPart).coarsen();
+              stochasticPart = (*matrix) * (*invMatPart);
+
+              if ((*traits).dim == 3)
+              {
+                stochasticPart *= 1./8.;
+                *invMatPart    *= 1./8.;
+              }
+              else if ((*traits).dim == 2)
+              {
+                stochasticPart *= 1./4.;
+                *invMatPart    *= 1./4.;
+              }
+              else if ((*traits).dim == 1)
+              {
+                stochasticPart *= 1./2.;
+                *invMatPart    *= 1./2.;
+              }
+              else
+                DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
+
+              if (storeInvRoot)
+              {
+                *invRootPart = (*matrix).multiplyRoot(*invMatPart);
+
+                if ((*traits).dim == 3)
+                  *invRootPart *= 1./8.;
+                else if ((*traits).dim == 2)
+                  *invRootPart *= 1./4.;
+                else if ((*traits).dim == 1)
+                  *invRootPart *= 1./2.;
+                else
+                  DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
+
+                invRootValid = true;
+              }
+
+            }
+            else if (storeInvRoot && invRootValid)
+            {
+              (*invRootPart).coarsen();
+              stochasticPart = (*matrix).multiplyRoot(*invRootPart);
+
+              if ((*traits).dim == 3)
+              {
+                stochasticPart *= 1./8.;
+                *invRootPart   *= 1./8.;
+              }
+              else if ((*traits).dim == 2)
+              {
+                stochasticPart *= 1./4.;
+                *invRootPart   *= 1./4.;
+              }
+              else if ((*traits).dim == 1)
+              {
+                stochasticPart *= 1./2.;
+                *invRootPart   *= 1./2.;
+              }
+              else
+                DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
+
+              if (storeInvMat)
+              {
+                *invMatPart = stochasticPart;
+                invMatValid = false;
+              }
+            }
+            else
+            {
+              stochasticPart.coarsen();
+
+              if (storeInvMat)
+                (*invMatPart).coarsen();
+
+              if (storeInvRoot)
+                (*invRootPart).coarsen();
+            }
+          }
+
+          /**
            * @brief Addition assignment operator
            */
           RandomField& operator+=(const RandomField& other)
@@ -1002,6 +1097,24 @@ namespace Dune {
           {
             for(const std::string& type : activeTypes)
               list.find(type)->second->refine();
+          }
+
+          /**
+           * @brief Reduce spatial resolution of covariance matrix
+           */
+          void coarsenMatrix()
+          {
+            for(const std::string& type : activeTypes)
+              list.find(type)->second->coarsenMatrix();
+          }
+
+          /**
+           * @brief Reduce spatial resolution of random fields
+           */
+          void coarsen()
+          {
+            for(const std::string& type : activeTypes)
+              list.find(type)->second->coarsen();
           }
 
           /**

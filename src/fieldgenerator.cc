@@ -126,6 +126,20 @@ void generate(const Dune::ParameterTree& config)
   else
     field.generate(seed);
 
+  unsigned int refine = config.template get<unsigned int>("input.refine",0);
+  for (unsigned int i = 0; i < refine; i++)
+  {
+    field.refineMatrix();
+    field.refine();
+  }
+
+  unsigned int coarsen = config.template get<unsigned int>("input.coarsen",0);
+  for (unsigned int i = 0; i < coarsen; i++)
+  {
+    field.coarsenMatrix();
+    field.coarsen();
+  }
+
   if (hdf5Out != "")
     field.writeToFile(hdf5Out);
   if (vtkOut  != "")
@@ -178,6 +192,20 @@ void generateList(const Dune::ParameterTree& config)
     field.generate();
   else
     field.generate(seed);
+
+  unsigned int refine = config.template get<unsigned int>("input.refine",0);
+  for (unsigned int i = 0; i < refine; i++)
+  {
+    field.refineMatrix();
+    field.refine();
+  }
+
+  unsigned int coarsen = config.template get<unsigned int>("input.coarsen",0);
+  for (unsigned int i = 0; i < coarsen; i++)
+  {
+    field.coarsenMatrix();
+    field.coarsen();
+  }
 
   if (hdf5Out != "")
     field.writeToFile(hdf5Out);
@@ -277,6 +305,11 @@ void printHelpMessage()
     << "Script-specific Options:\n\n"
     << "-input.seed <number>\n"
     << "    specify fixed seed for internal random number generator\n\n"
+    << "-input.refine <number>\n"
+    << "    subdivide cells <number> times before writing native format\n"
+    << "    (not honored by VTK output)\n\n"
+    << "-input.coarsen <number>\n"
+    << "    same as refine, but merge cells instead\n\n"
     << "-output.dune <basename>\n"
     << "    write field in native format (HDF5 + config files)\n\n"
     << "-output.vtk <basename>\n"

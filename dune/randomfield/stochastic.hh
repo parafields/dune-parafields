@@ -496,6 +496,81 @@ namespace Dune {
             }
           }
 
+          /**
+           * @brief Reduce spatial resolution and transfer field values
+           */
+          void coarsen()
+          {
+            if (level != (*traits).level)
+            {
+              const std::vector<RF> oldData = dataVector;
+              update();
+
+              std::array<unsigned int,dim> oldLocalCells;
+              for (unsigned int i = 0; i < dim; i++)
+              {
+                oldLocalCells[i] = localCells[i]*2;
+              }
+
+              dataVector.resize(localDomainSize);
+
+              std::array<unsigned int,dim> oldIndices;
+              std::array<unsigned int,dim> newIndices;
+              if (dim == 3)
+              {
+                for (newIndices[2] = 0; newIndices[2] < localCells[2]; newIndices[2]++)
+                  for (newIndices[1] = 0; newIndices[1] < localCells[1]; newIndices[1]++)
+                    for (newIndices[0] = 0; newIndices[0] < localCells[0]; newIndices[0]++)
+                    {
+                      oldIndices[0] = 2*newIndices[0];
+                      oldIndices[1] = 2*newIndices[1];
+                      oldIndices[2] = 2*newIndices[2];
+
+                      const unsigned int oldIndex = (*traits).indicesToIndex(oldIndices,oldLocalCells);
+                      const unsigned int newIndex = (*traits).indicesToIndex(newIndices,localCells);
+
+                      RF newValue = 0.;
+                      newValue += oldData[oldIndex                                                           ];
+                      newValue += oldData[oldIndex + 1                                                       ];
+                      newValue += oldData[oldIndex + oldLocalCells[0]                                        ];
+                      newValue += oldData[oldIndex + oldLocalCells[0] + 1                                    ];
+                      newValue += oldData[oldIndex + oldLocalCells[1]*oldLocalCells[0]                       ];
+                      newValue += oldData[oldIndex + oldLocalCells[1]*oldLocalCells[0] + 1                   ];
+                      newValue += oldData[oldIndex + oldLocalCells[1]*oldLocalCells[0] + oldLocalCells[0]    ];
+                      newValue += oldData[oldIndex + oldLocalCells[1]*oldLocalCells[0] + oldLocalCells[0] + 1];
+                      dataVector[newIndex] = newValue / 8;
+                    }
+              }
+              else if (dim == 2)
+              {
+                for (newIndices[1] = 0; newIndices[1] < localCells[1]; newIndices[1]++)
+                  for (newIndices[0] = 0; newIndices[0] < localCells[0]; newIndices[0]++)
+                  {
+                    oldIndices[0] = 2*newIndices[0];
+                    oldIndices[1] = 2*newIndices[1];
+
+                    const unsigned int oldIndex = (*traits).indicesToIndex(oldIndices,oldLocalCells);
+                    const unsigned int newIndex = (*traits).indicesToIndex(newIndices,localCells);
+
+                    RF newValue = 0.;
+                    newValue += oldData[oldIndex                       ];
+                    newValue += oldData[oldIndex + 1                   ];
+                    newValue += oldData[oldIndex + oldLocalCells[0]    ];
+                    newValue += oldData[oldIndex + oldLocalCells[0] + 1];
+                    dataVector[newIndex] = newValue / 4;
+                  }
+              }
+              else if (dim == 1)
+              {
+                DUNE_THROW(Dune::Exception,"not implemented");
+              }
+              else
+                DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
+
+              evalValid = false;
+            }
+          }
+
           void localize(const typename Traits::DomainType& center, const RF radius)
           {
             typename Traits::DomainType location;

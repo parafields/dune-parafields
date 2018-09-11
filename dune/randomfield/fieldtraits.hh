@@ -277,6 +277,23 @@ namespace Dune {
         }
 
         /**
+         * @brief Request global coarsening of the data structure
+         */
+        void coarsen()
+        {
+          for (unsigned int i = 0; i < dim; ++i)
+          {
+            if (cells[i] % 2 != 0)
+              DUNE_THROW(Dune::Exception, "cannot coarsen odd number of cells");
+            cells[i] /= 2;
+          }
+
+          level--;
+
+          update();
+        }
+
+        /**
          * @brief Get the domain decomposition data of the Fourier transform
          */
         template<typename T>
