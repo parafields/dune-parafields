@@ -672,6 +672,11 @@ namespace Dune {
             return *this;
           }
 
+          RandomField& axpy(const RF alpha, const RandomField& other)
+          {
+            return axpy(other,alpha);
+          }
+
           /**
            * @brief Scalar product
            */
@@ -808,6 +813,16 @@ namespace Dune {
           RF infNorm() const
           {
             return std::max(trendPart.infNorm(), stochasticPart.infNorm());
+          }
+
+          bool operator==(const RandomField& other) const
+          {
+            return (trendPart == other.trendPart && stochasticPart == other.stochasticPart);
+          }
+
+          bool operator!=(const RandomField& other) const
+          {
+            return !operator==(other);
           }
 
           void localize(const typename Traits::DomainType& center, const RF radius)
@@ -1028,6 +1043,18 @@ namespace Dune {
             }
 
             return *this;
+          }
+
+          /**
+           * @brief Insert additional random field into list
+           */
+          void insert(const std::string& type, const SubRandomField& field, bool activate = true)
+          {
+            fieldNames.push_back(type);
+            if (activate)
+              activeTypes.push_back(type);
+
+            list.insert({type, std::make_shared<SubRandomField>(field)});
           }
 
           /**
@@ -1255,6 +1282,11 @@ namespace Dune {
             return *this;
           }
 
+          RandomFieldList& axpy(const RF alpha, const RandomFieldList& other)
+          {
+            return axpy(other,alpha);
+          }
+
           /**
            * @brief Scalar product
            */
@@ -1334,6 +1366,29 @@ namespace Dune {
               max = std::max(max, list.find(type)->second->infNorm());
 
             return max;
+          }
+
+          bool operator==(const RandomFieldList& other) const
+          {
+            bool same = true;
+            for (const std::string& type : fieldNames)
+            {
+              if (other.list.find(type) == other.list.end())
+                DUNE_THROW(Dune::Exception,"RandomFieldLists don't match in operator==");
+
+              if (!(list.find(type)->second->operator==(*(other.list.find(type)->second))))
+              {
+                same = false;
+                break;
+              }
+            }
+
+            return same;
+          }
+
+          bool operator!=(const RandomFieldList& other) const
+          {
+            return !operator==(other);
           }
 
           void localize(const typename GridTraits::Domain& center, const RF radius)

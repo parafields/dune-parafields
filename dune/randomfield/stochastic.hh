@@ -338,6 +338,26 @@ namespace Dune {
             return sum;
           }
 
+          bool operator==(const StochasticPart& other) const
+          {
+            int same = true, mySame = true;
+
+            for (unsigned int i = 0; i < localDomainSize; ++i)
+              if (dataVector[i] != other.dataVector[i])
+              {
+                mySame = false;
+                break;
+              }
+
+            MPI_Allreduce(&mySame,&same,1,MPI_INT,MPI_MIN,(*traits).comm);
+            return same;
+          }
+
+          bool operator!=(const StochasticPart& other) const
+          {
+            return !operator==(other);
+          }
+
           /**
            * @brief Evaluate stochastic part at given location
            */

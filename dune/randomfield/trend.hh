@@ -388,6 +388,25 @@ namespace Dune {
             return output;
           }
 
+          bool operator==(const TrendComponent<Traits>& other) const
+          {
+            bool same = true;
+
+            for (unsigned int i = 0; i < shiftVector.size(); i++)
+              if (shiftVector[i] != other.shiftVector[i])
+              {
+                same = false;
+                break;
+              }
+
+            return same;
+          }
+
+          bool operator!=(const TrendComponent<Traits>& other) const
+          {
+            return !operator==(other);
+          }
+
           /**
            * @brief Evaluate the trend component at a given location
            */
@@ -1008,6 +1027,28 @@ namespace Dune {
             output += *imageComponent * *(other.imageComponent);
 
           return output;
+        }
+
+        bool operator==(const TrendPart<Traits>& other) const
+        {
+          bool same = true;
+
+          for (unsigned int i = 0; i < componentVector.size(); i++)
+            if (! (componentVector[i] == other.componentVector[i]))
+            {
+              same = false;
+              break;
+            }
+
+          if (imageComponent)
+            same = same && (*imageComponent == *(other.imageComponent));
+
+          return same;
+        }
+
+        bool operator!=(const TrendPart<Traits>& other) const
+        {
+          return !operator==(other);
         }
 
         /**
