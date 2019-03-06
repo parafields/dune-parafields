@@ -254,6 +254,17 @@ namespace Dune {
           }
 
           /**
+           * @brief Number of degrees of freedom
+           */
+          unsigned int dofs() const
+          {
+            unsigned int output = 0.;
+
+            MPI_Allreduce(&localDomainSize,&output,1,MPI_INT,MPI_SUM,(*traits).comm);
+            return output;
+          }
+
+          /**
            * @brief Addition assignment operator
            */
           StochasticPart& operator+=(const StochasticPart& other)
@@ -321,9 +332,7 @@ namespace Dune {
             RF sum = 0., mySum = 0.;
 
             for (unsigned int i = 0; i < localDomainSize; ++i)
-            {
               mySum += dataVector[i] * other.dataVector[i];
-            }
 
             MPI_Allreduce(&mySum,&sum,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
             return sum;

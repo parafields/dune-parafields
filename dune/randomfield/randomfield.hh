@@ -200,6 +200,14 @@ namespace Dune {
           }
 
           /**
+           * @brief Number of degrees of freedom
+           */
+          unsigned int dofs() const
+          {
+            return stochasticPart.dofs() + trendPart.dofs();
+          }
+
+          /**
            * @brief Generate a field with the desired correlation structure
            */
           void generate(bool allowNonWorldComm = false)
@@ -1018,6 +1026,19 @@ namespace Dune {
             activeTypes.clear();
             for (unsigned int i = 0; i < number; i++)
               activeTypes.push_back(fieldNames[i]);
+          }
+
+          /**
+           * @brief Number of degrees of freedom (for active types)
+           */
+          unsigned int dofs() const
+          {
+            unsigned int output = 0;
+
+            for (const std::string& type : activeTypes)
+              output += list.find(type)->second->dofs();
+
+            return output;
           }
 
           /**

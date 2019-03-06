@@ -222,6 +222,23 @@ namespace Dune {
           }
 
           /**
+           * @brief Number of degrees of freedom
+           */
+          unsigned int dofs() const
+          {
+            if (TrendComponentType::isMean(componentType))
+              return 1;
+            else if (TrendComponentType::isSlope(componentType))
+              return dim;
+            else if (TrendComponentType::isDisk(componentType))
+              return dim + 2;
+            else if (TrendComponentType::isBlock(componentType))
+              return 2*dim + 1;
+            else
+              DUNE_THROW(Dune::Exception,"Trend component type not found!");
+          }
+
+          /**
            * @brief Generate trend component coefficients with correct variance
            */
           void generate(unsigned int seed)
@@ -513,6 +530,14 @@ namespace Dune {
         }
 
         /**
+         * @brief Number of degrees of freedom
+         */
+        unsigned int dofs() const
+        {
+          return 1;
+        }
+
+        /**
          * @brief Evaluate the trend component at a given location
          */
         void evaluate(const typename Traits::DomainType& location, typename Traits::RangeType& output) const
@@ -740,6 +765,22 @@ namespace Dune {
             }
           }
 #endif // HAVE_DUNE_PDELAB
+
+        /**
+         * @brief Number of degrees of freedom
+         */
+        unsigned int dofs() const
+        {
+          unsigned int output = 0;
+
+          for (unsigned int i = 0; i < componentVector.size(); i++)
+            output += componentVector[i].dofs();
+
+          if (imageComponent)
+            output += (*imageComponent).dofs();
+
+          return output;
+        }
 
         /**
          * @brief Generate a trend part with desired covariance structure
