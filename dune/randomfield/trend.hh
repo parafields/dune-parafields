@@ -160,6 +160,40 @@ namespace Dune {
               shiftVector = newShiftVector;
 
             }
+
+          /**
+           * @brief Construct trend component from PDELab DiscreteGridFunction
+           */
+          template<typename DGF>
+            void construct(const DGF& dgf)
+            {
+              std::vector<RF> newShiftVector(shiftVector.size(),0.),
+                myNewShiftVector(shiftVector.size(),0.);
+
+              for (const auto& elem : elements(dgf.getGridView(),Dune::Partitions::interior))
+              {
+                typename Traits::RangeType shift, deltaShift;
+                RF delta = 1e-2;
+                const typename Traits::DomainType& x = elem.geometry().center();
+                evaluate(x,shift);
+                const auto& center = referenceElement(elem.geometry()).position(0,0);
+                Dune::FieldVector<RF,1> value;
+                dgf.evaluate(elem,center,value);
+                for (unsigned int i = 0; i < shiftVector.size(); i++)
+                {
+                  shiftVector[i] += delta;
+                  evaluate(x,deltaShift);
+                  shiftVector[i] -= delta;
+
+                  myNewShiftVector[i] += (deltaShift[0] - shift[0]) / delta * value[0];
+                }
+              }
+
+              MPI_Allreduce(&(myNewShiftVector[0]),&(newShiftVector[0]),
+                  shiftVector.size(),MPI_DOUBLE,MPI_SUM,(*traits).comm);
+              shiftVector = newShiftVector;
+
+            }
 #endif // HAVE_DUNE_PDELAB
 
           /**
@@ -459,6 +493,15 @@ namespace Dune {
           : TrendComponent<Traits>(other,gfs,field),
           imageFile(other.imageFile), pngReader(other.pngReader), extensions(other.extensions)
         {}
+
+        /**
+         * @brief Constructor based on PDELab DiscreteGridFunction
+         */
+        template<typename DGF>
+          ImageComponent<Traits>(const ImageComponent<Traits>& other, const DGF& dgf)
+          : TrendComponent<Traits>(other,dgf),
+          imageFile(other.imageFile), pngReader(other.pngReader), extensions(other.extensions)
+        {}
 #endif // HAVE_DUNE_PDELAB
 
         /**
@@ -677,6 +720,23 @@ namespace Dune {
             {
               imageComponent = std::make_shared<ImageComponent<Traits> >(*(other.imageComponent));
               imageComponent->construct(gfs,field);
+            }
+          }
+
+        /**
+         * @brief Constructor based on PDELab DiscreteGridFunction
+         */
+        template<typename DGF>
+          TrendPart<Traits>(const TrendPart<Traits>& other, const DGF& dgf)
+          : traits(other.traits), componentVector(other.componentVector)
+          {
+            for (unsigned int i = 0; i < componentVector.size(); i++)
+              componentVector[i].construct(dgf);
+
+            if (other.imageComponent)
+            {
+              imageComponent = std::make_shared<ImageComponent<Traits> >(*(other.imageComponent));
+              imageComponent->construct(dgf);
             }
           }
 #endif // HAVE_DUNE_PDELAB

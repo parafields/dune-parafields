@@ -132,6 +132,22 @@ namespace Dune {
           if (storeInvRoot)
             invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
         }
+
+          /**
+           * @brief Constructor converting from DiscreteGridFunction
+           */
+          template<typename DGF>
+            RandomField(const RandomField& other, const DGF& dgf)
+            : config(other.config), valueTransform(other.valueTransform), traits(other.traits), matrix(other.matrix),
+            trendPart(other.trendPart,dgf), stochasticPart(other.stochasticPart,dgf),
+            invMatValid(false), invRootValid(false)
+        {
+          if (storeInvMat)
+            invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+
+          if (storeInvRoot)
+            invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+        }
 #endif // HAVE_DUNE_PDELAB
 
           /**
@@ -932,6 +948,29 @@ namespace Dune {
 
               for (const std::string& type : fieldNames)
                 if (fieldList.find(type) == fieldList.end())
+                  list.insert({type,
+                      std::make_shared<SubRandomField>(*(other.list.find(type)->second))});
+            }
+
+           /**
+           * @brief Constructor converting from DiscreteGridFunction map
+           */
+          template<typename DGFList>
+            RandomFieldList(const RandomFieldList& other, const DGFList& dgfList)
+            : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
+            {
+              for (const std::string& type : activeTypes)
+              {
+                if (dgfList.find(type) == dgfList.end())
+                  DUNE_THROW(Dune::Exception,"Field name " + type + " not found in grid function list");
+
+                std::shared_ptr<SubRandomField> otherField = other.list.find(type)->second;
+                list.insert({type,
+                    std::make_shared<SubRandomField>(*otherField,*(dgfList.find(type)->second))});
+              }
+
+              for (const std::string& type : fieldNames)
+                if (dgfList.find(type) == dgfList.end())
                   list.insert({type,
                       std::make_shared<SubRandomField>(*(other.list.find(type)->second))});
             }

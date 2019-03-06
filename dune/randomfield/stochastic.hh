@@ -117,6 +117,28 @@ namespace Dune {
               evalToData();
               evalValid  = true;
             }
+
+          template<typename DGF>
+            StochasticPart(const StochasticPart& other, const DGF& dgf)
+            : traits(other.traits)
+            {
+              update();
+
+              for (const auto& elem : elements(dgf.getGridView(),Dune::Partitions::interior))
+              {
+                const typename Traits::DomainType& coords = referenceElement(elem.geometry()).position(0,0);
+                const typename Traits::DomainType& global = elem.geometry().global(coords);
+                (*traits).coordsToIndices(global,evalIndices,localEvalOffset);
+                const unsigned int index = (*traits).indicesToIndex(evalIndices,localEvalCells);
+
+                Dune::FieldVector<RF,1> value;
+                dgf.evaluate(elem,coords,value);
+                evalVector[index] = value[0];
+              }
+
+              evalToData();
+              evalValid  = true;
+            }
 #endif // HAVE_DUNE_PDELAB
 
           /**
