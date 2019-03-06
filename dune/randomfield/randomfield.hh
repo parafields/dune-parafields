@@ -170,20 +170,23 @@ namespace Dune {
            */
           RandomField& operator=(const RandomField& other)
           {
-            config         = other.config;
-            valueTransform = other.valueTransform;
-            traits         = other.traits;
-            matrix         = other.matrix;
-            trendPart      = other.trendPart;
-            stochasticPart = other.stochasticPart;
-            invMatValid    = other.invMatValid;
-            invRootValid   = other.invRootValid;
+            if (this != &other)
+            {
+              config         = other.config;
+              valueTransform = other.valueTransform;
+              traits         = other.traits;
+              matrix         = other.matrix;
+              trendPart      = other.trendPart;
+              stochasticPart = other.stochasticPart;
+              invMatValid    = other.invMatValid;
+              invRootValid   = other.invRootValid;
 
-            if (storeInvMat && invMatValid)
-              invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(*(other.invMatPart)));
+              if (storeInvMat && invMatValid)
+                invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(*(other.invMatPart)));
 
-            if (storeInvRoot && invRootValid)
-              invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(*(other.invRootPart)));
+              if (storeInvRoot && invRootValid)
+                invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(*(other.invRootPart)));
+            }
 
             return *this;
           }
@@ -991,12 +994,15 @@ namespace Dune {
            */
           RandomFieldList& operator=(const RandomFieldList& other)
           {
-            fieldNames  = other.fieldNames;
-            activeTypes = other.activeTypes;
+            if (this != &other)
+            {
+              fieldNames  = other.fieldNames;
+              activeTypes = other.activeTypes;
 
-            list.clear();
-            for(const std::pair<std::string,std::shared_ptr<SubRandomField> >& pair : other.list)
-              list.insert({pair.first, std::make_shared<SubRandomField>(*(pair.second))});
+              list.clear();
+              for(const std::pair<std::string,std::shared_ptr<SubRandomField> >& pair : other.list)
+                list.insert({pair.first, std::make_shared<SubRandomField>(*(pair.second))});
+            }
 
             return *this;
           }
