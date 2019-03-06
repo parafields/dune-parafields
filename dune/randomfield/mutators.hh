@@ -11,6 +11,8 @@ namespace Dune {
         public:
 
           virtual void apply(RF& value) const = 0;
+
+          virtual ~MutatorBase() {};
       };
 
     /**
