@@ -595,6 +595,34 @@ namespace Dune {
             }
           }
 
+          /**
+           * @brief One norm
+           */
+          RF oneNorm() const
+          {
+            RF sum = 0., mySum = 0.;
+
+            for (unsigned int i = 0; i < localDomainSize; ++i)
+              mySum += std::abs(dataVector[i]);
+
+            MPI_Allreduce(&mySum,&sum,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
+            return sum;
+          }
+
+          /**
+           * @brief Infinity norm
+           */
+          RF infNorm() const
+          {
+            RF max = 0., myMax = 0.;
+
+            for (unsigned int i = 0; i < localDomainSize; ++i)
+              myMax = std::max(myMax, std::abs(dataVector[i]));
+
+            MPI_Allreduce(&myMax,&max,1,MPI_DOUBLE,MPI_MAX,(*traits).comm);
+            return max;
+          }
+
           void localize(const typename Traits::DomainType& center, const RF radius)
           {
             typename Traits::DomainType location;

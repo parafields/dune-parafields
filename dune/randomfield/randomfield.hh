@@ -795,6 +795,21 @@ namespace Dune {
             trendPart.timesInvMatRoot();
           }
 
+          RF oneNorm() const
+          {
+            return trendPart.oneNorm() + stochasticPart.oneNorm();
+          }
+
+          RF twoNorm() const
+          {
+            return std::sqrt( *this * *this);
+          }
+
+          RF infNorm() const
+          {
+            return std::max(trendPart.infNorm(), stochasticPart.infNorm());
+          }
+
           void localize(const typename Traits::DomainType& center, const RF radius)
           {
             stochasticPart.localize(center,radius);
@@ -1292,6 +1307,33 @@ namespace Dune {
           {
             for(const std::string& type : activeTypes)
               list.find(type)->second->timesInvMatRoot();
+          }
+
+          RF oneNorm() const
+          {
+            RF sum = 0.;
+            for(const std::string& type : activeTypes)
+              sum += list.find(type)->second->oneNorm();
+
+            return sum;
+          }
+
+          RF twoNorm() const
+          {
+            RF sum = 0.;
+            for(const std::string& type : activeTypes)
+              sum += std::pow(list.find(type)->second->twoNorm(),2);
+
+            return std::sqrt(sum);
+          }
+
+          RF infNorm() const
+          {
+            RF max = 0;
+            for (const std::string& type : activeTypes)
+              max = std::max(max, list.find(type)->second->infNorm());
+
+            return max;
           }
 
           void localize(const typename GridTraits::Domain& center, const RF radius)

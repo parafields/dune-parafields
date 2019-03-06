@@ -433,6 +433,28 @@ namespace Dune {
           }
 
           /**
+           * @brief Sum of abs. values of component
+           */
+          RF oneNorm() const
+          {
+            RF output = 0.;
+            for (unsigned int i = 0; i < shiftVector.size(); ++i)
+              output += std::abs(shiftVector[i]);
+            return output;
+          }
+
+          /**
+           * @brief Maximum abs. value of component
+           */
+          RF infNorm() const
+          {
+            RF output = 0.;
+            for (unsigned int i = 0; i < shiftVector.size(); ++i)
+              output = std::max(output, std::abs(shiftVector[i]));
+            return output;
+          }
+
+          /**
            * @brief Write the trend component to hard disk
            */
           void writeToFile(std::ofstream& file, unsigned int count) const
@@ -543,6 +565,22 @@ namespace Dune {
         void evaluate(const typename Traits::DomainType& location, typename Traits::RangeType& output) const
         {
           output[0] = (this->meanVector[0] + this->shiftVector[0]) * pngReader.evaluate(location,extensions);
+        }
+
+        /**
+         * @brief Sum of abs. values of component
+         */
+        RF oneNorm() const
+        {
+          return std::abs(this->shiftVector[0]);
+        }
+
+        /**
+         * @brief Maximum abs. value of component
+         */
+        RF infNorm() const
+        {
+          return std::abs(this->shiftVector[0]);
         }
 
         /**
@@ -968,6 +1006,38 @@ namespace Dune {
 
           if (imageComponent)
             output += *imageComponent * *(other.imageComponent);
+
+          return output;
+        }
+
+        /**
+         * @brief Infinity norm
+         */
+        RF oneNorm() const
+        {
+          RF output = 0.;
+
+          for (unsigned int i = 0; i < componentVector.size(); i++)
+            output += componentVector[i].oneNorm();
+
+          if (imageComponent)
+            output += (*imageComponent).oneNorm();
+
+          return output;
+        }
+
+        /**
+         * @brief Infinity norm
+         */
+        RF infNorm() const
+        {
+          RF output = 0.;
+
+          for (unsigned int i = 0; i < componentVector.size(); i++)
+            output = std::max(output, componentVector[i].infNorm());
+
+          if (imageComponent)
+            output = std::max(output, (*imageComponent).infNorm());
 
           return output;
         }
