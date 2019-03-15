@@ -135,6 +135,7 @@ namespace Dune {
         const RF           variance;
         const std::string  covariance;
         const bool         periodic;
+        const bool         approximate;
         const bool         verbose;
         const unsigned int cgIterations;
 
@@ -173,6 +174,7 @@ namespace Dune {
           variance       (config.get<RF>                           ("stochastic.variance")),
           covariance     (config.get<std::string>                  ("stochastic.covariance")),
           periodic       (config.get<bool>                         ("randomField.periodic",false)),
+          approximate    (config.get<bool>                         ("randomField.approximate",false)),
           verbose        (config.get<bool>                         ("randomField.verbose",false)),
           cgIterations   (config.get<unsigned int>                 ("randomField.cgIterations",100)),
           embeddingFactor(config.get<unsigned int>                 ("randomField.embeddingFactor",2)),

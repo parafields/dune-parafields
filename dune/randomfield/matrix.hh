@@ -24,12 +24,12 @@ namespace Dune {
           const std::shared_ptr<Traits> traits;
 
           int rank, commSize;
-          std::array<RF,dim>        extensions;
-          unsigned int              level;
-          std::array<RF,dim>        meshsize;
-          RF                        variance;
-          std::string               covariance;
-          unsigned int              cgIterations;
+          std::array<RF,dim> extensions;
+          unsigned int       level;
+          std::array<RF,dim> meshsize;
+          RF                 variance;
+          std::string        covariance;
+          unsigned int       cgIterations;
 
           ptrdiff_t allocLocal, localN0, local0Start;
 
@@ -264,6 +264,15 @@ namespace Dune {
               std::cout << small << " small, " << smallNegative << " small negative and "
                 << negative << " large negative eigenvalues in covariance matrix, smallest "
                 << smallest << std::endl;
+
+            if (negative > 0 && !(*traits).approximate)
+            {
+              if (rank == 0)
+                std::cerr << "negative eigenvalues in covariance matrix, "
+                  << "consider increasing embeddingFactor, or alternatively "
+                  << "allow generation of approximate samples" << std::endl;
+              DUNE_THROW(Dune::Exception,"negative eigenvalues in covariance matrix");
+            }
           }
 
           template<typename Covariance>

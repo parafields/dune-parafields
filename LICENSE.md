@@ -1,11 +1,12 @@
 Copyright holders:
 ------------------
 
-| Year         | Name          |
-|--------------|---------------|
-| 2010 -- 2016 | Ole Klein     |
-| 2010         | Adrian Ngo    |
-| 2010         |Ronnie Schwede |
+| Year         | Name           |
+|--------------|----------------|
+| 2010 -- 2019 | Ole Klein      |
+| 2010         | Adrian Ngo     |
+| 2017         | Lukas Riedel   |
+| 2010         | Ronnie Schwede |
 
 The module dune-randomfield is free software and documentation.
 
