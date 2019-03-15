@@ -82,17 +82,16 @@ namespace Dune {
     template<typename Traits> class TrendPart;
     template<typename Traits> class TrendComponent;
     template<typename Traits> class ImageComponent;
-    template<typename Traits> class StochasticPart;
-    template<typename Traits> class RandomFieldMatrix;
-    template<typename GridTraits, bool storeInvMat, bool storeInvRoot> class RandomField;
+    template<typename Traits, template<typename> class Matrix> class StochasticPart;
+    template<typename GridTraits, template<typename> class Matrix, bool storeInvMat, bool storeInvRoot> class RandomField;
 
     /**
      * @brief Traits for the RandomField class
      */
-    template<typename GridTraits, bool storeInvMat, bool storeInvRoot>
+    template<typename GridTraits, template<typename> class Matrix, bool storeInvMat, bool storeInvRoot>
       class RandomFieldTraits
       {
-        using ThisType = RandomFieldTraits<GridTraits,storeInvMat,storeInvRoot>;
+        using ThisType = RandomFieldTraits<GridTraits,Matrix,storeInvMat,storeInvRoot>;
 
         public:
 
@@ -115,9 +114,9 @@ namespace Dune {
         friend class TrendPart<ThisType>;
         friend class TrendComponent<ThisType>;
         friend class ImageComponent<ThisType>;
-        friend class StochasticPart<ThisType>;
-        friend class RandomFieldMatrix<ThisType>;
-        friend class RandomField<GridTraits,storeInvMat,storeInvRoot>;
+        friend class StochasticPart<ThisType,Matrix>;
+        friend class Matrix<ThisType>;
+        friend class RandomField<GridTraits,Matrix,storeInvMat,storeInvRoot>;
 
         // MPI constants
         int rank, commSize;

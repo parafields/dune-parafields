@@ -18,6 +18,8 @@ namespace Dune {
     template<typename Traits>
       class RandomFieldMatrix
       {
+          using StochasticPart = StochasticPart<Traits,RandomFieldMatrix>;
+
           using RF = typename Traits::RF;
           enum {dim = Traits::dim};
 
@@ -88,9 +90,9 @@ namespace Dune {
           /**
            * @brief Multiply random field with covariance matrix
            */
-          StochasticPart<Traits> operator*(const StochasticPart<Traits>& input) const
+          StochasticPart operator*(const StochasticPart& input) const
           {
-            StochasticPart<Traits> output(input);
+            StochasticPart output(input);
 
             multiplyExtended(output.dataVector,output.dataVector);
 
@@ -102,9 +104,9 @@ namespace Dune {
           /**
            * @brief Multiply random field with root of covariance matrix (up to boundary effects)
            */
-          StochasticPart<Traits> multiplyRoot(const StochasticPart<Traits>& input) const
+          StochasticPart multiplyRoot(const StochasticPart& input) const
           {
-            StochasticPart<Traits> output(input);
+            StochasticPart output(input);
 
             multiplyRootExtended(output.dataVector,output.dataVector);
 
@@ -116,9 +118,9 @@ namespace Dune {
           /**
            * @brief Multiply random field with inverse of covariance matrix
            */
-          StochasticPart<Traits> multiplyInverse(const StochasticPart<Traits>& input) const
+          StochasticPart multiplyInverse(const StochasticPart& input) const
           {
-            StochasticPart<Traits> output(input);
+            StochasticPart output(input);
 
             bool fieldZero = true;
             for (unsigned int i = 0; i < localDomainSize; i++)
@@ -139,7 +141,7 @@ namespace Dune {
           /**
            * @brief Generate random field based on covariance matrix
            */
-          void generateField(unsigned int seed, StochasticPart<Traits>& stochasticPart) const
+          void generateField(unsigned int seed, StochasticPart& stochasticPart) const
           {
 
             if (fftTransformedMatrix == NULL)
@@ -174,7 +176,7 @@ namespace Dune {
           /**
            * @brief Generate uncorrelated random field (i.e. noise)
            */
-          void generateUncorrelatedField(unsigned int seed, StochasticPart<Traits>& stochasticPart) const
+          void generateUncorrelatedField(unsigned int seed, StochasticPart& stochasticPart) const
           {
             // initialize pseudo-random generator
             seed += rank; // different seed for each processor
@@ -190,7 +192,7 @@ namespace Dune {
           /**
            * @brief Create field that represents the local variance
            */
-          void setVarianceAsField(StochasticPart<Traits>& stochasticPart) const
+          void setVarianceAsField(StochasticPart& stochasticPart) const
           {
             for (unsigned int index = 0; index < localDomainSize; index++)
               stochasticPart.dataVector[index] = variance;

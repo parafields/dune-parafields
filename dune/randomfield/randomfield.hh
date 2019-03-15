@@ -25,13 +25,14 @@ namespace Dune {
     /**
      * @brief Gaussian random field in 1D, 2D or 3D
      */
-    template<typename GridTraits, bool storeInvMat = true, bool storeInvRoot = false>
+    template<typename GridTraits, template<typename> class Matrix = RandomFieldMatrix, bool storeInvMat = true, bool storeInvRoot = false>
       class RandomField
       {
         protected:
           
-          using Traits = RandomFieldTraits<GridTraits,storeInvMat,storeInvRoot>;
-          using RF     = typename Traits::RF;
+          using Traits         = RandomFieldTraits<GridTraits,Matrix,storeInvMat,storeInvRoot>;
+          using StochasticPart = StochasticPart<Traits,Matrix>;
+          using RF             = typename Traits::RF;
 
           // to allow reading in constructor
           class ParamTreeHelper
@@ -55,17 +56,17 @@ namespace Dune {
             }
           };
 
-          const ParamTreeHelper                            treeHelper;
-          const Dune::ParameterTree                        config;
-          const ValueTransform<RF>                         valueTransform;
-          std::shared_ptr<Traits>                          traits;
-          std::shared_ptr<RandomFieldMatrix<Traits> >      matrix;
-          TrendPart<Traits>                                trendPart;
-          StochasticPart<Traits>                           stochasticPart;
-          mutable std::shared_ptr<StochasticPart<Traits> > invMatPart;
-          mutable bool                                     invMatValid;
-          mutable std::shared_ptr<StochasticPart<Traits> > invRootPart;
-          mutable bool                                     invRootValid;
+          const ParamTreeHelper                   treeHelper;
+          const Dune::ParameterTree               config;
+          const ValueTransform<RF>                valueTransform;
+          std::shared_ptr<Traits>                 traits;
+          std::shared_ptr<Matrix<Traits> >        matrix;
+          TrendPart<Traits>                       trendPart;
+          StochasticPart                          stochasticPart;
+          mutable std::shared_ptr<StochasticPart> invMatPart;
+          mutable bool                            invMatValid;
+          mutable std::shared_ptr<StochasticPart> invRootPart;
+          mutable bool                            invRootValid;
 
         public:
 
@@ -74,15 +75,15 @@ namespace Dune {
            */
           template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim> >
             explicit RandomField(const Dune::ParameterTree& config_, const std::string& fileName = "", const LoadBalance& loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
-            : config(config_), valueTransform(config), traits(new Traits(config,loadBalance,comm)), matrix(new RandomFieldMatrix<Traits>(traits)),
+            : config(config_), valueTransform(config), traits(new Traits(config,loadBalance,comm)), matrix(new Matrix<Traits>(traits)),
             trendPart(config,traits,fileName), stochasticPart(traits,fileName),
             invMatValid(false), invRootValid(false)
             {
               if (storeInvMat)
-                invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+                invMatPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
 
               if (storeInvRoot)
-                invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+                invRootPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
             }
 
           /**
@@ -90,15 +91,15 @@ namespace Dune {
            */
           template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim> >
             RandomField(const std::string& fileName, const LoadBalance& loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
-            : treeHelper(fileName), config(treeHelper.get()), valueTransform(config), traits(new Traits(config,loadBalance,comm)), matrix(new RandomFieldMatrix<Traits>(traits)),
+            : treeHelper(fileName), config(treeHelper.get()), valueTransform(config), traits(new Traits(config,loadBalance,comm)), matrix(new Matrix<Traits>(traits)),
             trendPart(config,traits,fileName), stochasticPart(traits,fileName),
             invMatValid(false), invRootValid(false)
             {
               if (storeInvMat)
-                invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+                invMatPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
 
               if (storeInvRoot)
-                invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+                invRootPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
             }
 
           /**
@@ -110,10 +111,10 @@ namespace Dune {
             invMatValid(false), invRootValid(false)
         {
           if (storeInvMat)
-            invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+            invMatPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
 
           if (storeInvRoot)
-            invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+            invRootPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
         }
 
 #if HAVE_DUNE_PDELAB
@@ -127,10 +128,10 @@ namespace Dune {
             invMatValid(false), invRootValid(false)
         {
           if (storeInvMat)
-            invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+            invMatPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
 
           if (storeInvRoot)
-            invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+            invRootPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
         }
 
           /**
@@ -143,10 +144,10 @@ namespace Dune {
             invMatValid(false), invRootValid(false)
         {
           if (storeInvMat)
-            invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+            invMatPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
 
           if (storeInvRoot)
-            invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(stochasticPart));
+            invRootPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
         }
 #endif // HAVE_DUNE_PDELAB
 
@@ -159,10 +160,10 @@ namespace Dune {
             invMatValid(other.invMatValid), invRootValid(other.invRootValid)
         {
           if (storeInvMat)
-            invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(*(other.invMatPart)));
+            invMatPart = std::shared_ptr<StochasticPart>(new StochasticPart(*(other.invMatPart)));
 
           if (storeInvRoot)
-            invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(*(other.invRootPart)));
+            invRootPart = std::shared_ptr<StochasticPart>(new StochasticPart(*(other.invRootPart)));
         }
 
           /**
@@ -182,10 +183,10 @@ namespace Dune {
               invRootValid   = other.invRootValid;
 
               if (storeInvMat && invMatValid)
-                invMatPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(*(other.invMatPart)));
+                invMatPart = std::shared_ptr<StochasticPart>(new StochasticPart(*(other.invMatPart)));
 
               if (storeInvRoot && invRootValid)
-                invRootPart = std::shared_ptr<StochasticPart<Traits> >(new StochasticPart<Traits>(*(other.invRootPart)));
+                invRootPart = std::shared_ptr<StochasticPart>(new StochasticPart(*(other.invRootPart)));
             }
 
             return *this;
@@ -840,13 +841,13 @@ namespace Dune {
     /**
      * @brief List of Gaussian random fields in 1D, 2D or 3D
      */
-    template<typename GridTraits, bool storeInvMat = true, bool storeInvRoot = false,
-      template<typename, bool, bool> class RandomField = Dune::RandomField::RandomField>
+    template<typename GridTraits, template<typename> class Matrix = RandomFieldMatrix, bool storeInvMat = true, bool storeInvRoot = false,
+      template<typename, template<typename> class, bool, bool> class RandomField = Dune::RandomField::RandomField>
       class RandomFieldList
       {
         public:
 
-          using SubRandomField = RandomField<GridTraits, storeInvMat, storeInvRoot>;
+          using SubRandomField = RandomField<GridTraits,Matrix,storeInvMat,storeInvRoot>;
 
         protected:
 
@@ -880,7 +881,7 @@ namespace Dune {
           std::map<std::string, std::shared_ptr<SubRandomField> > list;
           std::shared_ptr<SubRandomField> emptyPointer;
 
-          using Traits = RandomFieldTraits<GridTraits, storeInvMat, storeInvRoot>;
+          using Traits = RandomFieldTraits<GridTraits,Matrix,storeInvMat,storeInvRoot>;
           using RF     = typename Traits::RF;
 
         public:
