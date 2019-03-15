@@ -5,11 +5,16 @@
 #include<string>
 #include<vector>
 #include<array>
-#include<random>
 
 #include <fftw3.h>
 #include <fftw3-mpi.h>
 
+#if HAVE_GSL
+#include<gsl/gsl_rng.h>
+#include<gsl/gsl_randist.h>
+#else
+#include<random>
+#endif // HAVE_GSL
 
 #include"dune/randomfield/covariance.hh"
 
@@ -150,8 +155,13 @@ namespace Dune {
 
           // initialize pseudo-random generator
           seed += rank; // different seed for each processor
+#if HAVE_GSL
+          gsl_rng* gslRng = gsl_rng_alloc(gsl_rng_mt19937);
+          gsl_rng_set(gslRng,seed);
+#else
           std::default_random_engine generator(seed);
           std::normal_distribution<RF> normalDist(0.,1.);
+#endif // HAVE_GSL
 
           fftw_complex *extendedField;
           extendedField = (fftw_complex*) fftw_malloc(allocLocal * sizeof (fftw_complex));
@@ -162,8 +172,13 @@ namespace Dune {
           {
             lambda = std::sqrt(std::abs(fftTransformedMatrix[index][0]) / extendedDomainSize);
 
+#if HAVE_GSL
+            extendedField[index][0] = lambda * gsl_ran_gaussian_ziggurat(gslRng,1.);
+            extendedField[index][1] = lambda * gsl_ran_gaussian_ziggurat(gslRng,1.);
+#else
             extendedField[index][0] = lambda * normalDist(generator);
             extendedField[index][1] = lambda * normalDist(generator);
+#endif // HAVE_GSL
           }
 
           forwardTransform(extendedField);

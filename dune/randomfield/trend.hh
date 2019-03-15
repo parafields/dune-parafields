@@ -3,8 +3,14 @@
 #define	DUNE_RANDOMFIELD_TREND_HH
 
 #include<fstream>
-#include<random>
 #include<memory>
+
+#if HAVE_GSL
+#include<gsl/gsl_rng.h>
+#include<gsl/gsl_randist.h>
+#else
+#include<random>
+#endif // HAVE_GSL
 
 #include<dune/common/parametertreeparser.hh>
 #if HAVE_DUNE_PDELAB
@@ -248,12 +254,21 @@ namespace Dune {
 
             if ((*traits).rank == 0)
             {
+#if HAVE_GSL
+              gsl_rng* gslRng = gsl_rng_alloc(gsl_rng_mt19937);
+              gsl_rng_set(gslRng,seed);
+#else
               std::default_random_engine generator(seed);
               std::normal_distribution<RF> normalDist(0.,1.);
+#endif // HAVE_GSL
 
               for (unsigned int i = 0; i < shiftVector.size(); i++)
               {
+#if HAVE_GSL
+                myNewShiftVector[i] = gsl_ran_gaussian_ziggurat(gslRng,1.) * std::sqrt(varianceVector[i]);
+#else
                 myNewShiftVector[i] = normalDist(generator) * std::sqrt(varianceVector[i]);
+#endif // HAVE_GSL
               }
             }
 
@@ -272,12 +287,21 @@ namespace Dune {
 
             if ((*traits).rank == 0)
             {
+#if HAVE_GSL
+              gsl_rng* gslRng = gsl_rng_alloc(gsl_rng_mt19937);
+              gsl_rng_set(gslRng,seed);
+#else
               std::default_random_engine generator(seed);
               std::normal_distribution<RF> normalDist(0.,1.);
+#endif // HAVE_GSL
 
               for (unsigned int i = 0; i < shiftVector.size(); i++)
               {
+#if HAVE_GSL
+                myNewShiftVector[i] = gsl_ran_gaussian_ziggurat(gslRng,1.);
+#else
                 myNewShiftVector[i] = normalDist(generator);
+#endif // HAVE_GSL
               }
             }
 
