@@ -104,7 +104,7 @@ class GridHelper
 /**
  * @brief Field generation specialized by dimension
  */
-template<unsigned int dim>
+  template<unsigned int dim>
 void generate(const Dune::ParameterTree& config)
 {
   using GridTraits = GridTraits<double,double,dim>;
@@ -171,7 +171,7 @@ void generate(const Dune::ParameterTree& config)
 /**
  * @brief Field generation specialized by dimension
  */
-template<unsigned int dim>
+  template<unsigned int dim>
 void generateList(const Dune::ParameterTree& config)
 {
   using GridTraits = GridTraits<double,double,dim>;

@@ -31,7 +31,7 @@ class GridTraits
 /**
  * @brief Test effect of (I - M^1/2 M^-1 M^1/2)
  */
-template<typename RandomField>
+  template<typename RandomField>
 void diffRootInvRoot(const RandomField& field)
 {
   const double fieldNorm = std::sqrt(field * field);
@@ -51,7 +51,7 @@ void diffRootInvRoot(const RandomField& field)
 /**
  * @brief Test effect of (I - M^-1 M^1/2 M^1/2)
  */
-template<typename RandomField>
+  template<typename RandomField>
 void diffRootRootInv(const RandomField& field)
 {
   const double fieldNorm = std::sqrt(field * field);
@@ -71,7 +71,7 @@ void diffRootRootInv(const RandomField& field)
 /**
  * @brief Test effect of (I - M^1/2 M^1/2 M^-1)
  */
-template<typename RandomField>
+  template<typename RandomField>
 void diffInvRootRoot(const RandomField& field)
 {
   const double fieldNorm = std::sqrt(field * field);
@@ -91,7 +91,7 @@ void diffInvRootRoot(const RandomField& field)
 /**
  * @brief Test effect of (I - M M^-1)
  */
-template<typename RandomField>
+  template<typename RandomField>
 void diffInvMult(const RandomField& field)
 {
   const double fieldNorm = std::sqrt(field * field);
@@ -110,7 +110,7 @@ void diffInvMult(const RandomField& field)
 /**
  * @brief Test effect of (I - M^-1 M)
  */
-template<typename RandomField>
+  template<typename RandomField>
 void diffMultInv(const RandomField& field)
 {
   const double fieldNorm = std::sqrt(field * field);
@@ -129,7 +129,7 @@ void diffMultInv(const RandomField& field)
 /**
  * @brief Run different matrix multiplication tests
  */
-template<typename GridTraits>
+  template<typename GridTraits>
 void runTests(Dune::ParameterTree config, std::string covariance)
 {
   config["stochastic.covariance"] = covariance;
@@ -193,7 +193,7 @@ void test2d()
   runTests<GridTraits>(config,"spherical");
 }
 
-template<unsigned int dim>
+  template<unsigned int dim>
 void test()
 {
   Dune::ParameterTree config;

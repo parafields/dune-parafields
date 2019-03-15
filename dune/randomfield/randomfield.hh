@@ -29,7 +29,7 @@ namespace Dune {
       class RandomField
       {
         protected:
-          
+
           using Traits         = RandomFieldTraits<GridTraits,Matrix>;
           using StochasticPart = StochasticPart<Traits,Matrix>;
           using RF             = typename Traits::RF;
@@ -78,13 +78,13 @@ namespace Dune {
             : config(config_), valueTransform(config), traits(new Traits(config,loadBalance,comm)), matrix(new Matrix<Traits>(traits)),
             trendPart(config,traits,fileName), stochasticPart(traits,fileName),
             invMatvecValid(false), invRootMatvecValid(false)
-            {
-              if ((*traits).cacheInvMatvec)
-                invMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
+        {
+          if ((*traits).cacheInvMatvec)
+            invMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
 
-              if ((*traits).cacheInvRootMatvec)
-                invRootMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
-            }
+          if ((*traits).cacheInvRootMatvec)
+            invRootMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
+        }
 
           /**
            * @brief Constructor reading field and config from file
@@ -94,13 +94,13 @@ namespace Dune {
             : treeHelper(fileName), config(treeHelper.get()), valueTransform(config), traits(new Traits(config,loadBalance,comm)), matrix(new Matrix<Traits>(traits)),
             trendPart(config,traits,fileName), stochasticPart(traits,fileName),
             invMatvecValid(false), invRootMatvecValid(false)
-            {
-              if ((*traits).cacheInvMatvec)
-                invMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
+        {
+          if ((*traits).cacheInvMatvec)
+            invMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
 
-              if ((*traits).cacheInvRootMatvec)
-                invRootMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
-            }
+          if ((*traits).cacheInvRootMatvec)
+            invRootMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
+        }
 
           /**
            * @brief Constructor copying traits and covariance matrix
@@ -118,7 +118,7 @@ namespace Dune {
         }
 
 #if HAVE_DUNE_PDELAB
-           /**
+          /**
            * @brief Constructor converting from GridFunctionSpace and GridVector
            */
           template<typename GFS, typename Field>
@@ -808,562 +808,562 @@ namespace Dune {
      */
     template<typename GridTraits, template<typename> class Matrix = RandomFieldMatrix,
       template<typename, template<typename> class> class RandomField = Dune::RandomField::RandomField>
-      class RandomFieldList
-      {
-        public:
+        class RandomFieldList
+        {
+          public:
 
-          using SubRandomField = RandomField<GridTraits,Matrix>;
+            using SubRandomField = RandomField<GridTraits,Matrix>;
 
-        protected:
+          protected:
 
-          // to allow reading in constructor
-          class ParamTreeHelper
-          {
-            Dune::ParameterTree config;
-
-            public:
-
-            ParamTreeHelper(const std::string& fileName = "")
+            // to allow reading in constructor
+            class ParamTreeHelper
             {
-              if (fileName != "")
+              Dune::ParameterTree config;
+
+              public:
+
+              ParamTreeHelper(const std::string& fileName = "")
               {
-                Dune::ParameterTreeParser parser;
-                parser.readINITree(fileName+".fieldList",config);
-              }
-            }
-
-            const Dune::ParameterTree& get() const
-            {
-              return config;
-            }
-          };
-
-          const ParamTreeHelper     treeHelper;
-          const Dune::ParameterTree config;
-          std::vector<std::string>  fieldNames;
-          std::vector<std::string>  activeTypes;
-
-          std::map<std::string, std::shared_ptr<SubRandomField> > list;
-          std::shared_ptr<SubRandomField> emptyPointer;
-
-          using Traits = RandomFieldTraits<GridTraits,Matrix>;
-          using RF     = typename Traits::RF;
-
-        public:
-
-          /**
-           * @brief Constructor reading random fields from file
-           */
-          template<typename LoadBalance = DefaultLoadBalance<Traits::dim> >
-            RandomFieldList(
-                const Dune::ParameterTree& config_,
-                const std::string& fileName = "",
-                const LoadBalance loadBalance = LoadBalance(),
-                const MPI_Comm comm = MPI_COMM_WORLD
-                )
-            : config(config_)
-            {
-              std::stringstream typeStream(config.get<std::string>("randomField.types"));
-              std::string type;
-              while(std::getline(typeStream, type, ' '))
-              {
-                fieldNames.push_back(type);
-
-                Dune::ParameterTree subConfig;
-                Dune::ParameterTreeParser parser;
-                parser.readINITree(type+".field",subConfig);
-
-                // copy general keys to subConfig if necessary
-                if (!subConfig.hasKey("grid.extensions") && config.hasKey("grid.extensions"))
-                  subConfig["grid.extensions"] = config["grid.extensions"];
-                if (!subConfig.hasKey("grid.cells") && config.hasKey("grid.cells"))
-                  subConfig["grid.cells"] = config["grid.cells"];
-                if (!subConfig.hasKey("randomField.cgIterations")
-                    && config.hasKey("randomField.cgIterations"))
-                  subConfig["randomField.cgIterations"] = config["randomField.cgIterations"];
-
-                std::string subFileName = fileName;
-                if (subFileName != "")
-                  subFileName += "." + type;
-
-                list.insert({type,
-                    std::make_shared<SubRandomField>(subConfig,subFileName,loadBalance,comm)});
+                if (fileName != "")
+                {
+                  Dune::ParameterTreeParser parser;
+                  parser.readINITree(fileName+".fieldList",config);
+                }
               }
 
-              if (fieldNames.empty())
-                DUNE_THROW(Dune::Exception,"List of randomField types is empty");
-
-              activateFields(config.get<int>("randomField.active",fieldNames.size()));
-            }
-
-          /**
-           * @brief Constructor reading random fields and config from file
-           */
-          template<typename LoadBalance = DefaultLoadBalance<Traits::dim> >
-            RandomFieldList(
-                const std::string& fileName,
-                const LoadBalance loadBalance = LoadBalance(),
-                const MPI_Comm comm = MPI_COMM_WORLD
-                )
-            : treeHelper(fileName), config(treeHelper.get())
-            {
-              std::stringstream typeStream(config.get<std::string>("randomField.types"));
-              std::string type;
-              while(std::getline(typeStream, type, ' '))
+              const Dune::ParameterTree& get() const
               {
-                fieldNames.push_back(type);
+                return config;
+              }
+            };
 
-                std::string subFileName = fileName + "." + type;
+            const ParamTreeHelper     treeHelper;
+            const Dune::ParameterTree config;
+            std::vector<std::string>  fieldNames;
+            std::vector<std::string>  activeTypes;
 
-                list.insert({type, std::make_shared<SubRandomField>(subFileName,loadBalance,comm)});
+            std::map<std::string, std::shared_ptr<SubRandomField> > list;
+            std::shared_ptr<SubRandomField> emptyPointer;
+
+            using Traits = RandomFieldTraits<GridTraits,Matrix>;
+            using RF     = typename Traits::RF;
+
+          public:
+
+            /**
+             * @brief Constructor reading random fields from file
+             */
+            template<typename LoadBalance = DefaultLoadBalance<Traits::dim> >
+              RandomFieldList(
+                  const Dune::ParameterTree& config_,
+                  const std::string& fileName = "",
+                  const LoadBalance loadBalance = LoadBalance(),
+                  const MPI_Comm comm = MPI_COMM_WORLD
+                  )
+              : config(config_)
+              {
+                std::stringstream typeStream(config.get<std::string>("randomField.types"));
+                std::string type;
+                while(std::getline(typeStream, type, ' '))
+                {
+                  fieldNames.push_back(type);
+
+                  Dune::ParameterTree subConfig;
+                  Dune::ParameterTreeParser parser;
+                  parser.readINITree(type+".field",subConfig);
+
+                  // copy general keys to subConfig if necessary
+                  if (!subConfig.hasKey("grid.extensions") && config.hasKey("grid.extensions"))
+                    subConfig["grid.extensions"] = config["grid.extensions"];
+                  if (!subConfig.hasKey("grid.cells") && config.hasKey("grid.cells"))
+                    subConfig["grid.cells"] = config["grid.cells"];
+                  if (!subConfig.hasKey("randomField.cgIterations")
+                      && config.hasKey("randomField.cgIterations"))
+                    subConfig["randomField.cgIterations"] = config["randomField.cgIterations"];
+
+                  std::string subFileName = fileName;
+                  if (subFileName != "")
+                    subFileName += "." + type;
+
+                  list.insert({type,
+                      std::make_shared<SubRandomField>(subConfig,subFileName,loadBalance,comm)});
+                }
+
+                if (fieldNames.empty())
+                  DUNE_THROW(Dune::Exception,"List of randomField types is empty");
+
+                activateFields(config.get<int>("randomField.active",fieldNames.size()));
               }
 
-              if (fieldNames.empty())
-                DUNE_THROW(Dune::Exception,"List of randomField types is empty");
+            /**
+             * @brief Constructor reading random fields and config from file
+             */
+            template<typename LoadBalance = DefaultLoadBalance<Traits::dim> >
+              RandomFieldList(
+                  const std::string& fileName,
+                  const LoadBalance loadBalance = LoadBalance(),
+                  const MPI_Comm comm = MPI_COMM_WORLD
+                  )
+              : treeHelper(fileName), config(treeHelper.get())
+              {
+                std::stringstream typeStream(config.get<std::string>("randomField.types"));
+                std::string type;
+                while(std::getline(typeStream, type, ' '))
+                {
+                  fieldNames.push_back(type);
 
-              activateFields(config.get<int>("randomField.active",fieldNames.size()));
+                  std::string subFileName = fileName + "." + type;
+
+                  list.insert({type, std::make_shared<SubRandomField>(subFileName,loadBalance,comm)});
+                }
+
+                if (fieldNames.empty())
+                  DUNE_THROW(Dune::Exception,"List of randomField types is empty");
+
+                activateFields(config.get<int>("randomField.active",fieldNames.size()));
+              }
+
+            /**
+             * @brief Constructor reading random fields from file, but reusing covariance matrices
+             */
+            RandomFieldList(const RandomFieldList& other, const std::string& fileName)
+              : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
+            {
+              for(const std::pair<std::string,std::shared_ptr<SubRandomField> >& pair : other.list)
+                list.insert({pair.first,
+                    std::make_shared<SubRandomField>(*(pair.second),fileName + "." + pair.first)});
             }
-
-          /**
-           * @brief Constructor reading random fields from file, but reusing covariance matrices
-           */
-          RandomFieldList(const RandomFieldList& other, const std::string& fileName)
-            : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
-          {
-            for(const std::pair<std::string,std::shared_ptr<SubRandomField> >& pair : other.list)
-              list.insert({pair.first,
-                  std::make_shared<SubRandomField>(*(pair.second),fileName + "." + pair.first)});
-          }
 
 #if HAVE_DUNE_PDELAB
-           /**
-           * @brief Constructor converting from GridFunctionSpace and GridVector
-           */
-          template<typename GFS, typename FieldList>
-            RandomFieldList(const RandomFieldList& other, const GFS& gfs, const FieldList& fieldList)
-            : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
-            {
-              for (const std::string& type : activeTypes)
+            /**
+             * @brief Constructor converting from GridFunctionSpace and GridVector
+             */
+            template<typename GFS, typename FieldList>
+              RandomFieldList(const RandomFieldList& other, const GFS& gfs, const FieldList& fieldList)
+              : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
               {
-                if (fieldList.find(type) == fieldList.end())
-                  DUNE_THROW(Dune::Exception,"Field name " + type + " not found in grid function list");
+                for (const std::string& type : activeTypes)
+                {
+                  if (fieldList.find(type) == fieldList.end())
+                    DUNE_THROW(Dune::Exception,"Field name " + type + " not found in grid function list");
 
-                std::shared_ptr<SubRandomField> otherField = other.list.find(type)->second;
-                list.insert({type,
-                    std::make_shared<SubRandomField>(*otherField,gfs,*(fieldList.find(type)->second))});
+                  std::shared_ptr<SubRandomField> otherField = other.list.find(type)->second;
+                  list.insert({type,
+                      std::make_shared<SubRandomField>(*otherField,gfs,*(fieldList.find(type)->second))});
+                }
+
+                for (const std::string& type : fieldNames)
+                  if (fieldList.find(type) == fieldList.end())
+                    list.insert({type,
+                        std::make_shared<SubRandomField>(*(other.list.find(type)->second))});
               }
 
-              for (const std::string& type : fieldNames)
-                if (fieldList.find(type) == fieldList.end())
-                  list.insert({type,
-                      std::make_shared<SubRandomField>(*(other.list.find(type)->second))});
-            }
-
-           /**
-           * @brief Constructor converting from DiscreteGridFunction map
-           */
-          template<typename DGFList>
-            RandomFieldList(const RandomFieldList& other, const DGFList& dgfList)
-            : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
-            {
-              for (const std::string& type : activeTypes)
+            /**
+             * @brief Constructor converting from DiscreteGridFunction map
+             */
+            template<typename DGFList>
+              RandomFieldList(const RandomFieldList& other, const DGFList& dgfList)
+              : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
               {
-                if (dgfList.find(type) == dgfList.end())
-                  DUNE_THROW(Dune::Exception,"Field name " + type + " not found in grid function list");
+                for (const std::string& type : activeTypes)
+                {
+                  if (dgfList.find(type) == dgfList.end())
+                    DUNE_THROW(Dune::Exception,"Field name " + type + " not found in grid function list");
 
-                std::shared_ptr<SubRandomField> otherField = other.list.find(type)->second;
-                list.insert({type,
-                    std::make_shared<SubRandomField>(*otherField,*(dgfList.find(type)->second))});
-              }
-
-              for (const std::string& type : fieldNames)
-                if (dgfList.find(type) == dgfList.end())
+                  std::shared_ptr<SubRandomField> otherField = other.list.find(type)->second;
                   list.insert({type,
-                      std::make_shared<SubRandomField>(*(other.list.find(type)->second))});
-            }
+                      std::make_shared<SubRandomField>(*otherField,*(dgfList.find(type)->second))});
+                }
+
+                for (const std::string& type : fieldNames)
+                  if (dgfList.find(type) == dgfList.end())
+                    list.insert({type,
+                        std::make_shared<SubRandomField>(*(other.list.find(type)->second))});
+              }
 #endif // HAVE_DUNE_PDELAB
 
-          /**
-           * @brief Copy constructor
-           */
-          RandomFieldList(const RandomFieldList& other)
-            : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
-          {
-            for(const std::pair<std::string,std::shared_ptr<SubRandomField> >& pair : other.list)
-              list.insert({pair.first, std::make_shared<SubRandomField>(*(pair.second))});
-          }
-
-          /**
-           * @brief Assignment operator
-           */
-          RandomFieldList& operator=(const RandomFieldList& other)
-          {
-            if (this != &other)
+            /**
+             * @brief Copy constructor
+             */
+            RandomFieldList(const RandomFieldList& other)
+              : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
             {
-              fieldNames  = other.fieldNames;
-              activeTypes = other.activeTypes;
-
-              list.clear();
               for(const std::pair<std::string,std::shared_ptr<SubRandomField> >& pair : other.list)
                 list.insert({pair.first, std::make_shared<SubRandomField>(*(pair.second))});
             }
 
-            return *this;
-          }
-
-          /**
-           * @brief Insert additional random field into list
-           */
-          void insert(const std::string& type, const SubRandomField& field, bool activate = true)
-          {
-            fieldNames.push_back(type);
-            if (activate)
-              activeTypes.push_back(type);
-
-            list.insert({type, std::make_shared<SubRandomField>(field)});
-          }
-
-          /**
-           * @brief Define subset of fields kept constant (i.e. not changed by calculus operators)
-           */
-          void activateFields(const unsigned int number)
-          {
-            if (number > fieldNames.size())
-              DUNE_THROW(Dune::Exception,"Too many randomFields activated");
-
-            activeTypes.clear();
-            for (unsigned int i = 0; i < number; i++)
-              activeTypes.push_back(fieldNames[i]);
-          }
-
-          /**
-           * @brief Number of degrees of freedom (for active types)
-           */
-          unsigned int dofs() const
-          {
-            unsigned int output = 0;
-
-            for (const std::string& type : activeTypes)
-              output += list.find(type)->second->dofs();
-
-            return output;
-          }
-
-          /**
-           * @brief Generate fields with the desired correlation structure
-           */
-          void generate(bool allowNonWorldComm = false)
-          {
-            for(const std::string& type : fieldNames)
-              list.find(type)->second->generate(allowNonWorldComm);
-          }
-
-          /**
-           * @brief Generate fields without correlation structure (i.e. noise)
-           */
-          void generateUncorrelated(bool allowNonWorldComm = false)
-          {
-            for(const std::string& type : fieldNames)
-              list.find(type)->second->generateUncorrelated(allowNonWorldComm);
-          }
-
-          /**
-           * @brief Vector of random field types currently active
-           */
-          const std::vector<std::string> types() const
-          {
-            return activeTypes;
-          }
-
-          /**
-           * @brief Access to individual random field
-           */
-          const std::shared_ptr<SubRandomField>& get(const std::string& type) const
-          {
-            if (list.find(type) != list.end())
-              return (list.find(type))->second;
-
-            return emptyPointer;
-          }
-
-          /**
-           * @brief Export random fields to files on disk
-           */
-          void writeToFile(const std::string& fileName) const
-          {
-            for(const std::string& type : fieldNames)
-              list.find(type)->second->writeToFile(fileName + "." + type);
-
-            std::ofstream file(fileName+".fieldList",std::ofstream::trunc);
-            config.report(file);
-          }
-
-          /**
-           * @brief Export random fields as flat unstructured VTK files, requires dune-grid and dune-functions
-           */
-          template<typename GridView>
-            void writeToVTK(const std::string& fileName, const GridView& gv) const
+            /**
+             * @brief Assignment operator
+             */
+            RandomFieldList& operator=(const RandomFieldList& other)
             {
-#if HAVE_DUNE_FUNCTIONS
-              for (const std::string& type : fieldNames)
-                list.find(type)->second->writeToVTK(fileName + "." + type,gv);
-#else //HAVE_DUNE_FUNCTIONS
-              DUNE_THROW(Dune::NotImplemented,"Unstructured VTK output requires dune-grid and dune-functions");
-#endif //HAVE_DUNE_FUNCTIONS
-            }
-
-          /**
-           * @brief Export random fields as unstructured VTK files, requires dune-grid and dune-functions
-           */
-          template<typename GridView>
-            void writeToVTKSeparate(const std::string& fileName, const GridView& gv) const
-            {
-#if HAVE_DUNE_FUNCTIONS
-              for (const std::string& type : fieldNames)
-                list.find(type)->second->writeToVTKSeparate(fileName + "." + type,gv);
-#else //HAVE_DUNE_FUNCTIONS
-              DUNE_THROW(Dune::NotImplemented,"Unstructured VTK output requires dune-grid and dune-functions");
-#endif //HAVE_DUNE_FUNCTIONS
-            }
-
-          /**
-           * @brief Export random fields as flat Legacy VTK files
-           */
-          void writeToLegacyVTK(const std::string& fileName) const
-          {
-            for (const std::string& type : fieldNames)
-              list.find(type)->second->writeToLegacyVTK(fileName + "." + type);
-          }
-
-          /**
-           * @brief Export random fields as separate Legacy VTK entries
-           */
-          void writeToLegacyVTKSeparate(const std::string& fileName) const
-          {
-            for (const std::string& type : fieldNames)
-              list.find(type)->second->writeToLegacyVTKSeparate(fileName + "." + type);
-          }
-
-          /**
-           * @brief Set the random fields to zero
-           */
-          void zero()
-          {
-            for(const std::string& type : activeTypes)
-              list.find(type)->second->zero();
-          }
-
-          /**
-           * @brief Double spatial resolution of covariance matrix
-           */
-          void refineMatrix()
-          {
-            for(const std::string& type : activeTypes)
-              list.find(type)->second->refineMatrix();
-          }
-
-          /**
-           * @brief Double spatial resolution of random fields
-           */
-          void refine()
-          {
-            for(const std::string& type : activeTypes)
-              list.find(type)->second->refine();
-          }
-
-          /**
-           * @brief Reduce spatial resolution of covariance matrix
-           */
-          void coarsenMatrix()
-          {
-            for(const std::string& type : activeTypes)
-              list.find(type)->second->coarsenMatrix();
-          }
-
-          /**
-           * @brief Reduce spatial resolution of random fields
-           */
-          void coarsen()
-          {
-            for(const std::string& type : activeTypes)
-              list.find(type)->second->coarsen();
-          }
-
-          /**
-           * @brief Addition assignment operator
-           */
-          RandomFieldList& operator+=(const RandomFieldList& other)
-          {
-            for(const std::string& type : activeTypes)
-            {
-              if (other.list.find(type) == other.list.end())
-                DUNE_THROW(Dune::Exception,"RandomFieldLists don't match in operator+=");
-
-              list.find(type)->second->operator+=(*(other.list.find(type)->second));
-            }
-
-            return *this;
-          }
-
-          /**
-           * @brief Subtraction assignment operator
-           */
-          RandomFieldList& operator-=(const RandomFieldList& other)
-          {
-            for(const std::string& type : activeTypes)
-            {
-              if (other.list.find(type) == other.list.end())
-                DUNE_THROW(Dune::Exception,"RandomFieldLists don't match in operator+=");
-
-              list.find(type)->second->operator-=(*(other.list.find(type)->second));
-            }
-
-            return *this;
-          }
-
-          /**
-           * @brief Multiplication with scalar
-           */
-          RandomFieldList& operator*=(const RF alpha)
-          {
-            for(const std::string& type : activeTypes)
-              list.find(type)->second->operator*=(alpha);
-
-            return *this;
-          }
-
-          /**
-           * @brief AXPY scaled addition
-           */
-          RandomFieldList& axpy(const RandomFieldList& other, const RF alpha)
-          {
-            for(const std::string& type : activeTypes)
-            {
-              if (other.list.find(type) == other.list.end())
-                DUNE_THROW(Dune::Exception,"RandomFieldLists don't match in axpy");
-
-              list.find(type)->second->axpy(*(other.list.find(type)->second),alpha);
-            }
-
-            return *this;
-          }
-
-          RandomFieldList& axpy(const RF alpha, const RandomFieldList& other)
-          {
-            return axpy(other,alpha);
-          }
-
-          /**
-           * @brief Scalar product
-           */
-          RF operator*(const RandomFieldList& other) const
-          {
-            RF output = 0.;
-
-            for(const std::string& type : activeTypes)
-            {
-              if (other.list.find(type) == other.list.end())
-                DUNE_THROW(Dune::Exception,"RandomFieldLists don't match in operator*");
-
-              output += list.find(type)->second->operator*(*(other.list.find(type)->second));
-            }
-
-            return output;
-          }
-
-          /**
-           * @brief Multiply random fields with covariance matrix
-           */
-          void timesMatrix()
-          {
-            for(const std::string& type : activeTypes)
-              list.find(type)->second->timesMatrix();
-          }
-
-          /**
-           * @brief Multiply random fields with inverse of covariance matrix
-           */
-          void timesInverseMatrix()
-          {
-            for(const std::string& type : activeTypes)
-              list.find(type)->second->timesInverseMatrix();
-          }
-
-          /**
-           * @brief Multiply random fields with approximate root of cov. matrix
-           */
-          void timesMatrixRoot()
-          {
-            for(const std::string& type : activeTypes)
-              list.find(type)->second->timesMatrixRoot();
-          }
-
-          /**
-           * @brief Multiply random fields with approximate inverse root of cov. matrix
-           */
-          void timesInvMatRoot()
-          {
-            for(const std::string& type : activeTypes)
-              list.find(type)->second->timesInvMatRoot();
-          }
-
-          RF oneNorm() const
-          {
-            RF sum = 0.;
-            for(const std::string& type : activeTypes)
-              sum += list.find(type)->second->oneNorm();
-
-            return sum;
-          }
-
-          RF twoNorm() const
-          {
-            RF sum = 0.;
-            for(const std::string& type : activeTypes)
-              sum += std::pow(list.find(type)->second->twoNorm(),2);
-
-            return std::sqrt(sum);
-          }
-
-          RF infNorm() const
-          {
-            RF max = 0;
-            for (const std::string& type : activeTypes)
-              max = std::max(max, list.find(type)->second->infNorm());
-
-            return max;
-          }
-
-          bool operator==(const RandomFieldList& other) const
-          {
-            bool same = true;
-            for (const std::string& type : fieldNames)
-            {
-              if (other.list.find(type) == other.list.end())
-                DUNE_THROW(Dune::Exception,"RandomFieldLists don't match in operator==");
-
-              if (!(list.find(type)->second->operator==(*(other.list.find(type)->second))))
+              if (this != &other)
               {
-                same = false;
-                break;
+                fieldNames  = other.fieldNames;
+                activeTypes = other.activeTypes;
+
+                list.clear();
+                for(const std::pair<std::string,std::shared_ptr<SubRandomField> >& pair : other.list)
+                  list.insert({pair.first, std::make_shared<SubRandomField>(*(pair.second))});
               }
+
+              return *this;
             }
 
-            return same;
-          }
+            /**
+             * @brief Insert additional random field into list
+             */
+            void insert(const std::string& type, const SubRandomField& field, bool activate = true)
+            {
+              fieldNames.push_back(type);
+              if (activate)
+                activeTypes.push_back(type);
 
-          bool operator!=(const RandomFieldList& other) const
-          {
-            return !operator==(other);
-          }
+              list.insert({type, std::make_shared<SubRandomField>(field)});
+            }
 
-          void localize(const typename GridTraits::Domain& center, const RF radius)
-          {
-            for(const std::string& type : activeTypes)
-              list.find(type)->second->localize(center,radius);
-          }
+            /**
+             * @brief Define subset of fields kept constant (i.e. not changed by calculus operators)
+             */
+            void activateFields(const unsigned int number)
+            {
+              if (number > fieldNames.size())
+                DUNE_THROW(Dune::Exception,"Too many randomFields activated");
 
-      };
+              activeTypes.clear();
+              for (unsigned int i = 0; i < number; i++)
+                activeTypes.push_back(fieldNames[i]);
+            }
+
+            /**
+             * @brief Number of degrees of freedom (for active types)
+             */
+            unsigned int dofs() const
+            {
+              unsigned int output = 0;
+
+              for (const std::string& type : activeTypes)
+                output += list.find(type)->second->dofs();
+
+              return output;
+            }
+
+            /**
+             * @brief Generate fields with the desired correlation structure
+             */
+            void generate(bool allowNonWorldComm = false)
+            {
+              for(const std::string& type : fieldNames)
+                list.find(type)->second->generate(allowNonWorldComm);
+            }
+
+            /**
+             * @brief Generate fields without correlation structure (i.e. noise)
+             */
+            void generateUncorrelated(bool allowNonWorldComm = false)
+            {
+              for(const std::string& type : fieldNames)
+                list.find(type)->second->generateUncorrelated(allowNonWorldComm);
+            }
+
+            /**
+             * @brief Vector of random field types currently active
+             */
+            const std::vector<std::string> types() const
+            {
+              return activeTypes;
+            }
+
+            /**
+             * @brief Access to individual random field
+             */
+            const std::shared_ptr<SubRandomField>& get(const std::string& type) const
+            {
+              if (list.find(type) != list.end())
+                return (list.find(type))->second;
+
+              return emptyPointer;
+            }
+
+            /**
+             * @brief Export random fields to files on disk
+             */
+            void writeToFile(const std::string& fileName) const
+            {
+              for(const std::string& type : fieldNames)
+                list.find(type)->second->writeToFile(fileName + "." + type);
+
+              std::ofstream file(fileName+".fieldList",std::ofstream::trunc);
+              config.report(file);
+            }
+
+            /**
+             * @brief Export random fields as flat unstructured VTK files, requires dune-grid and dune-functions
+             */
+            template<typename GridView>
+              void writeToVTK(const std::string& fileName, const GridView& gv) const
+              {
+#if HAVE_DUNE_FUNCTIONS
+                for (const std::string& type : fieldNames)
+                  list.find(type)->second->writeToVTK(fileName + "." + type,gv);
+#else //HAVE_DUNE_FUNCTIONS
+                DUNE_THROW(Dune::NotImplemented,"Unstructured VTK output requires dune-grid and dune-functions");
+#endif //HAVE_DUNE_FUNCTIONS
+              }
+
+            /**
+             * @brief Export random fields as unstructured VTK files, requires dune-grid and dune-functions
+             */
+            template<typename GridView>
+              void writeToVTKSeparate(const std::string& fileName, const GridView& gv) const
+              {
+#if HAVE_DUNE_FUNCTIONS
+                for (const std::string& type : fieldNames)
+                  list.find(type)->second->writeToVTKSeparate(fileName + "." + type,gv);
+#else //HAVE_DUNE_FUNCTIONS
+                DUNE_THROW(Dune::NotImplemented,"Unstructured VTK output requires dune-grid and dune-functions");
+#endif //HAVE_DUNE_FUNCTIONS
+              }
+
+            /**
+             * @brief Export random fields as flat Legacy VTK files
+             */
+            void writeToLegacyVTK(const std::string& fileName) const
+            {
+              for (const std::string& type : fieldNames)
+                list.find(type)->second->writeToLegacyVTK(fileName + "." + type);
+            }
+
+            /**
+             * @brief Export random fields as separate Legacy VTK entries
+             */
+            void writeToLegacyVTKSeparate(const std::string& fileName) const
+            {
+              for (const std::string& type : fieldNames)
+                list.find(type)->second->writeToLegacyVTKSeparate(fileName + "." + type);
+            }
+
+            /**
+             * @brief Set the random fields to zero
+             */
+            void zero()
+            {
+              for(const std::string& type : activeTypes)
+                list.find(type)->second->zero();
+            }
+
+            /**
+             * @brief Double spatial resolution of covariance matrix
+             */
+            void refineMatrix()
+            {
+              for(const std::string& type : activeTypes)
+                list.find(type)->second->refineMatrix();
+            }
+
+            /**
+             * @brief Double spatial resolution of random fields
+             */
+            void refine()
+            {
+              for(const std::string& type : activeTypes)
+                list.find(type)->second->refine();
+            }
+
+            /**
+             * @brief Reduce spatial resolution of covariance matrix
+             */
+            void coarsenMatrix()
+            {
+              for(const std::string& type : activeTypes)
+                list.find(type)->second->coarsenMatrix();
+            }
+
+            /**
+             * @brief Reduce spatial resolution of random fields
+             */
+            void coarsen()
+            {
+              for(const std::string& type : activeTypes)
+                list.find(type)->second->coarsen();
+            }
+
+            /**
+             * @brief Addition assignment operator
+             */
+            RandomFieldList& operator+=(const RandomFieldList& other)
+            {
+              for(const std::string& type : activeTypes)
+              {
+                if (other.list.find(type) == other.list.end())
+                  DUNE_THROW(Dune::Exception,"RandomFieldLists don't match in operator+=");
+
+                list.find(type)->second->operator+=(*(other.list.find(type)->second));
+              }
+
+              return *this;
+            }
+
+            /**
+             * @brief Subtraction assignment operator
+             */
+            RandomFieldList& operator-=(const RandomFieldList& other)
+            {
+              for(const std::string& type : activeTypes)
+              {
+                if (other.list.find(type) == other.list.end())
+                  DUNE_THROW(Dune::Exception,"RandomFieldLists don't match in operator+=");
+
+                list.find(type)->second->operator-=(*(other.list.find(type)->second));
+              }
+
+              return *this;
+            }
+
+            /**
+             * @brief Multiplication with scalar
+             */
+            RandomFieldList& operator*=(const RF alpha)
+            {
+              for(const std::string& type : activeTypes)
+                list.find(type)->second->operator*=(alpha);
+
+              return *this;
+            }
+
+            /**
+             * @brief AXPY scaled addition
+             */
+            RandomFieldList& axpy(const RandomFieldList& other, const RF alpha)
+            {
+              for(const std::string& type : activeTypes)
+              {
+                if (other.list.find(type) == other.list.end())
+                  DUNE_THROW(Dune::Exception,"RandomFieldLists don't match in axpy");
+
+                list.find(type)->second->axpy(*(other.list.find(type)->second),alpha);
+              }
+
+              return *this;
+            }
+
+            RandomFieldList& axpy(const RF alpha, const RandomFieldList& other)
+            {
+              return axpy(other,alpha);
+            }
+
+            /**
+             * @brief Scalar product
+             */
+            RF operator*(const RandomFieldList& other) const
+            {
+              RF output = 0.;
+
+              for(const std::string& type : activeTypes)
+              {
+                if (other.list.find(type) == other.list.end())
+                  DUNE_THROW(Dune::Exception,"RandomFieldLists don't match in operator*");
+
+                output += list.find(type)->second->operator*(*(other.list.find(type)->second));
+              }
+
+              return output;
+            }
+
+            /**
+             * @brief Multiply random fields with covariance matrix
+             */
+            void timesMatrix()
+            {
+              for(const std::string& type : activeTypes)
+                list.find(type)->second->timesMatrix();
+            }
+
+            /**
+             * @brief Multiply random fields with inverse of covariance matrix
+             */
+            void timesInverseMatrix()
+            {
+              for(const std::string& type : activeTypes)
+                list.find(type)->second->timesInverseMatrix();
+            }
+
+            /**
+             * @brief Multiply random fields with approximate root of cov. matrix
+             */
+            void timesMatrixRoot()
+            {
+              for(const std::string& type : activeTypes)
+                list.find(type)->second->timesMatrixRoot();
+            }
+
+            /**
+             * @brief Multiply random fields with approximate inverse root of cov. matrix
+             */
+            void timesInvMatRoot()
+            {
+              for(const std::string& type : activeTypes)
+                list.find(type)->second->timesInvMatRoot();
+            }
+
+            RF oneNorm() const
+            {
+              RF sum = 0.;
+              for(const std::string& type : activeTypes)
+                sum += list.find(type)->second->oneNorm();
+
+              return sum;
+            }
+
+            RF twoNorm() const
+            {
+              RF sum = 0.;
+              for(const std::string& type : activeTypes)
+                sum += std::pow(list.find(type)->second->twoNorm(),2);
+
+              return std::sqrt(sum);
+            }
+
+            RF infNorm() const
+            {
+              RF max = 0;
+              for (const std::string& type : activeTypes)
+                max = std::max(max, list.find(type)->second->infNorm());
+
+              return max;
+            }
+
+            bool operator==(const RandomFieldList& other) const
+            {
+              bool same = true;
+              for (const std::string& type : fieldNames)
+              {
+                if (other.list.find(type) == other.list.end())
+                  DUNE_THROW(Dune::Exception,"RandomFieldLists don't match in operator==");
+
+                if (!(list.find(type)->second->operator==(*(other.list.find(type)->second))))
+                {
+                  same = false;
+                  break;
+                }
+              }
+
+              return same;
+            }
+
+            bool operator!=(const RandomFieldList& other) const
+            {
+              return !operator==(other);
+            }
+
+            void localize(const typename GridTraits::Domain& center, const RF radius)
+            {
+              for(const std::string& type : activeTypes)
+                list.find(type)->second->localize(center,radius);
+            }
+
+        };
   }
 }
 

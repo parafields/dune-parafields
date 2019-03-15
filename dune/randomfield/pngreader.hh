@@ -86,17 +86,17 @@ namespace Dune{
        * @brief Extract first pixel byte (gray or red) as value at coordinate
        */
       template<typename Coord1, typename Coord2>
-      double evaluate(const Coord1& coord, const Coord2& extent) const
-      {
+        double evaluate(const Coord1& coord, const Coord2& extent) const
+        {
 #if HAVE_PNG
-        const unsigned int row = height - 1 - int(coord[1]/double(extent[1]) * height);
-        const unsigned int col = int(coord[0]/double(extent[0]) * width);
+          const unsigned int row = height - 1 - int(coord[1]/double(extent[1]) * height);
+          const unsigned int col = int(coord[0]/double(extent[0]) * width);
 
-        return 1. - data[row][col*channels + offset]/255.;
+          return 1. - data[row][col*channels + offset]/255.;
 #else // HAVE_PNG
-        DUNE_THROW(Dune::NotImplemented,"missing support for reading PNG files");
+          DUNE_THROW(Dune::NotImplemented,"missing support for reading PNG files");
 #endif // HAVE_PNG
-      }
+        }
     };
   }
 }

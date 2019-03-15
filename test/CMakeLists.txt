@@ -1,4 +1,4 @@
-dune_symlink_to_source_files(FILES randomfield1d.ini randomfield2d.ini randomfield3d.ini perm.props)
+dune_symlink_to_source_files(FILES randomfield1d.ini randomfield2d.ini randomfield3d.ini)
 
 foreach(dim 1 2 3)
   set(name fieldtest_${dim})
