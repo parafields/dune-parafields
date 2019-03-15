@@ -129,11 +129,11 @@ void diffMultInv(const RandomField& field)
 /**
  * @brief Run different matrix multiplication tests
  */
-template<typename GridTraits, bool storeInvMat, bool storeInvRoot>
+template<typename GridTraits>
 void runTests(Dune::ParameterTree config, std::string covariance)
 {
   config["stochastic.covariance"] = covariance;
-  Dune::RandomField::RandomField<GridTraits,storeInvMat,storeInvRoot> randomField(config);
+  Dune::RandomField::RandomField<GridTraits> randomField(config);
   randomField.generate();
 
   diffRootInvRoot(randomField);
@@ -141,6 +141,31 @@ void runTests(Dune::ParameterTree config, std::string covariance)
   diffInvRootRoot(randomField);
   diffInvMult(randomField);
   diffMultInv(randomField);
+}
+
+/**
+ * @brief 1D version of tests
+ */
+void test1d()
+{
+  Dune::ParameterTree config;
+  Dune::ParameterTreeParser parser;
+  parser.readINITree("randomfield1d.ini",config);
+
+  using GridTraits = GridTraits<double,double,1>;
+
+  std::cout << "--------------" << std::endl;
+  std::cout << "1D Exponential" << std::endl;
+  std::cout << "--------------" << std::endl;
+  runTests<GridTraits>(config,"exponential");
+  std::cout << "--------------" << std::endl;
+  std::cout << "1D Gaussian   " << std::endl;
+  std::cout << "--------------" << std::endl;
+  runTests<GridTraits>(config,"gaussian");
+  std::cout << "--------------" << std::endl;
+  std::cout << "1D Spherical  " << std::endl;
+  std::cout << "--------------" << std::endl;
+  runTests<GridTraits>(config,"spherical");
 }
 
 /**
@@ -157,40 +182,38 @@ void test2d()
   std::cout << "--------------" << std::endl;
   std::cout << "2D Exponential" << std::endl;
   std::cout << "--------------" << std::endl;
-  runTests<GridTraits,INVMAT,INVROOT>(config,"exponential");
+  runTests<GridTraits>(config,"exponential");
   std::cout << "--------------" << std::endl;
   std::cout << "2D Gaussian   " << std::endl;
   std::cout << "--------------" << std::endl;
-  runTests<GridTraits,INVMAT,INVROOT>(config,"gaussian");
+  runTests<GridTraits>(config,"gaussian");
   std::cout << "--------------" << std::endl;
   std::cout << "2D Spherical  " << std::endl;
   std::cout << "--------------" << std::endl;
-  runTests<GridTraits,INVMAT,INVROOT>(config,"spherical");
+  runTests<GridTraits>(config,"spherical");
 }
 
-/**
- * @brief 3D version of tests
- */
-void test3d()
+template<unsigned int dim>
+void test()
 {
   Dune::ParameterTree config;
   Dune::ParameterTreeParser parser;
-  parser.readINITree("randomfield3d.ini",config);
+  parser.readINITree("randomfield"+std::to_string(dim)+"d.ini",config);
 
-  using GridTraits = GridTraits<double,double,3>;
+  using GridTraits = GridTraits<double,double,dim>;
 
   std::cout << "--------------" << std::endl;
-  std::cout << "3D Exponential" << std::endl;
+  std::cout << dim << "D Exponential" << std::endl;
   std::cout << "--------------" << std::endl;
-  runTests<GridTraits,INVMAT,INVROOT>(config,"exponential");
+  runTests<GridTraits>(config,"exponential");
   std::cout << "--------------" << std::endl;
-  std::cout << "3D Gaussian   " << std::endl;
+  std::cout << dim << "D Gaussian   " << std::endl;
   std::cout << "--------------" << std::endl;
-  runTests<GridTraits,INVMAT,INVROOT>(config,"gaussian");
+  runTests<GridTraits>(config,"gaussian");
   std::cout << "--------------" << std::endl;
-  std::cout << "3D Spherical  " << std::endl;
+  std::cout << dim << "D Spherical  " << std::endl;
   std::cout << "--------------" << std::endl;
-  runTests<GridTraits,INVMAT,INVROOT>(config,"spherical");
+  runTests<GridTraits>(config,"spherical");
 }
 
 int main(int argc, char** argv)
@@ -204,12 +227,9 @@ int main(int argc, char** argv)
       std::cout<<"I am rank "<<helper.rank()<<" of "<<helper.size()
         <<" processes!"<<std::endl;
 
-    if (DIMENSION == 2)
-      test2d();
-    else if (DIMENSION == 3)
-      test3d();
-    else
-      DUNE_THROW(Dune::Exception,"only dimension 2 and 3 supported!");
+    static_assert(DIMENSION >= 1 && DIMENSION <= 3, "only dimension 1, 2 and 3 supported!");
+
+    test<DIMENSION>();
 
     return 0;
   }
