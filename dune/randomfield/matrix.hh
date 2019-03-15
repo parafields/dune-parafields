@@ -10,6 +10,7 @@
 #include <fftw3.h>
 #include <fftw3-mpi.h>
 
+
 #include"dune/randomfield/covariance.hh"
 
 namespace Dune {
@@ -236,31 +237,37 @@ namespace Dune {
 
           forwardTransform(fftTransformedMatrix);
 
-          unsigned int small = 0;
-          unsigned int negative = 0;
-          unsigned int smallNegative = 0;
-          RF smallest = std::numeric_limits<RF>::max();
+          unsigned int mySmall = 0;
+          unsigned int myNegative = 0;
+          unsigned int mySmallNegative = 0;
+          RF mySmallest = std::numeric_limits<RF>::max();
           for (unsigned int index = 0; index < localExtendedDomainSize; index++)
           {
-            if (fftTransformedMatrix[index][0] < smallest)
-              smallest = fftTransformedMatrix[index][0];
+            if (fftTransformedMatrix[index][0] < mySmallest)
+              mySmallest = fftTransformedMatrix[index][0];
 
             if (fftTransformedMatrix[index][0] < 1e-6)
             {
               if (fftTransformedMatrix[index][0] < 1e-10)
               {
                 if (fftTransformedMatrix[index][0] > -1e-10)
-                  smallNegative++;
+                  mySmallNegative++;
                 else
-                  negative++;
+                  myNegative++;
               }
               else
-                small++;
+                mySmall++;
             }
 
             if (fftTransformedMatrix[index][0] < 0.)
               fftTransformedMatrix[index][0] = 0.;
           }
+          int small, negative, smallNegative;
+          RF smallest;
+          MPI_Allreduce(&mySmall,        &small,        1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
+          MPI_Allreduce(&myNegative,     &negative,     1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
+          MPI_Allreduce(&mySmallNegative,&smallNegative,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
+          MPI_Allreduce(&mySmallest,     &smallest,     1,MPI_DOUBLE,MPI_MIN,(*traits).comm);
 
           if ((*traits).verbose && rank == 0)
             std::cout << small << " small, " << smallNegative << " small negative and "
