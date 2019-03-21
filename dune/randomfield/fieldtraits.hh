@@ -306,20 +306,13 @@ namespace Dune {
         template<typename T>
           void getFFTData(T& allocLocal, T& localN0, T& local0Start) const
           {
-            if (dim == 3)
+            ptrdiff_t n[dim];
+
+            for (unsigned int i = 0; i < dim; i++)
+              n[i] = extendedCells[dim-1-i];
+
+            if (dim == 1)
             {
-              ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],
-                (ptrdiff_t)extendedCells[1],(ptrdiff_t)extendedCells[2]};
-              allocLocal = fftw_mpi_local_size_3d(n[2] , n[1], n[0], comm, &localN0, &local0Start);
-            }
-            else if (dim == 2)
-            {
-              ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],(ptrdiff_t)extendedCells[1]};
-              allocLocal = fftw_mpi_local_size_2d(n[1], n[0], comm, &localN0, &local0Start);
-            }
-            else if (dim == 1)
-            {
-              ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0]};
               ptrdiff_t localN02, local0Start2;
               allocLocal = fftw_mpi_local_size_1d(n[0], comm, FFTW_FORWARD, FFTW_ESTIMATE,
                   &localN0, &local0Start, &localN02, &local0Start2);
@@ -327,59 +320,38 @@ namespace Dune {
                 DUNE_THROW(Dune::Exception,"1d size / offset results don't match");
             }
             else
-              DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
+              allocLocal = fftw_mpi_local_size(dim, n, comm, &localN0, &local0Start);
           }
 
         /**
          * @brief Convert an index tuple into a one dimensional encoding
          */
-        unsigned int indicesToIndex(
+        template<unsigned int currentDim = 0>
+        static unsigned int indicesToIndex(
             const std::array<unsigned int,dim>& indices,
             const std::array<unsigned int,dim>& bound
-            ) const
+            )
         {
-          if (dim == 3)
-          {
-            return indices[0] + bound[0] * (indices[1] + bound[1]*indices[2]);
-          }
-          else if (dim == 2)
-          {
-            return indices[1] * bound[0] + indices[0];
-          }
-          else if (dim == 1)
-          {
-            return indices[0];
-          }
+          if constexpr(currentDim == dim-1)
+            return indices[currentDim];
           else
-            DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
+            return indices[currentDim]
+              + bound[currentDim] * indicesToIndex<currentDim+1>(indices,bound);
         }
 
         /**
          * @brief Convert a one dimensional encoding into the original index tuple
          */
-        void indexToIndices(
+        template<unsigned int currentDim = 0>
+        static void indexToIndices(
             const unsigned int index,
             std::array<unsigned int,dim>& indices,
             const std::array<unsigned int,dim>& bound
-            ) const
+            )
         {
-          if (dim == 3)
-          {
-            indices[0] = index % bound[0];
-            indices[1] = (index / bound[0]) % bound[1];
-            indices[2] = (index / bound[0]) / bound[1];
-          }
-          else if (dim == 2)
-          {
-            indices[0] = index % bound[0];
-            indices[1] = index / bound[0];
-          }
-          else if (dim == 1)
-          {
-            indices[0] = index;
-          }
-          else
-            DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
+          indices[currentDim] = index % bound[currentDim];
+          if constexpr(currentDim != dim-1)
+            indexToIndices<currentDim+1>(index/bound[currentDim],indices,bound);
         }
 
         /**

@@ -68,7 +68,7 @@ namespace Dune{
         hsize_t dimData;
         hsize_t* dims;
 
-        // get the dimension (2D or 3D)
+        // get the dimension
         dimData = H5Sget_simple_extent_ndims(dataspace_id);
         assert(dimData == dim);
 
@@ -87,7 +87,7 @@ namespace Dune{
           count [dim-i-1]  =  local_count [i];
         }
 
-        // create the memory space, if something needes to be read on this processor
+        // create the memory space, if something needs to be read on this processor
         hid_t memspace_id = 0;
         if(local_size != 0)
           memspace_id = H5Screate_simple(1,&local_size,NULL);
@@ -244,6 +244,127 @@ namespace Dune{
         MPI_Barrier(communicator);
       }
 #endif //HAVE_HDF5
+
+    template<typename RF, unsigned int dim>
+      bool writeToXDMF(
+          const std::array<unsigned int,dim>& cells,
+          const std::array<RF,dim>& extensions,
+          const std::string& fileName
+          )
+      {
+        if (dim > 4)
+          return false;
+
+        std::ofstream file(fileName+".xdmf",std::ofstream::trunc);
+
+        file
+          << "<?xml version=\"1.0\" ?>\n"
+          << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n"
+          << "<Xdmf Version=\"2.0\">\n"
+          << " <Domain>\n";
+
+        if (dim < 4)
+        {
+          file
+            << "  <Grid Name=\"StructuredGrid\">\n"
+            << "   <Topology TopologyType=\"3DRectMesh\" NumberOfElements=\"";
+          for (unsigned int i = 0; i < dim; i++)
+            file << cells[dim-(i+1)] << " ";
+          file
+            << "\"/>\n"
+            << "   <Geometry GeometryType=\"origin_dxdydz\">\n"
+            << "    <DataItem Dimensions=\"3\">\n"
+            << "     0. 0. 0.\n"
+            << "    </DataItem>\n"
+            << "    <DataItem Dimensions=\"3\">\n"
+            << "     ";
+          for (unsigned int i = 0; i < 3-dim; i++)
+            file << extensions[0]/cells[0] << " "; // additional entries to visualize 1D and 2D files
+          for (unsigned int i = 0; i < dim; i++)
+            file << extensions[i]/cells[i] << " ";
+          file
+            << "\n"
+            << "    </DataItem>\n"
+            << "   </Geometry>\n"
+            << "   <Attribute Name=\""
+            << fileName
+            << "\" Center=\"Cell\">\n"
+            << "    <DataItem Dimensions=\"";
+          for (unsigned int i = 0; i < dim; i++)
+            file << cells[dim-(i+1)] << " ";
+          file
+            << "\" Format=\"HDF\">\n"
+            << "     " << fileName+".stoch.h5" << ":/stochastic\n"
+            << "    </DataItem>\n"
+            << "   </Attribute>\n"
+            << "  </Grid>\n";
+        }
+        else if (dim == 4)
+        {
+          file
+            << "  <Grid Name=\"GridTime\" GridType=\"Collection\""
+            << " CollectionType=\"Temporal\">\n";
+            for (unsigned int j = 0; j < cells[dim-1]; j++)
+            {
+              file
+                << "   <Grid Name=\"StructuredGrid\">\n"
+                << "    <Time Value=\"" << j << "\"/>\n"
+                << "    <Topology TopologyType=\"3DRectMesh\" NumberOfElements=\"";
+              for (unsigned int i = 0; i < dim-1; i++)
+                file << cells[dim-(i+2)] << " ";
+              file
+                << "\"/>\n"
+                << "    <Geometry GeometryType=\"origin_dxdydz\">\n"
+                << "     <DataItem Dimensions=\"3\">\n"
+                << "      0. 0. 0.\n"
+                << "     </DataItem>\n"
+                << "     <DataItem Dimensions=\"3\">\n"
+                << "      ";
+              for (unsigned int i = 0; i < dim-1; i++)
+                file << extensions[i]/cells[i] << " ";
+              file
+                << "\n"
+                << "     </DataItem>\n"
+                << "    </Geometry>\n"
+                << "    <Attribute Name=\""
+                << fileName
+                << "\" Center=\"Cell\">\n"
+                << "     <DataItem ItemType=\"HyperSlab\" Dimensions=\"";
+              for (unsigned int i = 0; i < dim-1; i++)
+                file << cells[dim-(i+2)] << " ";
+              file
+                << "1\">\n"
+                << "      <DataItem Dimensions=\"3 4\">\n"
+                << "       " << j << " 0 0 0\n"
+                << "       1 1 1 1\n"
+                << "       1 ";
+              for (unsigned int i = 0; i < dim-1; i++)
+                file << cells[dim-(i+2)] << " ";
+              file
+                << "\n"
+                << "      </DataItem>\n"
+                << "      <DataItem Dimensions=\"";
+              for (unsigned int i = 0; i < dim; i++)
+                file << cells[dim-(i+1)] << " ";
+              file
+                << "\" Format=\"HDF\">\n"
+                << "       " << fileName+".stoch.h5" << ":/stochastic\n"
+                << "      </DataItem>\n"
+                << "     </DataItem>\n"
+                << "    </Attribute>\n"
+                << "   </Grid>\n";
+            }
+          file
+            << "  </Grid>\n";
+        }
+
+        file
+          << " </Domain>\n"
+          << "</Xdmf>"
+          << std::endl;
+
+        return true;
+      }
 
   }
 }

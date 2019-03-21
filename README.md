@@ -2,8 +2,9 @@
 
 dune-randomfield provides Gaussian random fields based on
 circulant embedding, with the following features:
-- support for 1D (processes), 2D and full 3D realizations
-  of random fields
+- support for random fields of arbitrary dimensionality
+- data redistribution and parallel overlap for 1D (processes),
+  2D and 3D realizations of random fields
 - exponential, Gaussian, Matérn, spherical and cubic
   covariance functions, among others
 - axiparallel and full geometric anisotropy as options

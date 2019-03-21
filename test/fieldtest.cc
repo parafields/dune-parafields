@@ -143,56 +143,6 @@ void runTests(Dune::ParameterTree config, std::string covariance)
   diffMultInv(randomField);
 }
 
-/**
- * @brief 1D version of tests
- */
-void test1d()
-{
-  Dune::ParameterTree config;
-  Dune::ParameterTreeParser parser;
-  parser.readINITree("randomfield1d.ini",config);
-
-  using GridTraits = GridTraits<double,double,1>;
-
-  std::cout << "--------------" << std::endl;
-  std::cout << "1D Exponential" << std::endl;
-  std::cout << "--------------" << std::endl;
-  runTests<GridTraits>(config,"exponential");
-  std::cout << "--------------" << std::endl;
-  std::cout << "1D Gaussian   " << std::endl;
-  std::cout << "--------------" << std::endl;
-  runTests<GridTraits>(config,"gaussian");
-  std::cout << "--------------" << std::endl;
-  std::cout << "1D Spherical  " << std::endl;
-  std::cout << "--------------" << std::endl;
-  runTests<GridTraits>(config,"spherical");
-}
-
-/**
- * @brief 2D version of tests
- */
-void test2d()
-{
-  Dune::ParameterTree config;
-  Dune::ParameterTreeParser parser;
-  parser.readINITree("randomfield2d.ini",config);
-
-  using GridTraits = GridTraits<double,double,2>;
-
-  std::cout << "--------------" << std::endl;
-  std::cout << "2D Exponential" << std::endl;
-  std::cout << "--------------" << std::endl;
-  runTests<GridTraits>(config,"exponential");
-  std::cout << "--------------" << std::endl;
-  std::cout << "2D Gaussian   " << std::endl;
-  std::cout << "--------------" << std::endl;
-  runTests<GridTraits>(config,"gaussian");
-  std::cout << "--------------" << std::endl;
-  std::cout << "2D Spherical  " << std::endl;
-  std::cout << "--------------" << std::endl;
-  runTests<GridTraits>(config,"spherical");
-}
-
   template<unsigned int dim>
 void test()
 {
@@ -210,10 +160,13 @@ void test()
   std::cout << dim << "D Gaussian   " << std::endl;
   std::cout << "--------------" << std::endl;
   runTests<GridTraits>(config,"gaussian");
-  std::cout << "--------------" << std::endl;
-  std::cout << dim << "D Spherical  " << std::endl;
-  std::cout << "--------------" << std::endl;
-  runTests<GridTraits>(config,"spherical");
+  if (dim < 4)
+  {
+    std::cout << "--------------" << std::endl;
+    std::cout << dim << "D Spherical  " << std::endl;
+    std::cout << "--------------" << std::endl;
+    runTests<GridTraits>(config,"spherical");
+  }
 }
 
 int main(int argc, char** argv)
@@ -227,7 +180,7 @@ int main(int argc, char** argv)
       std::cout<<"I am rank "<<helper.rank()<<" of "<<helper.size()
         <<" processes!"<<std::endl;
 
-    static_assert(DIMENSION >= 1 && DIMENSION <= 3, "only dimension 1, 2 and 3 supported!");
+    static_assert(DIMENSION >= 1 && DIMENSION <= 4, "only dimension 1, 2, 3 and 4 supported!");
 
     test<DIMENSION>();
 

@@ -109,7 +109,7 @@ namespace Dune {
 
               const typename Traits::DomainType& coords = elem.geometry().center();
               (*traits).coordsToIndices(coords,evalIndices,localEvalOffset);
-              const unsigned int index = (*traits).indicesToIndex(evalIndices,localEvalCells);
+              const unsigned int index = Traits::indicesToIndex(evalIndices,localEvalCells);
 
               evalVector[index] = vLocal[0];
             }
@@ -129,7 +129,7 @@ namespace Dune {
               const typename Traits::DomainType& coords = referenceElement(elem.geometry()).position(0,0);
               const typename Traits::DomainType& global = elem.geometry().global(coords);
               (*traits).coordsToIndices(global,evalIndices,localEvalOffset);
-              const unsigned int index = (*traits).indicesToIndex(evalIndices,localEvalCells);
+              const unsigned int index = Traits::indicesToIndex(evalIndices,localEvalCells);
 
               Dune::FieldVector<RF,1> value;
               dgf.evaluate(elem,coords,value);
@@ -177,8 +177,8 @@ namespace Dune {
           {
             localEvalOffset[0] = rank * localEvalCells[0];
           }
-          else
-            DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
+          else if ((*traits).verbose)
+            std::cout << "Note: dimension of field has to be 1, 2 or 3 for data redistribution and overlap" << std::endl;
 
           dataVector.resize(localDomainSize);
           evalVector.resize(localDomainSize);
@@ -200,54 +200,12 @@ namespace Dune {
 #if HAVE_HDF5
           if ((*traits).verbose && rank == 0)
             std::cout << "writing random field to file " << fileName << std::endl;
+
           writeParallelToHDF5<RF,dim>((*traits).cells, dataVector, localCells, localOffset,
               (*traits).comm, "/stochastic", fileName+".stoch.h5");
 
           if (rank == 0)
-          {
-            std::ofstream file(fileName+".xdmf",std::ofstream::trunc);
-
-            file
-              << "<?xml version=\"1.0\" ?>\n"
-              << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n"
-              << "<Xdmf Version=\"2.0\">\n"
-              << " <Domain>\n"
-              << "  <Grid Name=\"StructuredGrid\" GridType=\"Uniform\">\n"
-              << "   <Topology TopologyType=\"3DRectMesh\" NumberOfElements=\"";
-            for (unsigned int i = 0; i < dim; i++)
-              file << cells[dim-(i+1)] << " ";
-            file
-              << "\"/>\n"
-              << "   <Geometry GeometryType=\"origin_dxdydz\">\n"
-              << "    <DataItem Dimensions=\"3\" NumberType=\"Float\" Precision=\"4\" Format=\"XML\">\n"
-              << "     0. 0. 0.\n"
-              << "    </DataItem>\n"
-              << "    <DataItem Dimensions=\"3\" NumberType=\"Float\" Precision=\"4\" Format=\"XML\">\n"
-              << "     ";
-            for (unsigned int i = 0; i < 3 - dim; i++)
-              file << extensions[0]/cells[0] << " "; // additional entries to visualize 1D and 2D files
-            for (unsigned int i = 0; i < dim; i++)
-              file << extensions[i]/cells[i] << " ";
-            file
-              << "\n"
-              << "    </DataItem>\n"
-              << "   </Geometry>\n"
-              << "   <Attribute Name=\""
-              << fileName
-              << "\" AttributeType=\"Scalar\" Center=\"Cell\">\n"
-              << "    <DataItem Dimensions=\"";
-            for (unsigned int i = 0; i < dim; i++)
-              file << cells[dim-(i+1)] << " ";
-            file
-              << "\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n"
-              << "     " << fileName+".stoch.h5" << ":/stochastic\n"
-              << "    </DataItem>\n"
-              << "   </Attribute>\n"
-              << "  </Grid>\n"
-              << " </Domain>\n"
-              << "</Xdmf>"
-              << std::endl;
-          }
+            writeToXDMF<RF,dim>((*traits).cells,(*traits).extensions,fileName);
 #else //HAVE_HDF5
           DUNE_THROW(Dune::NotImplemented,"Writing and reading field files requires parallel HDF5 support");
 #endif //HAVE_HDF5
@@ -402,7 +360,7 @@ namespace Dune {
                   evalIndices[i]--;
               }
 
-              const unsigned int index = (*traits).indicesToIndex(evalIndices,localEvalCells);
+              const unsigned int index = Traits::indicesToIndex(evalIndices,localEvalCells);
               output[0] = evalVector[index];
             }
           }
@@ -426,7 +384,7 @@ namespace Dune {
                   evalIndices[i]--;
               }
 
-              const unsigned int index = (*traits).indicesToIndex(evalIndices,localEvalCells);
+              const unsigned int index = Traits::indicesToIndex(evalIndices,localEvalCells);
               output[0] = evalVector[index];
             }
           }
@@ -446,7 +404,7 @@ namespace Dune {
                   evalIndices[i]--;
               }
 
-              const unsigned int index = (*traits).indicesToIndex(evalIndices,localEvalCells);
+              const unsigned int index = Traits::indicesToIndex(evalIndices,localEvalCells);
               output[0] = evalVector[index];
             }
           }
@@ -497,8 +455,8 @@ namespace Dune {
                     newIndices[1] = 2*oldIndices[1];
                     newIndices[2] = 2*oldIndices[2];
 
-                    const unsigned int oldIndex = (*traits).indicesToIndex(oldIndices,oldLocalCells);
-                    const unsigned int newIndex = (*traits).indicesToIndex(newIndices,localCells);
+                    const unsigned int oldIndex = Traits::indicesToIndex(oldIndices,oldLocalCells);
+                    const unsigned int newIndex = Traits::indicesToIndex(newIndices,localCells);
                     const RF oldValue = oldData[oldIndex];
 
                     dataVector[newIndex                                                  ] = oldValue;
@@ -519,8 +477,8 @@ namespace Dune {
                   newIndices[0] = 2*oldIndices[0];
                   newIndices[1] = 2*oldIndices[1];
 
-                  const unsigned int oldIndex = (*traits).indicesToIndex(oldIndices,oldLocalCells);
-                  const unsigned int newIndex = (*traits).indicesToIndex(newIndices,localCells);
+                  const unsigned int oldIndex = Traits::indicesToIndex(oldIndices,oldLocalCells);
+                  const unsigned int newIndex = Traits::indicesToIndex(newIndices,localCells);
                   const RF oldValue = oldData[oldIndex];
 
                   dataVector[newIndex                    ] = oldValue;
@@ -570,8 +528,8 @@ namespace Dune {
                     oldIndices[1] = 2*newIndices[1];
                     oldIndices[2] = 2*newIndices[2];
 
-                    const unsigned int oldIndex = (*traits).indicesToIndex(oldIndices,oldLocalCells);
-                    const unsigned int newIndex = (*traits).indicesToIndex(newIndices,localCells);
+                    const unsigned int oldIndex = Traits::indicesToIndex(oldIndices,oldLocalCells);
+                    const unsigned int newIndex = Traits::indicesToIndex(newIndices,localCells);
 
                     RF newValue = 0.;
                     newValue += oldData[oldIndex                                                           ];
@@ -593,8 +551,8 @@ namespace Dune {
                   oldIndices[0] = 2*newIndices[0];
                   oldIndices[1] = 2*newIndices[1];
 
-                  const unsigned int oldIndex = (*traits).indicesToIndex(oldIndices,oldLocalCells);
-                  const unsigned int newIndex = (*traits).indicesToIndex(newIndices,localCells);
+                  const unsigned int oldIndex = Traits::indicesToIndex(oldIndices,oldLocalCells);
+                  const unsigned int newIndex = Traits::indicesToIndex(newIndices,localCells);
 
                   RF newValue = 0.;
                   newValue += oldData[oldIndex                       ];
@@ -651,8 +609,8 @@ namespace Dune {
 
           for (unsigned int i = 0; i < localDomainSize; i++)
           {
-            (*traits).indexToIndices(i,cellIndices,localCells);
-            (*traits).indicesToCoords(cellIndices,localOffset,location);
+            Traits::indexToIndices(i,cellIndices,localCells);
+            Traits::indicesToCoords(cellIndices,localOffset,location);
 
             distSquared = 0.;
             for (unsigned int j = 0; j < dim; j++)
@@ -851,12 +809,12 @@ namespace Dune {
                     evalIndices[iNextNext] < localEvalCells[iNextNext]; evalIndices[iNextNext]++)
                 {
                   evalIndices[i] = 0;
-                  const unsigned int index  = (*traits).indicesToIndex(evalIndices,localEvalCells);
+                  const unsigned int index  = Traits::indicesToIndex(evalIndices,localEvalCells);
                   extract[2*i  ][evalIndices[iNext] + evalIndices[iNextNext] * localEvalCells[iNext]]
                     = evalVector[index];
 
                   evalIndices[i] = localEvalCells[i] - 1;
-                  const unsigned int index2 = (*traits).indicesToIndex(evalIndices,localEvalCells);
+                  const unsigned int index2 = Traits::indicesToIndex(evalIndices,localEvalCells);
                   extract[2*i+1][evalIndices[iNext] + evalIndices[iNextNext] * localEvalCells[iNext]]
                     = evalVector[index2];
                 }
@@ -881,11 +839,11 @@ namespace Dune {
               for (evalIndices[iNext] = 0; evalIndices[iNext] < localEvalCells[iNext]; evalIndices[iNext]++)
               {
                 evalIndices[i] = 0;
-                const unsigned int index  = (*traits).indicesToIndex(evalIndices,localEvalCells);
+                const unsigned int index  = Traits::indicesToIndex(evalIndices,localEvalCells);
                 extract[2*i  ][evalIndices[iNext]] = evalVector[index];
 
                 evalIndices[i] = localEvalCells[i] - 1;
-                const unsigned int index2 = (*traits).indicesToIndex(evalIndices,localEvalCells);
+                const unsigned int index2 = Traits::indicesToIndex(evalIndices,localEvalCells);
                 extract[2*i+1][evalIndices[iNext]] = evalVector[index2];
               }
             }

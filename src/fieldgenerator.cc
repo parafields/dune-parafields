@@ -259,8 +259,10 @@ void generateFields(const Dune::MPIHelper& helper, const std::string& configFile
       generate<2>(config);
     else if (extensions.size() == 3)
       generate<3>(config);
+    else if (extensions.size() == 4)
+      generate<4>(config);
     else
-      DUNE_THROW(Dune::NotImplemented,"dimension (size of grid.extensions) has to be 1, 2 or 3");
+      DUNE_THROW(Dune::NotImplemented,"dimension (size of grid.extensions) has to be 1, 2, 3 or 4");
   }
   else
   {
@@ -272,8 +274,10 @@ void generateFields(const Dune::MPIHelper& helper, const std::string& configFile
       generateList<2>(config);
     else if (extensions.size() == 3)
       generateList<3>(config);
+    else if (extensions.size() == 4)
+      generateList<4>(config);
     else
-      DUNE_THROW(Dune::NotImplemented,"dimension (size of grid.extensions) has to be 1, 2 or 3");
+      DUNE_THROW(Dune::NotImplemented,"dimension (size of grid.extensions) has to be 1, 2, 3 or 4");
   }
 }
 

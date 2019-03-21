@@ -325,7 +325,7 @@ namespace Dune {
 
             for (unsigned int index = 0; index < localExtendedDomainSize; index++)
             {
-              (*traits).indexToIndices(index,indices,localExtendedCells);
+              Traits::indexToIndices(index,indices,localExtendedCells);
 
               for (unsigned int i = 0; i < dim; i++)
               {
@@ -349,27 +349,12 @@ namespace Dune {
           {
             fftw_plan plan_forward;
 
-            if (dim == 3)
-            {
-              ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],
-                (ptrdiff_t)extendedCells[1],(ptrdiff_t)extendedCells[2]};
-              plan_forward = fftw_mpi_plan_dft_3d(n[2], n[1], n[0], vector, vector,
-                  (*traits).comm, FFTW_FORWARD, FFTW_ESTIMATE);
-            }
-            else if (dim == 2)
-            {
-              ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],(ptrdiff_t)extendedCells[1]};
-              plan_forward = fftw_mpi_plan_dft_2d(n[1], n[0], vector, vector,
-                  (*traits).comm, FFTW_FORWARD, FFTW_ESTIMATE);
-            }
-            else if (dim == 1)
-            {
-              ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0]};
-              plan_forward = fftw_mpi_plan_dft_1d(n[0], vector, vector,
-                  (*traits).comm, FFTW_FORWARD, FFTW_ESTIMATE);
-            }
-            else
-              DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
+            ptrdiff_t n[dim];
+            for (unsigned int i = 0; i < dim; i++)
+              n[i] = extendedCells[dim-1-i];
+
+            plan_forward = fftw_mpi_plan_dft(dim,n,vector,vector,
+                (*traits).comm, FFTW_FORWARD, FFTW_ESTIMATE);
 
             fftw_execute(plan_forward);
             fftw_destroy_plan(plan_forward);
@@ -383,27 +368,12 @@ namespace Dune {
           {
             fftw_plan plan_backward;
 
-            if (dim == 3)
-            {
-              ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],
-                (ptrdiff_t)extendedCells[1],(ptrdiff_t)extendedCells[2]};
-              plan_backward = fftw_mpi_plan_dft_3d(n[2], n[1], n[0], vector, vector,
-                  (*traits).comm, FFTW_BACKWARD, FFTW_ESTIMATE);
-            }
-            else if (dim == 2)
-            {
-              ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0],(ptrdiff_t)extendedCells[1]};
-              plan_backward = fftw_mpi_plan_dft_2d(n[1], n[0], vector, vector,
-                  (*traits).comm, FFTW_BACKWARD, FFTW_ESTIMATE);
-            }
-            else if (dim == 1)
-            {
-              ptrdiff_t n[] = {(ptrdiff_t)extendedCells[0]};
-              plan_backward = fftw_mpi_plan_dft_1d(n[0], vector, vector,
-                  (*traits).comm, FFTW_BACKWARD, FFTW_ESTIMATE);
-            }
-            else
-              DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
+            ptrdiff_t n[dim];
+            for (unsigned int i = 0; i < dim; i++)
+              n[i] = extendedCells[dim-1-i];
+
+            plan_backward = fftw_mpi_plan_dft(dim,n,vector,vector,
+                (*traits).comm, FFTW_BACKWARD, FFTW_ESTIMATE);
 
             fftw_execute(plan_backward);
             fftw_destroy_plan(plan_backward);
@@ -543,8 +513,8 @@ namespace Dune {
             std::array<unsigned int,dim> indices;
             for (unsigned int index = 0; index < localDomainSize; index++)
             {
-              (*traits).indexToIndices(index,indices,localCells);
-              const unsigned int extIndex = (*traits).indicesToIndex(indices,localExtendedCells);
+              Traits::indexToIndices(index,indices,localCells);
+              const unsigned int extIndex = Traits::indicesToIndex(indices,localExtendedCells);
 
               extendedField[extIndex][0] = field[index];
             }
@@ -571,10 +541,10 @@ namespace Dune {
 
                 for (unsigned int index = 0; index < localDomainSize; index++)
                 {
-                  (*traits).indexToIndices(index,indices,localCells);
+                  Traits::indexToIndices(index,indices,localCells);
                   const unsigned int offset =  i * localExtendedDomainSize/embeddingFactor;
                   const unsigned int extIndex
-                    = (*traits).indicesToIndex(indices,localExtendedCells) + offset;
+                    = Traits::indicesToIndex(indices,localExtendedCells) + offset;
 
                   extendedField[extIndex][0] = localCopy[index];
                 }
@@ -600,8 +570,8 @@ namespace Dune {
             std::array<unsigned int,dim> indices;
             for (unsigned int index = 0; index < localDomainSize; index++)
             {
-              (*traits).indexToIndices(index,indices,localCells);
-              const unsigned int extIndex = (*traits).indicesToIndex(indices,localExtendedCells);
+              Traits::indexToIndices(index,indices,localCells);
+              const unsigned int extIndex = Traits::indicesToIndex(indices,localExtendedCells);
 
               field[index] = extendedField[extIndex][0];
             }
@@ -625,9 +595,9 @@ namespace Dune {
                 localCopy[i].resize(localDomainSize);
                 for (unsigned int index = 0; index < localDomainSize; index++)
                 {
-                  (*traits).indexToIndices(index,indices,localCells);
+                  Traits::indexToIndices(index,indices,localCells);
                   const unsigned int offset =  i * localExtendedDomainSize/embeddingFactor;
-                  const unsigned int extIndex = (*traits).indicesToIndex(indices,localExtendedCells);
+                  const unsigned int extIndex = Traits::indicesToIndex(indices,localExtendedCells);
 
                   localCopy[i][index] = extendedField[extIndex + offset][0];
                 }
