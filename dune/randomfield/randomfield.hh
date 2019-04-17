@@ -30,9 +30,9 @@ namespace Dune {
       {
         protected:
 
-          using Traits         = RandomFieldTraits<GridTraits,Matrix>;
-          using StochasticPart = StochasticPart<Traits,Matrix>;
-          using RF             = typename Traits::RF;
+          using Traits             = RandomFieldTraits<GridTraits,Matrix>;
+          using StochasticPartType = StochasticPart<Traits,Matrix>;
+          using RF                 = typename Traits::RF;
 
           // to allow reading in constructor
           class ParamTreeHelper
@@ -62,10 +62,10 @@ namespace Dune {
           std::shared_ptr<Traits>                 traits;
           std::shared_ptr<Matrix<Traits> >        matrix;
           TrendPart<Traits>                       trendPart;
-          StochasticPart                          stochasticPart;
-          mutable std::shared_ptr<StochasticPart> invMatvecPart;
+          StochasticPartType                          stochasticPart;
+          mutable std::shared_ptr<StochasticPartType> invMatvecPart;
           mutable bool                            invMatvecValid;
-          mutable std::shared_ptr<StochasticPart> invRootMatvecPart;
+          mutable std::shared_ptr<StochasticPartType> invRootMatvecPart;
           mutable bool                            invRootMatvecValid;
 
         public:
@@ -80,10 +80,10 @@ namespace Dune {
             invMatvecValid(false), invRootMatvecValid(false)
         {
           if ((*traits).cacheInvMatvec)
-            invMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
+            invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
 
           if ((*traits).cacheInvRootMatvec)
-            invRootMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
+            invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
         }
 
           /**
@@ -96,10 +96,10 @@ namespace Dune {
             invMatvecValid(false), invRootMatvecValid(false)
         {
           if ((*traits).cacheInvMatvec)
-            invMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
+            invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
 
           if ((*traits).cacheInvRootMatvec)
-            invRootMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
+            invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
         }
 
           /**
@@ -111,10 +111,10 @@ namespace Dune {
             invMatvecValid(false), invRootMatvecValid(false)
         {
           if ((*traits).cacheInvMatvec)
-            invMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
+            invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
 
           if ((*traits).cacheInvRootMatvec)
-            invRootMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
+            invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
         }
 
 #if HAVE_DUNE_PDELAB
@@ -128,10 +128,10 @@ namespace Dune {
             invMatvecValid(false), invRootMatvecValid(false)
         {
           if ((*traits).cacheInvMatvec)
-            invMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
+            invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
 
           if ((*traits).cacheInvRootMatvec)
-            invRootMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
+            invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
         }
 
           /**
@@ -144,10 +144,10 @@ namespace Dune {
             invMatvecValid(false), invRootMatvecValid(false)
         {
           if ((*traits).cacheInvMatvec)
-            invMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
+            invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
 
           if ((*traits).cacheInvRootMatvec)
-            invRootMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(stochasticPart));
+            invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
         }
 #endif // HAVE_DUNE_PDELAB
 
@@ -160,10 +160,10 @@ namespace Dune {
             invMatvecValid(other.invMatvecValid), invRootMatvecValid(other.invRootMatvecValid)
         {
           if ((*traits).cacheInvMatvec && (*(other.traits)).cacheInvMatvec)
-            invMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(*(other.invMatvecPart)));
+            invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(*(other.invMatvecPart)));
 
           if ((*traits).cacheInvRootMatvec && (*(other.traits)).cacheInvRootMatvec)
-            invRootMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(*(other.invRootMatvecPart)));
+            invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(*(other.invRootMatvecPart)));
         }
 
           /**
@@ -182,13 +182,13 @@ namespace Dune {
 
               if ((*traits).cacheInvMatvec)
               {
-                invMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(*(other.invMatvecPart)));
+                invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(*(other.invMatvecPart)));
                 invMatvecValid = other.invMatvecValid;
               }
 
               if ((*traits).cacheInvRootMatvec)
               {
-                invRootMatvecPart = std::shared_ptr<StochasticPart>(new StochasticPart(*(other.invRootMatvecPart)));
+                invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(*(other.invRootMatvecPart)));
                 invRootMatvecValid = other.invRootMatvecValid;
               }
             }
