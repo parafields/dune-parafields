@@ -279,9 +279,9 @@ namespace Dune {
           }
           int small, negative, smallNegative;
           RF smallest;
-          MPI_Allreduce(&mySmall,        &small,        1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
-          MPI_Allreduce(&myNegative,     &negative,     1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
-          MPI_Allreduce(&mySmallNegative,&smallNegative,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
+          MPI_Allreduce(&mySmall,        &small,        1,MPI_INT,MPI_SUM,(*traits).comm);
+          MPI_Allreduce(&myNegative,     &negative,     1,MPI_INT,MPI_SUM,(*traits).comm);
+          MPI_Allreduce(&mySmallNegative,&smallNegative,1,MPI_INT,MPI_SUM,(*traits).comm);
           MPI_Allreduce(&mySmallest,     &smallest,     1,MPI_DOUBLE,MPI_MIN,(*traits).comm);
 
           if ((*traits).verbose && rank == 0)
