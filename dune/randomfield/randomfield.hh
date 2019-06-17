@@ -56,17 +56,20 @@ namespace Dune {
             }
           };
 
-          const ParamTreeHelper                   treeHelper;
-          const Dune::ParameterTree               config;
-          const ValueTransform<RF>                valueTransform;
-          std::shared_ptr<Traits>                 traits;
-          std::shared_ptr<Matrix<Traits> >        matrix;
-          TrendPart<Traits>                       trendPart;
-          StochasticPartType                          stochasticPart;
+          const ParamTreeHelper            treeHelper;
+          const Dune::ParameterTree        config;
+          const ValueTransform<RF>         valueTransform;
+          std::shared_ptr<Traits>          traits;
+          std::shared_ptr<Matrix<Traits> > matrix;
+          TrendPart<Traits>                trendPart;
+          StochasticPartType               stochasticPart;
+
+          bool                                        cacheInvMatvec;
+          bool                                        cacheInvRootMatvec;
           mutable std::shared_ptr<StochasticPartType> invMatvecPart;
-          mutable bool                            invMatvecValid;
           mutable std::shared_ptr<StochasticPartType> invRootMatvecPart;
-          mutable bool                            invRootMatvecValid;
+          mutable bool                                invMatvecValid;
+          mutable bool                                invRootMatvecValid;
 
         public:
 
@@ -77,12 +80,19 @@ namespace Dune {
             explicit RandomField(const Dune::ParameterTree& config_, const std::string& fileName = "", const LoadBalance& loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
             : config(config_), valueTransform(config), traits(new Traits(config,loadBalance,comm)), matrix(new Matrix<Traits>(traits)),
             trendPart(config,traits,fileName), stochasticPart(traits,fileName),
+            cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
             invMatvecValid(false), invRootMatvecValid(false)
         {
-          if ((*traits).cacheInvMatvec)
+          if (fileName == "")
+          {
+            invMatvecValid = true;
+            invRootMatvecValid = true;
+          }
+
+          if (cacheInvMatvec)
             invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
 
-          if ((*traits).cacheInvRootMatvec)
+          if (cacheInvRootMatvec)
             invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
         }
 
@@ -93,12 +103,13 @@ namespace Dune {
             RandomField(const std::string& fileName, const LoadBalance& loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
             : treeHelper(fileName), config(treeHelper.get()), valueTransform(config), traits(new Traits(config,loadBalance,comm)), matrix(new Matrix<Traits>(traits)),
             trendPart(config,traits,fileName), stochasticPart(traits,fileName),
+            cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
             invMatvecValid(false), invRootMatvecValid(false)
         {
-          if ((*traits).cacheInvMatvec)
+          if (cacheInvMatvec)
             invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
 
-          if ((*traits).cacheInvRootMatvec)
+          if (cacheInvRootMatvec)
             invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
         }
 
@@ -108,12 +119,13 @@ namespace Dune {
           RandomField(const RandomField& other, const std::string& fileName)
             : config(other.config), valueTransform(other.valueTransform), traits(other.traits), matrix(other.matrix),
             trendPart(config,traits,fileName), stochasticPart(traits,fileName),
+            cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
             invMatvecValid(false), invRootMatvecValid(false)
         {
-          if ((*traits).cacheInvMatvec)
+          if (cacheInvMatvec)
             invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
 
-          if ((*traits).cacheInvRootMatvec)
+          if (cacheInvRootMatvec)
             invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
         }
 
@@ -125,12 +137,13 @@ namespace Dune {
             RandomField(const RandomField& other, const GFS& gfs, const Field& field)
             : config(other.config), valueTransform(other.valueTransform), traits(other.traits), matrix(other.matrix),
             trendPart(other.trendPart,gfs,field), stochasticPart(other.stochasticPart,gfs,field),
+            cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
             invMatvecValid(false), invRootMatvecValid(false)
         {
-          if ((*traits).cacheInvMatvec)
+          if (cacheInvMatvec)
             invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
 
-          if ((*traits).cacheInvRootMatvec)
+          if (cacheInvRootMatvec)
             invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
         }
 
@@ -141,12 +154,13 @@ namespace Dune {
             RandomField(const RandomField& other, const DGF& dgf)
             : config(other.config), valueTransform(other.valueTransform), traits(other.traits), matrix(other.matrix),
             trendPart(other.trendPart,dgf), stochasticPart(other.stochasticPart,dgf),
+            cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
             invMatvecValid(false), invRootMatvecValid(false)
         {
-          if ((*traits).cacheInvMatvec)
+          if (cacheInvMatvec)
             invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
 
-          if ((*traits).cacheInvRootMatvec)
+          if (cacheInvRootMatvec)
             invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
         }
 #endif // HAVE_DUNE_PDELAB
@@ -157,12 +171,13 @@ namespace Dune {
           RandomField(const RandomField& other)
             : config(other.config), valueTransform(other.valueTransform), traits(other.traits), matrix(other.matrix),
             trendPart(other.trendPart), stochasticPart(other.stochasticPart),
+            cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
             invMatvecValid(other.invMatvecValid), invRootMatvecValid(other.invRootMatvecValid)
         {
-          if ((*traits).cacheInvMatvec && (*(other.traits)).cacheInvMatvec)
+          if (cacheInvMatvec && other.cacheInvMatvec)
             invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(*(other.invMatvecPart)));
 
-          if ((*traits).cacheInvRootMatvec && (*(other.traits)).cacheInvRootMatvec)
+          if (cacheInvRootMatvec && other.cacheInvRootMatvec)
             invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(*(other.invRootMatvecPart)));
         }
 
@@ -179,14 +194,16 @@ namespace Dune {
               matrix             = other.matrix;
               trendPart          = other.trendPart;
               stochasticPart     = other.stochasticPart;
+              cacheInvMatvec     = other.cacheInvMatvec;
+              cacheInvRootMatvec = other.cacheInvRootMatvec;
 
-              if ((*traits).cacheInvMatvec)
+              if (cacheInvMatvec)
               {
                 invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(*(other.invMatvecPart)));
                 invMatvecValid = other.invMatvecValid;
               }
 
-              if ((*traits).cacheInvRootMatvec)
+              if (cacheInvRootMatvec)
               {
                 invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(*(other.invRootMatvecPart)));
                 invRootMatvecValid = other.invRootMatvecValid;
@@ -234,10 +251,14 @@ namespace Dune {
               DUNE_THROW(Dune::Exception,
                   "generation of inconsistent fields prevented, set allowNonWorldComm = true if you really want this");
 
-            std::cout << "generate with seed: " << seed << std::endl;
+            if ((*traits).verbose)
+              std::cout << "generate with seed: " << seed << std::endl;
 
             (*matrix).generateField(seed,stochasticPart);
             trendPart.generate(seed);
+
+            invMatvecValid     = false;
+            invRootMatvecValid = false;
           }
 
           /**
@@ -264,6 +285,9 @@ namespace Dune {
 
             (*matrix).generateUncorrelatedField(stochasticPart);
             trendPart.generateUncorrelated();
+
+            invMatvecValid     = false;
+            invRootMatvecValid = false;
           }
 
 #if HAVE_DUNE_GRID
@@ -388,13 +412,13 @@ namespace Dune {
             trendPart     .zero();
             stochasticPart.zero();
 
-            if ((*traits).cacheInvMatvec)
+            if (cacheInvMatvec)
             {
               (*invMatvecPart).zero();
               invMatvecValid = true;
             }
 
-            if ((*traits).cacheInvRootMatvec)
+            if (cacheInvRootMatvec)
             {
               (*invRootMatvecPart).zero();
               invRootMatvecValid = true;
@@ -415,7 +439,7 @@ namespace Dune {
            */
           void refine()
           {
-            if ((*traits).cacheInvMatvec && invMatvecValid)
+            if (cacheInvMatvec && invMatvecValid)
             {
               (*invMatvecPart).refine();
               stochasticPart = (*matrix) * (*invMatvecPart);
@@ -424,7 +448,7 @@ namespace Dune {
               stochasticPart *= scale;
               *invMatvecPart *= scale;
 
-              if ((*traits).cacheInvRootMatvec)
+              if (cacheInvRootMatvec)
               {
                 *invRootMatvecPart = (*matrix).multiplyRoot(*invMatvecPart);
 
@@ -433,7 +457,7 @@ namespace Dune {
               }
 
             }
-            else if ((*traits).cacheInvRootMatvec && invRootMatvecValid)
+            else if (cacheInvRootMatvec && invRootMatvecValid)
             {
               (*invRootMatvecPart).refine();
               stochasticPart = (*matrix).multiplyRoot(*invRootMatvecPart);
@@ -442,7 +466,7 @@ namespace Dune {
               stochasticPart     *= scale;
               *invRootMatvecPart *= scale;
 
-              if ((*traits).cacheInvMatvec)
+              if (cacheInvMatvec)
               {
                 *invMatvecPart = stochasticPart;
                 invMatvecValid = false;
@@ -452,10 +476,10 @@ namespace Dune {
             {
               stochasticPart.refine();
 
-              if ((*traits).cacheInvMatvec)
+              if (cacheInvMatvec)
                 (*invMatvecPart).refine();
 
-              if ((*traits).cacheInvRootMatvec)
+              if (cacheInvRootMatvec)
                 (*invRootMatvecPart).refine();
             }
           }
@@ -474,7 +498,7 @@ namespace Dune {
            */
           void coarsen()
           {
-            if ((*traits).cacheInvMatvec && invMatvecValid)
+            if (cacheInvMatvec && invMatvecValid)
             {
               (*invMatvecPart).coarsen();
               stochasticPart = (*matrix) * (*invMatvecPart);
@@ -483,16 +507,15 @@ namespace Dune {
               stochasticPart *= scale;
               *invMatvecPart *= scale;
 
-              if ((*traits).cacheInvRootMatvec)
+              if (cacheInvRootMatvec)
               {
                 *invRootMatvecPart = (*matrix).multiplyRoot(*invMatvecPart);
 
                 *invRootMatvecPart *= scale;
                 invRootMatvecValid = true;
               }
-
             }
-            else if ((*traits).cacheInvRootMatvec && invRootMatvecValid)
+            else if (cacheInvRootMatvec && invRootMatvecValid)
             {
               (*invRootMatvecPart).coarsen();
               stochasticPart = (*matrix).multiplyRoot(*invRootMatvecPart);
@@ -501,7 +524,7 @@ namespace Dune {
               stochasticPart     *= scale;
               *invRootMatvecPart *= scale;
 
-              if ((*traits).cacheInvMatvec)
+              if (cacheInvMatvec)
               {
                 *invMatvecPart = stochasticPart;
                 invMatvecValid = false;
@@ -511,10 +534,10 @@ namespace Dune {
             {
               stochasticPart.coarsen();
 
-              if ((*traits).cacheInvMatvec)
+              if (cacheInvMatvec)
                 (*invMatvecPart).coarsen();
 
-              if ((*traits).cacheInvRootMatvec)
+              if (cacheInvRootMatvec)
                 (*invRootMatvecPart).coarsen();
             }
           }
@@ -527,9 +550,9 @@ namespace Dune {
             trendPart      += other.trendPart;
             stochasticPart += other.stochasticPart;
 
-            if ((*traits).cacheInvMatvec)
+            if (cacheInvMatvec)
             {
-              if ((*(other.traits)).cacheInvMatvec)
+              if (other.cacheInvMatvec)
               {
                 *invMatvecPart += *(other.invMatvecPart);
                 invMatvecValid = invMatvecValid && other.invMatvecValid;
@@ -538,9 +561,9 @@ namespace Dune {
                 invMatvecValid = false;
             }
 
-            if ((*traits).cacheInvRootMatvec)
+            if (cacheInvRootMatvec)
             {
-              if ((*(other.traits)).cacheInvRootMatvec)
+              if (other.cacheInvRootMatvec)
               {
                 *invRootMatvecPart += *(other.invRootMatvecPart);
                 invRootMatvecValid = invRootMatvecValid && other.invRootMatvecValid;
@@ -560,9 +583,9 @@ namespace Dune {
             trendPart      -= other.trendPart;
             stochasticPart -= other.stochasticPart;
 
-            if ((*traits).cacheInvMatvec)
+            if (cacheInvMatvec)
             {
-              if ((*(other.traits)).cacheInvMatvec)
+              if (other.cacheInvMatvec)
               {
                 *invMatvecPart -= *(other.invMatvecPart);
                 invMatvecValid = invMatvecValid && other.invMatvecValid;
@@ -571,9 +594,9 @@ namespace Dune {
                 invMatvecValid = false;
             }
 
-            if ((*traits).cacheInvRootMatvec)
+            if (cacheInvRootMatvec)
             {
-              if ((*(other.traits)).cacheInvRootMatvec)
+              if (other.cacheInvRootMatvec)
               {
                 *invRootMatvecPart -= *(other.invRootMatvecPart);
                 invRootMatvecValid = invRootMatvecValid && other.invRootMatvecValid;
@@ -593,10 +616,10 @@ namespace Dune {
             trendPart      *= alpha;
             stochasticPart *= alpha;
 
-            if ((*traits).cacheInvMatvec)
+            if (cacheInvMatvec)
               *invMatvecPart *= alpha;
 
-            if ((*traits).cacheInvRootMatvec)
+            if (cacheInvRootMatvec)
               *invRootMatvecPart *= alpha;
 
             return *this;
@@ -610,9 +633,9 @@ namespace Dune {
             trendPart     .axpy(other.trendPart     ,alpha);
             stochasticPart.axpy(other.stochasticPart,alpha);
 
-            if ((*traits).cacheInvMatvec)
+            if (cacheInvMatvec)
             {
-              if ((*(other.traits)).cacheInvMatvec)
+              if (other.cacheInvMatvec)
               {
                 (*invMatvecPart).axpy(*(other.invMatvecPart),alpha);
                 invMatvecValid = invMatvecValid && other.invMatvecValid;
@@ -621,11 +644,11 @@ namespace Dune {
                 invMatvecValid = false;
             }
 
-            if ((*traits).cacheInvRootMatvec)
+            if (cacheInvRootMatvec)
             {
-              if ((*(other.traits)).cacheInvRootMatvec)
+              if (other.cacheInvRootMatvec)
               {
-                (*invRootMatvecPart).axpy(*(other.invRootPart),alpha);
+                (*invRootMatvecPart).axpy(*(other.invRootMatvecPart),alpha);
                 invRootMatvecValid = invRootMatvecValid && other.invRootMatvecValid;
               }
               else
@@ -661,13 +684,13 @@ namespace Dune {
            */
           void timesMatrix()
           {
-            if ((*traits).cacheInvMatvec)
+            if (cacheInvMatvec)
             {
               *invMatvecPart = stochasticPart;
               invMatvecValid  = true;
             }
 
-            if ((*traits).cacheInvRootMatvec)
+            if (cacheInvRootMatvec)
             {
               *invRootMatvecPart = (*matrix).multiplyRoot(stochasticPart);
               invRootMatvecValid = true;
@@ -683,9 +706,9 @@ namespace Dune {
            */
           void timesInverseMatrix()
           {
-            if ((*traits).cacheInvMatvec && invMatvecValid)
+            if (cacheInvMatvec && invMatvecValid)
             {
-              if ((*traits).cacheInvRootMatvec)
+              if (cacheInvRootMatvec)
               {
                 *invRootMatvecPart = (*matrix).multiplyRoot(*invMatvecPart);
                 invRootMatvecValid = true;
@@ -698,10 +721,10 @@ namespace Dune {
             {
               stochasticPart = (*matrix).multiplyInverse(stochasticPart);
 
-              if ((*traits).cacheInvMatvec)
+              if (cacheInvMatvec)
                 invMatvecValid = false;
 
-              if ((*traits).cacheInvRootMatvec)
+              if (cacheInvRootMatvec)
                 invRootMatvecValid = false;
             }
 
@@ -713,13 +736,13 @@ namespace Dune {
            */
           void timesMatrixRoot()
           {
-            if ((*traits).cacheInvMatvec && (*traits).cacheInvRootMatvec)
+            if (cacheInvMatvec && cacheInvRootMatvec)
             {
               *invMatvecPart = *invRootMatvecPart;
               invMatvecValid = invRootMatvecValid;
             }
 
-            if ((*traits).cacheInvRootMatvec)
+            if (cacheInvRootMatvec)
             {
               *invRootMatvecPart = stochasticPart;
               invRootMatvecValid = true;
@@ -735,12 +758,12 @@ namespace Dune {
            */
           void timesInvMatRoot()
           {
-            if ((*traits).cacheInvRootMatvec && invRootMatvecValid)
+            if (cacheInvRootMatvec && invRootMatvecValid)
             {
               stochasticPart = *invRootMatvecPart;
               invRootMatvecValid = false;
 
-              if ((*traits).cacheInvMatvec)
+              if (cacheInvMatvec)
               {
                 *invRootMatvecPart = *invMatvecPart;
                 invRootMatvecValid = invMatvecValid;
@@ -751,7 +774,7 @@ namespace Dune {
             {
               stochasticPart = (*matrix).multiplyInverse(stochasticPart);
 
-              if ((*traits).cacheInvRootMatvec)
+              if (cacheInvRootMatvec)
               {
                 *invRootMatvecPart = stochasticPart;
                 invRootMatvecValid = true;
@@ -759,7 +782,7 @@ namespace Dune {
 
               stochasticPart = (*matrix).multiplyRoot(stochasticPart);
 
-              if ((*traits).cacheInvMatvec)
+              if (cacheInvMatvec)
                 invMatvecValid = false;
             }
 
@@ -795,10 +818,10 @@ namespace Dune {
           {
             stochasticPart.localize(center,radius);
 
-            if ((*traits).cacheInvMatvec)
+            if (cacheInvMatvec)
               invMatvecValid = false;
 
-            if ((*traits).cacheInvRootMatvec)
+            if (cacheInvRootMatvec)
               invRootMatvecValid = false;
           }
       };
