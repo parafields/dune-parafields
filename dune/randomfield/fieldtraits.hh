@@ -365,7 +365,7 @@ namespace Dune {
         {
           for (unsigned int i = 0; i < dim; i++)
           {
-            globalIndices[i] = (unsigned int) (location[i] * cells[i] / extensions[i]);
+            globalIndices[i] = (unsigned int) (location[i] * (cells[i] + 1e-6) / extensions[i]);
             localIndices[i]  = globalIndices[i] - offset[i];
           }
         }
@@ -382,7 +382,7 @@ namespace Dune {
           for (unsigned int i = 0; i < dim; i++)
           {
             globalIndices[i] = localIndices[i] + offset[i];
-            location[i]      = (globalIndices[i] * extensions[i] + 0.5) / cells[i];
+            location[i]      = (globalIndices[i] + 0.5) * extensions[i] / cells[i];
           }
         }
 
