@@ -6,8 +6,7 @@
 
 #include<dune/common/power.hh>
 #if HAVE_DUNE_PDELAB
-#include<dune/pdelab/gridfunctionspace/localfunctionspace.hh>
-#include<dune/pdelab/gridfunctionspace/lfsindexcache.hh>
+#include<dune/pdelab/gridfunctionspace/gridfunctionspaceutilities.hh>
 #endif //HAVE_DUNE_PDELAB
 
 #include<dune/randomfield/fieldtraits.hh>
@@ -86,59 +85,84 @@ namespace Dune {
         }
 
 #if HAVE_DUNE_PDELAB
-        template<typename GFS, typename Field>
-          StochasticPart(const StochasticPart& other, const GFS& gfs, const Field& field)
-          : traits(other.traits)
-          {
-            update();
-
-            using LFS      = Dune::PDELab::LocalFunctionSpace<GFS>;
-            using LFSCache = Dune::PDELab::LFSIndexCache<LFS>;
-            LFS lfs(gfs);
-            LFSCache lfsCache(lfs);
-            typename Field::template ConstLocalView<LFSCache> localView(field);
-            std::vector<RF> vLocal;
-
-            for (const auto& elem : elements(gfs.gridView(),Dune::Partitions::interior))
-            {
-              lfs.bind(elem);
-              vLocal.resize(lfs.size());
-              lfsCache.update();
-              localView.bind(lfsCache);
-              localView.read(vLocal);
-
-              const typename Traits::DomainType& coords = elem.geometry().center();
-              (*traits).coordsToIndices(coords,evalIndices,localEvalOffset);
-              const unsigned int index = Traits::indicesToIndex(evalIndices,localEvalCells);
-
-              evalVector[index] = vLocal[0];
-            }
-
-            evalToData();
-            evalValid  = true;
-          }
-
         template<typename DGF>
           StochasticPart(const StochasticPart& other, const DGF& dgf)
           : traits(other.traits)
           {
             update();
 
+            using DF         = typename Traits::DomainField;
+            using DomainType = typename Traits::DomainType;
+
+            DomainType minCoords;
+            DomainType maxCoords;
+            DomainType coords;
+            std::array<unsigned int,dim> minIndices;
+            std::array<unsigned int,dim> maxIndices;
+            Dune::FieldVector<RF,1> value;
+
             for (const auto& elem : elements(dgf.getGridView(),Dune::Partitions::interior))
             {
-              const typename Traits::DomainType& coords = referenceElement(elem.geometry()).position(0,0);
-              const typename Traits::DomainType& global = elem.geometry().global(coords);
-              (*traits).coordsToIndices(global,evalIndices,localEvalOffset);
-              const unsigned int index = Traits::indicesToIndex(evalIndices,localEvalCells);
+              for (unsigned int i = 0; i < dim; i++)
+              {
+                minCoords[i] =  std::numeric_limits<DF>::max();
+                maxCoords[i] = -std::numeric_limits<DF>::max();
+              }
 
-              Dune::FieldVector<RF,1> value;
-              dgf.evaluate(elem,coords,value);
-              evalVector[index] = value[0];
+              for (unsigned int j = 0; j < elem.geometry().corners(); j++)
+              {
+                const DomainType& corner = elem.geometry().corner(j);
+
+                for (unsigned int i = 0; i < dim; i++)
+                {
+                  const DF coord = corner[i];
+                  if (coord + 1e-6 < minCoords[i])
+                    minCoords[i] = coord + 1e-6;
+                  if (coord - 1e-6 > maxCoords[i])
+                    maxCoords[i] = coord - 1e-6;
+                }
+              }
+
+              (*traits).coordsToIndices(minCoords,minIndices,localEvalOffset);
+              (*traits).coordsToIndices(maxCoords,maxIndices,localEvalOffset);
+
+              evalIndices = minIndices;
+
+              // iterate over all matching indices
+              while (true)
+              {
+                (*traits).indicesToCoords(evalIndices,localEvalOffset,coords);
+                const typename Traits::DomainType& local = elem.geometry().local(coords);
+
+                if (referenceElement(elem.geometry()).checkInside(local))
+                {
+                  const unsigned int index = Traits::indicesToIndex(evalIndices,localEvalCells);
+                  dgf.evaluate(elem,local,value);
+                  evalVector[index] = value[0];
+                }
+
+                // select next set of indices
+                unsigned int i;
+                for (i = 0; i < dim; i++)
+                {
+                  evalIndices[i]++;
+                  if (evalIndices[i] <= maxIndices[i])
+                    break;
+                  evalIndices[i] = minIndices[i];
+                }
+                if (i == dim)
+                  break;
+              }
             }
 
             evalToData();
             evalValid  = true;
           }
+
+        template<typename GFS, typename Field>
+          StochasticPart(const StochasticPart& other, const GFS& gfs, const Field& field)
+          : StochasticPart(other,Dune::PDELab::DiscreteGridFunction<GFS,Field>(gfs,field))
+          {}
 #endif // HAVE_DUNE_PDELAB
 
         /**
