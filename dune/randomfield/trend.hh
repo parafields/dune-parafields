@@ -563,7 +563,7 @@ namespace Dune {
                 "Image component must only contain one parameter");
 
           if (dim != 2)
-            DUNE_THROW(Dune::Exception,"image trend components requre dim == 2");
+            DUNE_THROW(Dune::Exception,"image trend components require dim == 2");
         }
 
 #if HAVE_DUNE_PDELAB
