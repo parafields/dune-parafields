@@ -43,7 +43,7 @@ namespace Dune {
         public:
 
         DiagonalMatrix(const Dune::ParameterTree& config)
-          : diagonalValues(config.get<std::array<RF,dim> >("stochastic.corrLength"))
+          : diagonalValues(config.get<std::array<RF,dim>>("stochastic.corrLength"))
         {
           for (unsigned int i = 0; i < dim; i++)
             diagonalValues[i] = 1./diagonalValues[i];
@@ -67,7 +67,7 @@ namespace Dune {
         public:
 
         GeneralMatrix(const Dune::ParameterTree& config)
-          : matrixValues(config.get<std::array<RF,dim*dim> >("stochastic.corrLength"))
+          : matrixValues(config.get<std::array<RF,dim*dim>>("stochastic.corrLength"))
         {
           std::array<RF,dim*dim> copy(matrixValues);
           if (dim == 3)

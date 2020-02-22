@@ -42,7 +42,7 @@ namespace Dune {
 
         std::vector<RF> dataVector;
         mutable std::vector<RF> evalVector;
-        mutable std::vector<std::vector<RF> > overlap;
+        mutable std::vector<std::vector<RF>> overlap;
 
         mutable bool evalValid;
         mutable std::array<unsigned int,dim> cellIndices;
@@ -819,7 +819,7 @@ namespace Dune {
         void exchangeOverlap() const
         {
           std::array<unsigned int,2*dim> neighbor;
-          std::vector<std::vector<RF> > extract = overlap;
+          std::vector<std::vector<RF>> extract = overlap;
 
           if (dim == 3)
           {

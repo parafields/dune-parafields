@@ -171,17 +171,17 @@ namespace Dune {
               const MPI_Comm comm_
               )
           : config(config_), comm(comm_),
-          extensions        (config.get<std::array<RF,dim> >          ("grid.extensions")),
-          variance          (config.get<RF>                           ("stochastic.variance")),
-          covariance        (config.get<std::string>                  ("stochastic.covariance")),
-          periodic          (config.get<bool>                         ("randomField.periodic",false)),
-          approximate       (config.get<bool>                         ("randomField.approximate",false)),
-          verbose           (config.get<bool>                         ("randomField.verbose",false)),
-          cgIterations      (config.get<unsigned int>                 ("randomField.cgIterations",100)),
-          cacheInvMatvec    (config.get<bool>                         ("randomField.cacheInvMatvec",true)),
-          cacheInvRootMatvec(config.get<bool>                         ("randomField.cacheInvRootMatvec",false)),
-          embeddingFactor   (config.get<unsigned int>                 ("randomField.embeddingFactor",2)),
-          cells             (config.get<std::array<unsigned int,dim> >("grid.cells"))
+          extensions        (config.get<std::array<RF,dim>>          ("grid.extensions")),
+          variance          (config.get<RF>                          ("stochastic.variance")),
+          covariance        (config.get<std::string>                 ("stochastic.covariance")),
+          periodic          (config.get<bool>                        ("randomField.periodic",false)),
+          approximate       (config.get<bool>                        ("randomField.approximate",false)),
+          verbose           (config.get<bool>                        ("randomField.verbose",false)),
+          cgIterations      (config.get<unsigned int>                ("randomField.cgIterations",100)),
+          cacheInvMatvec    (config.get<bool>                        ("randomField.cacheInvMatvec",true)),
+          cacheInvRootMatvec(config.get<bool>                        ("randomField.cacheInvRootMatvec",false)),
+          embeddingFactor   (config.get<unsigned int>                ("randomField.embeddingFactor",2)),
+          cells             (config.get<std::array<unsigned int,dim>>("grid.cells"))
         {
           MPI_Comm_rank(comm,&rank);
           MPI_Comm_size(comm,&commSize);

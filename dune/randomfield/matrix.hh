@@ -303,11 +303,11 @@ namespace Dune {
           void fillCovarianceMatrix() const
           {
             if ((*traits).config.template get<std::string>("stochastic.anisotropy","none") == "none")
-              computeCovarianceMatrixEntries<Covariance,ScaledIdentityMatrix<RF,dim> >();
+              computeCovarianceMatrixEntries<Covariance,ScaledIdentityMatrix<RF,dim>>();
             else if ((*traits).config.template get<std::string>("stochastic.anisotropy") == "axiparallel")
-              computeCovarianceMatrixEntries<Covariance,DiagonalMatrix<RF,dim> >();
+              computeCovarianceMatrixEntries<Covariance,DiagonalMatrix<RF,dim>>();
             else if ((*traits).config.template get<std::string>("stochastic.anisotropy") == "geometric")
-              computeCovarianceMatrixEntries<Covariance,GeneralMatrix<RF, dim> >();
+              computeCovarianceMatrixEntries<Covariance,GeneralMatrix<RF, dim>>();
             else
               DUNE_THROW(Dune::Exception,
                   "stochastic.anisotropy must be \"none\", \"axiparallel\" or \"geometric\"");
@@ -580,8 +580,8 @@ namespace Dune {
           {
             const int embeddingFactor = (*traits).embeddingFactor;
             MPI_Status status;
-            std::vector<std::vector<RF> > localCopy;
-            std::vector<MPI_Request>      request;
+            std::vector<std::vector<RF>> localCopy;
+            std::vector<MPI_Request>     request;
 
             if (rank*embeddingFactor < commSize)
             {

@@ -27,8 +27,8 @@ class LegacyVTKWriter
       const MPI_Comm& comm = MPI_COMM_WORLD
       )
     : file(fileName+".vtk",std::ofstream::trunc), preambleWritten(false),
-    extensions(config.template get<std::vector<typename Traits::RF> >("grid.extensions")),
-    cells     (config.template get<std::vector<unsigned int>        >("grid.cells"))
+    extensions(config.template get<std::vector<typename Traits::RF>>("grid.extensions")),
+    cells     (config.template get<std::vector<unsigned int>       >("grid.cells"))
   {
     int commSize;
     MPI_Comm_size(comm,&commSize);

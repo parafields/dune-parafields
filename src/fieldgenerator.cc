@@ -56,9 +56,9 @@ class GridHelper
 
   GridHelper(const Dune::ParameterTree& config)
   {
-    levels   = config.get<int>                       ("grid.levels"    ,1);
-    maxExt   = config.get<std::vector<DF> >          ("grid.extensions");
-    maxCells = config.get<std::vector<unsigned int> >("grid.cells");
+    levels   = config.get<int>                      ("grid.levels"    ,1);
+    maxExt   = config.get<std::vector<DF>>          ("grid.extensions");
+    maxCells = config.get<std::vector<unsigned int>>("grid.cells");
 
     if (maxExt.size() != maxCells.size())
       DUNE_THROW(Dune::Exception,"cell and extension vectors differ in size");
@@ -246,8 +246,8 @@ void generateFields(const Dune::MPIHelper& helper, const std::string& configFile
     parser.readINITree(configFilename,config);
   parser.readOptions(argc,argv,config);
 
-  std::vector<double> extensions = config.get<std::vector<double> >("grid.extensions");
-  std::string         types      = config.get<std::string>         ("randomField.types","");
+  std::vector<double> extensions = config.get<std::vector<double>>("grid.extensions");
+  std::string         types      = config.get<std::string>        ("randomField.types","");
 
   if (types == "")
   {

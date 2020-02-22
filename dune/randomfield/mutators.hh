@@ -100,7 +100,7 @@ namespace Dune {
     template<typename RF>
       class ValueTransform
       {
-        std::shared_ptr<MutatorBase<RF> > mutator;
+        std::shared_ptr<MutatorBase<RF>> mutator;
 
         public:
 
@@ -108,15 +108,15 @@ namespace Dune {
         {
           const std::string transformType = config.get<std::string>("randomField.transform","none");
           if (transformType == "none")
-            mutator = std::shared_ptr<IdentityMutator<RF> >(new IdentityMutator<RF>);
+            mutator = std::shared_ptr<IdentityMutator<RF>>(new IdentityMutator<RF>);
           else if (transformType == "logNormal")
-            mutator = std::shared_ptr<LogNormalMutator<RF> >(new LogNormalMutator<RF>);
+            mutator = std::shared_ptr<LogNormalMutator<RF>>(new LogNormalMutator<RF>);
           else if (transformType == "foldedNormal")
-            mutator = std::shared_ptr<FoldedNormalMutator<RF> >(new FoldedNormalMutator<RF>);
+            mutator = std::shared_ptr<FoldedNormalMutator<RF>>(new FoldedNormalMutator<RF>);
           else if (transformType == "sign")
-            mutator = std::shared_ptr<SignMutator<RF> >(new SignMutator<RF>);
+            mutator = std::shared_ptr<SignMutator<RF>>(new SignMutator<RF>);
           else if (transformType == "boxCox")
-            mutator = std::shared_ptr<BoxCoxMutator<RF> >(new BoxCoxMutator<RF>(config));
+            mutator = std::shared_ptr<BoxCoxMutator<RF>>(new BoxCoxMutator<RF>(config));
           else
             DUNE_THROW(Dune::Exception,"transform type not known");
         }

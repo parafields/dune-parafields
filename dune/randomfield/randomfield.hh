@@ -56,13 +56,13 @@ namespace Dune {
             }
           };
 
-          const ParamTreeHelper            treeHelper;
-          const Dune::ParameterTree        config;
-          const ValueTransform<RF>         valueTransform;
-          std::shared_ptr<Traits>          traits;
-          std::shared_ptr<Matrix<Traits> > matrix;
-          TrendPart<Traits>                trendPart;
-          StochasticPartType               stochasticPart;
+          const ParamTreeHelper           treeHelper;
+          const Dune::ParameterTree       config;
+          const ValueTransform<RF>        valueTransform;
+          std::shared_ptr<Traits>         traits;
+          std::shared_ptr<Matrix<Traits>> matrix;
+          TrendPart<Traits>               trendPart;
+          StochasticPartType              stochasticPart;
 
           bool                                        cacheInvMatvec;
           bool                                        cacheInvRootMatvec;
@@ -76,7 +76,7 @@ namespace Dune {
           /**
            * @brief Constructor reading from file or creating homogeneous field
            */
-          template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim> >
+          template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim>>
             explicit RandomField(const Dune::ParameterTree& config_, const std::string& fileName = "", const LoadBalance& loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
             : config(config_), valueTransform(config), traits(new Traits(config,loadBalance,comm)), matrix(new Matrix<Traits>(traits)),
             trendPart(config,traits,fileName), stochasticPart(traits,fileName),
@@ -99,7 +99,7 @@ namespace Dune {
           /**
            * @brief Constructor reading field and config from file
            */
-          template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim> >
+          template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim>>
             RandomField(const std::string& fileName, const LoadBalance& loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
             : treeHelper(fileName), config(treeHelper.get()), valueTransform(config), traits(new Traits(config,loadBalance,comm)), matrix(new Matrix<Traits>(traits)),
             trendPart(config,traits,fileName), stochasticPart(traits,fileName),
@@ -866,7 +866,7 @@ namespace Dune {
             std::vector<std::string>  fieldNames;
             std::vector<std::string>  activeTypes;
 
-            std::map<std::string, std::shared_ptr<SubRandomField> > list;
+            std::map<std::string, std::shared_ptr<SubRandomField>> list;
             std::shared_ptr<SubRandomField> emptyPointer;
 
             using Traits = RandomFieldTraits<GridTraits,Matrix>;
@@ -877,7 +877,7 @@ namespace Dune {
             /**
              * @brief Constructor reading random fields from file
              */
-            template<typename LoadBalance = DefaultLoadBalance<Traits::dim> >
+            template<typename LoadBalance = DefaultLoadBalance<Traits::dim>>
               RandomFieldList(
                   const Dune::ParameterTree& config_,
                   const std::string& fileName = "",
@@ -922,7 +922,7 @@ namespace Dune {
             /**
              * @brief Constructor reading random fields and config from file
              */
-            template<typename LoadBalance = DefaultLoadBalance<Traits::dim> >
+            template<typename LoadBalance = DefaultLoadBalance<Traits::dim>>
               RandomFieldList(
                   const std::string& fileName,
                   const LoadBalance loadBalance = LoadBalance(),
@@ -953,7 +953,7 @@ namespace Dune {
             RandomFieldList(const RandomFieldList& other, const std::string& fileName)
               : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
             {
-              for(const std::pair<std::string,std::shared_ptr<SubRandomField> >& pair : other.list)
+              for(const std::pair<std::string,std::shared_ptr<SubRandomField>>& pair : other.list)
                 list.insert({pair.first,
                     std::make_shared<SubRandomField>(*(pair.second),fileName + "." + pair.first)});
             }
@@ -1012,7 +1012,7 @@ namespace Dune {
             RandomFieldList(const RandomFieldList& other)
               : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
             {
-              for(const std::pair<std::string,std::shared_ptr<SubRandomField> >& pair : other.list)
+              for(const std::pair<std::string,std::shared_ptr<SubRandomField>>& pair : other.list)
                 list.insert({pair.first, std::make_shared<SubRandomField>(*(pair.second))});
             }
 
@@ -1027,7 +1027,7 @@ namespace Dune {
                 activeTypes = other.activeTypes;
 
                 list.clear();
-                for(const std::pair<std::string,std::shared_ptr<SubRandomField> >& pair : other.list)
+                for(const std::pair<std::string,std::shared_ptr<SubRandomField>>& pair : other.list)
                   list.insert({pair.first, std::make_shared<SubRandomField>(*(pair.second))});
               }
 

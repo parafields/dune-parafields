@@ -651,8 +651,8 @@ namespace Dune {
         using RF = typename Traits::RF;
 
         std::shared_ptr<Traits> traits;
-        std::vector<TrendComponent<Traits> > componentVector;
-        std::shared_ptr<ImageComponent<Traits> > imageComponent;
+        std::vector<TrendComponent<Traits>> componentVector;
+        std::shared_ptr<ImageComponent<Traits>> imageComponent;
 
         public:
 
@@ -668,11 +668,11 @@ namespace Dune {
         {
           std::vector<RF> emptyVector, trendVector, meanVector, varianceVector;
 
-          meanVector = config.get<std::vector<RF> >("mean.mean",emptyVector);
+          meanVector = config.get<std::vector<RF>>("mean.mean",emptyVector);
 
           if (!meanVector.empty())
           {
-            varianceVector = config.get<std::vector<RF> >("mean.variance");
+            varianceVector = config.get<std::vector<RF>>("mean.variance");
 
             if (fileName == "")
             {
@@ -683,18 +683,18 @@ namespace Dune {
               Dune::ParameterTree trendConfig;
               Dune::ParameterTreeParser parser;
               parser.readINITree(fileName+".trend",trendConfig);
-              trendVector = trendConfig.get<std::vector<RF> >("mean");
+              trendVector = trendConfig.get<std::vector<RF>>("mean");
             }
 
             componentVector.emplace_back(traits,trendVector,
                 meanVector,varianceVector,TrendComponentType::Mean);
           }
 
-          meanVector = config.get<std::vector<RF> >("slope.mean",emptyVector);
+          meanVector = config.get<std::vector<RF>>("slope.mean",emptyVector);
 
           if (!meanVector.empty())
           {
-            varianceVector = config.get<std::vector<RF> >("slope.variance");
+            varianceVector = config.get<std::vector<RF>>("slope.variance");
 
             if (fileName == "")
             {
@@ -705,7 +705,7 @@ namespace Dune {
               Dune::ParameterTree trendConfig;
               Dune::ParameterTreeParser parser;
               parser.readINITree(fileName+".trend",trendConfig);
-              trendVector = trendConfig.get<std::vector<RF> >("slope");
+              trendVector = trendConfig.get<std::vector<RF>>("slope");
             }
 
             componentVector.emplace_back(traits,trendVector,
@@ -721,7 +721,7 @@ namespace Dune {
             s.clear();
             s.str(std::string());
             s << count;
-            meanVector = config.get<std::vector<RF> >("disk"+s.str()+".mean",emptyVector);
+            meanVector = config.get<std::vector<RF>>("disk"+s.str()+".mean",emptyVector);
 
             if (meanVector.empty())
             {
@@ -729,7 +729,7 @@ namespace Dune {
             }
             else
             {
-              varianceVector = config.get<std::vector<RF> >("disk"+s.str()+".variance");
+              varianceVector = config.get<std::vector<RF>>("disk"+s.str()+".variance");
 
               if (fileName == "")
               {
@@ -740,7 +740,7 @@ namespace Dune {
                 Dune::ParameterTree trendConfig;
                 Dune::ParameterTreeParser parser;
                 parser.readINITree(fileName+".trend",trendConfig);
-                trendVector = trendConfig.get<std::vector<RF> >("disk"+s.str());
+                trendVector = trendConfig.get<std::vector<RF>>("disk"+s.str());
               }
 
               componentVector.emplace_back(traits,trendVector,
@@ -759,7 +759,7 @@ namespace Dune {
             s.clear();
             s.str(std::string());
             s << count;
-            meanVector = config.get<std::vector<RF> >("block"+s.str()+".mean",emptyVector);
+            meanVector = config.get<std::vector<RF>>("block"+s.str()+".mean",emptyVector);
 
             if (meanVector.empty())
             {
@@ -767,7 +767,7 @@ namespace Dune {
             }
             else
             {
-              varianceVector = config.get<std::vector<RF> >("block"+s.str()+".variance");
+              varianceVector = config.get<std::vector<RF>>("block"+s.str()+".variance");
 
               if (fileName == "")
               {
@@ -778,7 +778,7 @@ namespace Dune {
                 Dune::ParameterTree trendConfig;
                 Dune::ParameterTreeParser parser;
                 parser.readINITree(fileName+".trend",trendConfig);
-                trendVector = trendConfig.get<std::vector<RF> >("block"+s.str());
+                trendVector = trendConfig.get<std::vector<RF>>("block"+s.str());
               }
 
               componentVector.emplace_back(traits,trendVector,
@@ -788,11 +788,11 @@ namespace Dune {
             }
           }
 
-          meanVector = config.get<std::vector<RF> >("image.mean",emptyVector);
+          meanVector = config.get<std::vector<RF>>("image.mean",emptyVector);
 
           if (!meanVector.empty())
           {
-            varianceVector = config.get<std::vector<RF> >("image.variance");
+            varianceVector = config.get<std::vector<RF>>("image.variance");
 
             if (fileName == "")
             {
@@ -803,11 +803,11 @@ namespace Dune {
               Dune::ParameterTree trendConfig;
               Dune::ParameterTreeParser parser;
               parser.readINITree(fileName+".trend",trendConfig);
-              trendVector = trendConfig.get<std::vector<RF> >("image");
+              trendVector = trendConfig.get<std::vector<RF>>("image");
             }
 
             const std::string imageFile = config.get<std::string>("image.filename");
-            imageComponent = std::make_shared<ImageComponent<Traits> >(traits,trendVector,meanVector,varianceVector,imageFile);
+            imageComponent = std::make_shared<ImageComponent<Traits>>(traits,trendVector,meanVector,varianceVector,imageFile);
           }
         }
 
@@ -824,7 +824,7 @@ namespace Dune {
 
             if (other.imageComponent)
             {
-              imageComponent = std::make_shared<ImageComponent<Traits> >(*(other.imageComponent));
+              imageComponent = std::make_shared<ImageComponent<Traits>>(*(other.imageComponent));
               imageComponent->construct(gfs,field);
             }
           }
@@ -841,7 +841,7 @@ namespace Dune {
 
             if (other.imageComponent)
             {
-              imageComponent = std::make_shared<ImageComponent<Traits> >(*(other.imageComponent));
+              imageComponent = std::make_shared<ImageComponent<Traits>>(*(other.imageComponent));
               imageComponent->construct(dgf);
             }
           }
@@ -916,7 +916,7 @@ namespace Dune {
         /**
          * @brief Access image component if available
          */
-        const std::shared_ptr<const ImageComponent<Traits> >& getImageComponent() const
+        const std::shared_ptr<const ImageComponent<Traits>>& getImageComponent() const
         {
           return imageComponent;
         }
