@@ -17,14 +17,15 @@ namespace Dune {
     /*
      * @brief Part of random field that consists of cell values
      */
-    template<typename Traits, template<typename> class Matrix>
+    template<typename Traits>
       class StochasticPart
       {
         using RF = typename Traits::RF;
 
         enum {dim = Traits::dim};
 
-        friend class Matrix<Traits>;
+        friend typename Traits::IsoMatrixType;
+        friend typename Traits::AnisoMatrixType;
 
         std::shared_ptr<Traits> traits;
 

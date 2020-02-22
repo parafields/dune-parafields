@@ -82,16 +82,17 @@ namespace Dune {
     template<typename Traits> class TrendPart;
     template<typename Traits> class TrendComponent;
     template<typename Traits> class ImageComponent;
-    template<typename Traits, template<typename> class Matrix> class StochasticPart;
-    template<typename GridTraits, template<typename> class Matrix> class RandomField;
+    template<typename Traits> class StochasticPart;
+    template<typename GridTraits, template<typename> class IsoMatrix,
+      template<typename> class AnisoMatrix> class RandomField;
 
     /**
      * @brief Traits for the RandomField class
      */
-    template<typename GridTraits, template<typename> class Matrix>
+    template<typename GridTraits, template<typename> class IsoMatrix, template<typename> class AnisoMatrix>
       class RandomFieldTraits
       {
-        using ThisType = RandomFieldTraits<GridTraits,Matrix>;
+        using ThisType = RandomFieldTraits<GridTraits,IsoMatrix,AnisoMatrix>;
 
         public:
 
@@ -102,6 +103,9 @@ namespace Dune {
         using DomainType  = typename GridTraits::Domain;
         using RangeType   = typename GridTraits::Scalar;
 
+        using IsoMatrixType    = IsoMatrix<ThisType>;
+        using AnisoMatrixType  = AnisoMatrix<ThisType>;
+
 #if HAVE_DUNE_PDELAB
         // allows treating a RandomField as a PDELab function
         typedef typename Dune::YaspGrid<dim>::LeafGridView GridViewType;
@@ -111,12 +115,13 @@ namespace Dune {
 
         private:
 
-        friend class TrendPart<ThisType>;
-        friend class TrendComponent<ThisType>;
-        friend class ImageComponent<ThisType>;
-        friend class StochasticPart<ThisType,Matrix>;
-        friend class Matrix<ThisType>;
-        friend class RandomField<GridTraits,Matrix>;
+        friend TrendPart<ThisType>;
+        friend TrendComponent<ThisType>;
+        friend ImageComponent<ThisType>;
+        friend StochasticPart<ThisType>;
+        friend IsoMatrix<ThisType>;
+        friend AnisoMatrix<ThisType>;
+        friend RandomField<GridTraits,IsoMatrix,AnisoMatrix>;
 
         // MPI constants
         int rank, commSize;

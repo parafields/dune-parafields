@@ -22,9 +22,9 @@ namespace Dune {
   namespace RandomField {
 
     template<typename Traits>
-      class RandomFieldMatrix
+      class DFTMatrix
       {
-        using StochasticPartType = StochasticPart<Traits,RandomFieldMatrix>;
+        using StochasticPartType = StochasticPart<Traits>;
 
         using RF = typename Traits::RF;
         enum {dim = Traits::dim};
@@ -53,13 +53,13 @@ namespace Dune {
 
         public:
 
-        RandomFieldMatrix<Traits>(const std::shared_ptr<Traits>& traits_)
+        DFTMatrix<Traits>(const std::shared_ptr<Traits>& traits_)
           : traits(traits_), covariance(), fftTransformedMatrix(NULL)
         {
           update();
         }
 
-        ~RandomFieldMatrix<Traits>()
+        ~DFTMatrix<Traits>()
         {
           if (fftTransformedMatrix != NULL)
             fftw_free(fftTransformedMatrix);

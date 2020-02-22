@@ -15,7 +15,7 @@
 #include<dune/randomfield/fieldtraits.hh>
 #include<dune/randomfield/trend.hh>
 #include<dune/randomfield/stochastic.hh>
-#include<dune/randomfield/matrix.hh>
+#include<dune/randomfield/dftmatrix.hh>
 #include<dune/randomfield/mutators.hh>
 #include<dune/randomfield/legacyvtk.hh>
 
@@ -25,13 +25,14 @@ namespace Dune {
     /**
      * @brief Gaussian random field in 1D, 2D or 3D
      */
-    template<typename GridTraits, template<typename> class Matrix = RandomFieldMatrix>
+    template<typename GridTraits, template<typename> class IsoMatrix = DFTMatrix,
+      template<typename> class AnisoMatrix = DFTMatrix>
       class RandomField
       {
         protected:
 
-          using Traits             = RandomFieldTraits<GridTraits,Matrix>;
-          using StochasticPartType = StochasticPart<Traits,Matrix>;
+          using Traits             = RandomFieldTraits<GridTraits,IsoMatrix,AnisoMatrix>;
+          using StochasticPartType = StochasticPart<Traits>;
           using RF                 = typename Traits::RF;
 
           // to allow reading in constructor
@@ -60,9 +61,14 @@ namespace Dune {
           const Dune::ParameterTree       config;
           const ValueTransform<RF>        valueTransform;
           std::shared_ptr<Traits>         traits;
-          std::shared_ptr<Matrix<Traits>> matrix;
-          TrendPart<Traits>               trendPart;
-          StochasticPartType              stochasticPart;
+
+          using IsoMatrixPtr   = std::shared_ptr<IsoMatrix<Traits>>;
+          using AnisoMatrixPtr = std::shared_ptr<AnisoMatrix<Traits>>;
+          IsoMatrixPtr       isoMatrix;
+          AnisoMatrixPtr     anisoMatrix;
+          bool               useAnisoMatrix;
+          TrendPart<Traits>  trendPart;
+          StochasticPartType stochasticPart;
 
           bool                                        cacheInvMatvec;
           bool                                        cacheInvRootMatvec;
@@ -78,7 +84,7 @@ namespace Dune {
            */
           template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim>>
             explicit RandomField(const Dune::ParameterTree& config_, const std::string& fileName = "", const LoadBalance& loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
-            : config(config_), valueTransform(config), traits(new Traits(config,loadBalance,comm)), matrix(new Matrix<Traits>(traits)),
+            : config(config_), valueTransform(config), traits(new Traits(config,loadBalance,comm)),
             trendPart(config,traits,fileName), stochasticPart(traits,fileName),
             cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
             invMatvecValid(false), invRootMatvecValid(false)
@@ -87,6 +93,19 @@ namespace Dune {
           {
             invMatvecValid = true;
             invRootMatvecValid = true;
+          }
+
+          const std::string& anisotropy
+            = (*traits).config.template get<std::string>("stochastic.anisotropy","none");
+          if (anisotropy == "none" || anisotropy == "axiparallel")
+          {
+            isoMatrix = IsoMatrixPtr(new IsoMatrix<Traits>(traits));
+            useAnisoMatrix = false;
+          }
+          else
+          {
+            anisoMatrix = AnisoMatrixPtr(new AnisoMatrix<Traits>(traits));
+            useAnisoMatrix = true;
           }
 
           if (cacheInvMatvec)
@@ -101,11 +120,24 @@ namespace Dune {
            */
           template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim>>
             RandomField(const std::string& fileName, const LoadBalance& loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
-            : treeHelper(fileName), config(treeHelper.get()), valueTransform(config), traits(new Traits(config,loadBalance,comm)), matrix(new Matrix<Traits>(traits)),
+            : treeHelper(fileName), config(treeHelper.get()), valueTransform(config), traits(new Traits(config,loadBalance,comm)),
             trendPart(config,traits,fileName), stochasticPart(traits,fileName),
             cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
             invMatvecValid(false), invRootMatvecValid(false)
         {
+          const std::string& anisotropy
+            = (*traits).config.template get<std::string>("stochastic.anisotropy","none");
+          if (anisotropy == "none" || anisotropy == "axiparallel")
+          {
+            isoMatrix = IsoMatrixPtr(new IsoMatrix<Traits>(traits));
+            useAnisoMatrix = false;
+          }
+          else
+          {
+            anisoMatrix = AnisoMatrixPtr(new AnisoMatrix<Traits>(traits));
+            useAnisoMatrix = true;
+          }
+
           if (cacheInvMatvec)
             invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
 
@@ -117,7 +149,8 @@ namespace Dune {
            * @brief Constructor copying traits and covariance matrix
            */
           RandomField(const RandomField& other, const std::string& fileName)
-            : config(other.config), valueTransform(other.valueTransform), traits(other.traits), matrix(other.matrix),
+            : config(other.config), valueTransform(other.valueTransform), traits(other.traits),
+            isoMatrix(other.isoMatrix), anisoMatrix(other.anisoMatrix), useAnisoMatrix(other.useAnisoMatrix),
             trendPart(config,traits,fileName), stochasticPart(traits,fileName),
             cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
             invMatvecValid(false), invRootMatvecValid(false)
@@ -135,7 +168,8 @@ namespace Dune {
            */
           template<typename GFS, typename Field>
             RandomField(const RandomField& other, const GFS& gfs, const Field& field)
-            : config(other.config), valueTransform(other.valueTransform), traits(other.traits), matrix(other.matrix),
+            : config(other.config), valueTransform(other.valueTransform), traits(other.traits),
+            isoMatrix(other.isoMatrix), anisoMatrix(other.anisoMatrix), useAnisoMatrix(other.useAnisoMatrix),
             trendPart(other.trendPart,gfs,field), stochasticPart(other.stochasticPart,gfs,field),
             cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
             invMatvecValid(false), invRootMatvecValid(false)
@@ -152,7 +186,8 @@ namespace Dune {
            */
           template<typename DGF>
             RandomField(const RandomField& other, const DGF& dgf)
-            : config(other.config), valueTransform(other.valueTransform), traits(other.traits), matrix(other.matrix),
+            : config(other.config), valueTransform(other.valueTransform), traits(other.traits),
+            isoMatrix(other.isoMatrix), anisoMatrix(other.anisoMatrix), useAnisoMatrix(other.useAnisoMatrix),
             trendPart(other.trendPart,dgf), stochasticPart(other.stochasticPart,dgf),
             cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
             invMatvecValid(false), invRootMatvecValid(false)
@@ -169,7 +204,8 @@ namespace Dune {
            * @brief Copy constructor
            */
           RandomField(const RandomField& other)
-            : config(other.config), valueTransform(other.valueTransform), traits(other.traits), matrix(other.matrix),
+            : config(other.config), valueTransform(other.valueTransform), traits(other.traits),
+            isoMatrix(other.isoMatrix), anisoMatrix(other.anisoMatrix), useAnisoMatrix(other.useAnisoMatrix),
             trendPart(other.trendPart), stochasticPart(other.stochasticPart),
             cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
             invMatvecValid(other.invMatvecValid), invRootMatvecValid(other.invRootMatvecValid)
@@ -191,7 +227,9 @@ namespace Dune {
               config             = other.config;
               valueTransform     = other.valueTransform;
               traits             = other.traits;
-              matrix             = other.matrix;
+              isoMatrix          = other.isoMatrix;
+              anisoMatrix        = other.anisoMatrix;
+              useAnisoMatrix     = other.useAnisoMatrix;
               trendPart          = other.trendPart;
               stochasticPart     = other.stochasticPart;
               cacheInvMatvec     = other.cacheInvMatvec;
@@ -254,7 +292,10 @@ namespace Dune {
             if ((*traits).verbose)
               std::cout << "generate with seed: " << seed << std::endl;
 
-            (*matrix).generateField(seed,stochasticPart);
+            if (useAnisoMatrix)
+              (*anisoMatrix).generateField(seed,stochasticPart);
+            else
+              (*isoMatrix).generateField(seed,stochasticPart);
             trendPart.generate(seed);
 
             invMatvecValid     = false;
@@ -283,8 +324,11 @@ namespace Dune {
               DUNE_THROW(Dune::Exception,
                   "generation of inconsistent fields prevented, set allowNonWorldComm = true if you really want this");
 
-            (*matrix).generateUncorrelatedField(stochasticPart);
-            trendPart.generateUncorrelated();
+            if (useAnisoMatrix)
+              (*anisoMatrix).generateUncorrelatedField(seed,stochasticPart);
+            else
+              (*isoMatrix).generateUncorrelatedField(seed,stochasticPart);
+            trendPart.generateUncorrelated(seed);
 
             invMatvecValid     = false;
             invRootMatvecValid = false;
@@ -431,7 +475,10 @@ namespace Dune {
           void refineMatrix()
           {
             (*traits).refine();
-            (*matrix).update();
+            if (useAnisoMatrix)
+              (*anisoMatrix).update();
+            else
+              (*isoMatrix).update();
           }
 
           /**
@@ -442,7 +489,10 @@ namespace Dune {
             if (cacheInvMatvec && invMatvecValid)
             {
               (*invMatvecPart).refine();
-              stochasticPart = (*matrix) * (*invMatvecPart);
+              if (useAnisoMatrix)
+                stochasticPart = (*anisoMatrix) * (*invMatvecPart);
+              else
+                stochasticPart = (*isoMatrix) * (*invMatvecPart);
 
               const RF scale = std::pow(0.5,-(*traits).dim);
               stochasticPart *= scale;
@@ -450,7 +500,10 @@ namespace Dune {
 
               if (cacheInvRootMatvec)
               {
-                *invRootMatvecPart = (*matrix).multiplyRoot(*invMatvecPart);
+                if (useAnisoMatrix)
+                  *invRootMatvecPart = (*anisoMatrix).multiplyRoot(*invMatvecPart);
+                else
+                  *invRootMatvecPart = (*isoMatrix).multiplyRoot(*invMatvecPart);
 
                 *invRootMatvecPart *= scale;
                 invRootMatvecValid = true;
@@ -460,7 +513,10 @@ namespace Dune {
             else if (cacheInvRootMatvec && invRootMatvecValid)
             {
               (*invRootMatvecPart).refine();
-              stochasticPart = (*matrix).multiplyRoot(*invRootMatvecPart);
+              if (useAnisoMatrix)
+                stochasticPart = (*anisoMatrix).multiplyRoot(*invRootMatvecPart);
+              else
+                stochasticPart = (*isoMatrix).multiplyRoot(*invRootMatvecPart);
 
               const RF scale = std::pow(0.5,-(*traits).dim);
               stochasticPart     *= scale;
@@ -490,7 +546,10 @@ namespace Dune {
           void coarsenMatrix()
           {
             (*traits).coarsen();
-            (*matrix).update();
+            if (useAnisoMatrix)
+              (*anisoMatrix).update();
+            else
+              (*isoMatrix).update();
           }
 
           /**
@@ -501,7 +560,10 @@ namespace Dune {
             if (cacheInvMatvec && invMatvecValid)
             {
               (*invMatvecPart).coarsen();
-              stochasticPart = (*matrix) * (*invMatvecPart);
+              if (useAnisoMatrix)
+                stochasticPart = (*anisoMatrix) * (*invMatvecPart);
+              else
+                stochasticPart = (*isoMatrix) * (*invMatvecPart);
 
               const RF scale = std::pow(0.5,(*traits).dim);
               stochasticPart *= scale;
@@ -509,7 +571,10 @@ namespace Dune {
 
               if (cacheInvRootMatvec)
               {
-                *invRootMatvecPart = (*matrix).multiplyRoot(*invMatvecPart);
+                if (useAnisoMatrix)
+                  *invRootMatvecPart = (*anisoMatrix).multiplyRoot(*invMatvecPart);
+                else
+                  *invRootMatvecPart = (*isoMatrix).multiplyRoot(*invMatvecPart);
 
                 *invRootMatvecPart *= scale;
                 invRootMatvecValid = true;
@@ -518,7 +583,10 @@ namespace Dune {
             else if (cacheInvRootMatvec && invRootMatvecValid)
             {
               (*invRootMatvecPart).coarsen();
-              stochasticPart = (*matrix).multiplyRoot(*invRootMatvecPart);
+              if (useAnisoMatrix)
+                stochasticPart = (*anisoMatrix).multiplyRoot(*invRootMatvecPart);
+              else
+                stochasticPart = (*isoMatrix).multiplyRoot(*invRootMatvecPart);
 
               const RF scale = std::pow(0.5,(*traits).dim);
               stochasticPart     *= scale;
@@ -692,11 +760,17 @@ namespace Dune {
 
             if (cacheInvRootMatvec)
             {
-              *invRootMatvecPart = (*matrix).multiplyRoot(stochasticPart);
+              if (useAnisoMatrix)
+                *invRootMatvecPart = (*anisoMatrix).multiplyRoot(stochasticPart);
+              else
+                *invRootMatvecPart = (*isoMatrix).multiplyRoot(stochasticPart);
               invRootMatvecValid = true;
             }
 
-            stochasticPart = (*matrix) * stochasticPart;
+            if (useAnisoMatrix)
+              stochasticPart = (*anisoMatrix) * stochasticPart;
+            else
+              stochasticPart = (*isoMatrix) * stochasticPart;
 
             trendPart.timesMatrix();
           }
@@ -710,7 +784,10 @@ namespace Dune {
             {
               if (cacheInvRootMatvec)
               {
-                *invRootMatvecPart = (*matrix).multiplyRoot(*invMatvecPart);
+                if (useAnisoMatrix)
+                  *invRootMatvecPart = (*anisoMatrix).multiplyRoot(*invMatvecPart);
+                else
+                  *invRootMatvecPart = (*isoMatrix).multiplyRoot(*invMatvecPart);
                 invRootMatvecValid = true;
               }
 
@@ -719,7 +796,10 @@ namespace Dune {
             }
             else
             {
-              stochasticPart = (*matrix).multiplyInverse(stochasticPart);
+              if (useAnisoMatrix)
+                stochasticPart = (*anisoMatrix).multiplyInverse(stochasticPart);
+              else
+                stochasticPart = (*isoMatrix).multiplyInverse(stochasticPart);
 
               if (cacheInvMatvec)
                 invMatvecValid = false;
@@ -748,7 +828,10 @@ namespace Dune {
               invRootMatvecValid = true;
             }
 
-            stochasticPart = (*matrix).multiplyRoot(stochasticPart);
+            if (useAnisoMatrix)
+              stochasticPart = (*anisoMatrix).multiplyRoot(stochasticPart);
+            else
+              stochasticPart = (*isoMatrix).multiplyRoot(stochasticPart);
 
             trendPart.timesMatrixRoot();
           }
@@ -772,7 +855,10 @@ namespace Dune {
             }
             else
             {
-              stochasticPart = (*matrix).multiplyInverse(stochasticPart);
+              if (useAnisoMatrix)
+                stochasticPart = (*anisoMatrix).multiplyInverse(stochasticPart);
+              else
+                stochasticPart = (*isoMatrix).multiplyInverse(stochasticPart);
 
               if (cacheInvRootMatvec)
               {
@@ -780,7 +866,10 @@ namespace Dune {
                 invRootMatvecValid = true;
               }
 
-              stochasticPart = (*matrix).multiplyRoot(stochasticPart);
+              if (useAnisoMatrix)
+                stochasticPart = (*anisoMatrix).multiplyRoot(stochasticPart);
+              else
+                stochasticPart = (*isoMatrix).multiplyRoot(stochasticPart);
 
               if (cacheInvMatvec)
                 invMatvecValid = false;
@@ -829,13 +918,14 @@ namespace Dune {
     /**
      * @brief List of Gaussian random fields in 1D, 2D or 3D
      */
-    template<typename GridTraits, template<typename> class Matrix = RandomFieldMatrix,
-      template<typename, template<typename> class> class RandomField = Dune::RandomField::RandomField>
+    template<typename GridTraits, template<typename> class IsoMatrix = DFTMatrix,
+      template<typename> class AnisoMatrix = DFTMatrix,
+      template<typename, template<typename> class, template<typename> class> class RandomField = Dune::RandomField::RandomField>
         class RandomFieldList
         {
           public:
 
-            using SubRandomField = RandomField<GridTraits,Matrix>;
+            using SubRandomField = RandomField<GridTraits,IsoMatrix,AnisoMatrix>;
 
           protected:
 
@@ -869,7 +959,7 @@ namespace Dune {
             std::map<std::string, std::shared_ptr<SubRandomField>> list;
             std::shared_ptr<SubRandomField> emptyPointer;
 
-            using Traits = RandomFieldTraits<GridTraits,Matrix>;
+            using Traits = RandomFieldTraits<GridTraits,IsoMatrix,AnisoMatrix>;
             using RF     = typename Traits::RF;
 
           public:
