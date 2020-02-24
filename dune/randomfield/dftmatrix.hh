@@ -60,14 +60,14 @@ namespace Dune {
           :
             traits(traits_),
             covariance(),
-            fftTransformedMatrix(NULL)
+            fftTransformedMatrix(nullptr)
         {
           update();
         }
 
         ~DFTMatrix<Traits>()
         {
-          if (fftTransformedMatrix != NULL)
+          if (fftTransformedMatrix != nullptr)
             fftw_free(fftTransformedMatrix);
         }
 
@@ -95,7 +95,7 @@ namespace Dune {
           localExtendedOffset     = (*traits).localExtendedOffset;
           localExtendedDomainSize = (*traits).localExtendedDomainSize;
 
-          if (fftTransformedMatrix != NULL)
+          if (fftTransformedMatrix != nullptr)
             fillTransformedMatrix();
         }
 
@@ -155,7 +155,7 @@ namespace Dune {
          */
         void generateField(unsigned int seed, StochasticPartType& stochasticPart) const
         {
-          if (fftTransformedMatrix == NULL)
+          if (fftTransformedMatrix == nullptr)
             fillTransformedMatrix();
 
           // initialize pseudo-random generator
@@ -168,8 +168,7 @@ namespace Dune {
           std::normal_distribution<RF> normalDist(0.,1.);
 #endif // HAVE_GSL
 
-          fftw_complex *extendedField;
-          extendedField = (fftw_complex*) fftw_malloc(allocLocal * sizeof (fftw_complex));
+          fftw_complex* extendedField = fftw_alloc_complex(allocLocal);
 
           RF lambda = 0.;
 
@@ -228,9 +227,9 @@ namespace Dune {
          */
         void fillTransformedMatrix() const
         {
-          if (fftTransformedMatrix != NULL)
+          if (fftTransformedMatrix != nullptr)
             fftw_free(fftTransformedMatrix);
-          fftTransformedMatrix = (fftw_complex*) fftw_malloc( allocLocal * sizeof(fftw_complex) );
+          fftTransformedMatrix = fftw_alloc_complex(allocLocal);
 
           if (covariance == "exponential")
             fillCovarianceMatrix<ExponentialCovariance>();
@@ -329,13 +328,13 @@ namespace Dune {
             std::array<RF,dim> transCoord;
             Indices            indices;
 
-            for (unsigned int index = 0; index < localExtendedDomainSize; index++)
+            for (Index index = 0; index < localExtendedDomainSize; index++)
             {
               Traits::indexToIndices(index,indices,localExtendedCells);
 
               for (unsigned int i = 0; i < dim; i++)
               {
-                coord[i]  = (indices[i] + localExtendedOffset[i]) * meshsize[i];
+                coord[i] = (indices[i] + localExtendedOffset[i]) * meshsize[i];
                 if (coord[i] > 0.5 * extensions[i] * (*traits).embeddingFactor)
                   coord[i] -= extensions[i] * (*traits).embeddingFactor;
               }
@@ -628,11 +627,10 @@ namespace Dune {
          */
         void multiplyExtended(std::vector<RF>& input, std::vector<RF>& output) const
         {
-          if (fftTransformedMatrix == NULL)
+          if (fftTransformedMatrix == nullptr)
             fillTransformedMatrix();
 
-          fftw_complex *extendedField;
-          extendedField = (fftw_complex*) fftw_malloc(allocLocal * sizeof (fftw_complex));
+          fftw_complex* extendedField = fftw_alloc_complex(allocLocal);
 
           fieldToExtendedField(input,extendedField);
           forwardTransform(extendedField);
@@ -654,11 +652,10 @@ namespace Dune {
          */
         void multiplyRootExtended(std::vector<RF>& input, std::vector<RF>& output) const
         {
-          if (fftTransformedMatrix == NULL)
+          if (fftTransformedMatrix == nullptr)
             fillTransformedMatrix();
 
-          fftw_complex *extendedField;
-          extendedField = (fftw_complex*) fftw_malloc(allocLocal * sizeof (fftw_complex));
+          fftw_complex* extendedField = fftw_alloc_complex(allocLocal);
 
           fieldToExtendedField(input,extendedField);
           forwardTransform(extendedField);
@@ -680,11 +677,10 @@ namespace Dune {
          */
         void multiplyInverseExtended(std::vector<RF>& input, std::vector<RF>& output) const
         {
-          if (fftTransformedMatrix == NULL)
+          if (fftTransformedMatrix == nullptr)
             fillTransformedMatrix();
 
-          fftw_complex *extendedField;
-          extendedField = (fftw_complex*) fftw_malloc(allocLocal * sizeof (fftw_complex));
+          fftw_complex* extendedField = fftw_alloc_complex(allocLocal);
 
           fieldToExtendedField(input,extendedField);
           forwardTransform(extendedField);
