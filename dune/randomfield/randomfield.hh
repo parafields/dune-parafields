@@ -27,838 +27,800 @@ namespace Dune {
      */
     template<typename GridTraits, template<typename> class IsoMatrix = DFTMatrix,
       template<typename> class AnisoMatrix = DFTMatrix>
-      class RandomField
-      {
-        protected:
+        class RandomField
+        {
+          protected:
 
-          using Traits             = RandomFieldTraits<GridTraits,IsoMatrix,AnisoMatrix>;
-          using StochasticPartType = StochasticPart<Traits>;
-          using RF                 = typename Traits::RF;
+            using Traits             = RandomFieldTraits<GridTraits,IsoMatrix,AnisoMatrix>;
+            using StochasticPartType = StochasticPart<Traits>;
+            using RF                 = typename Traits::RF;
 
-          // to allow reading in constructor
-          class ParamTreeHelper
-          {
-            Dune::ParameterTree config;
-
-            public:
-
-            ParamTreeHelper(const std::string& fileName = "")
+            // to allow reading in constructor
+            class ParamTreeHelper
             {
-              if (fileName != "")
+              Dune::ParameterTree config;
+
+              public:
+
+              ParamTreeHelper(const std::string& fileName = "")
               {
-                Dune::ParameterTreeParser parser;
-                parser.readINITree(fileName+".field",config);
+                if (fileName != "")
+                {
+                  Dune::ParameterTreeParser parser;
+                  parser.readINITree(fileName+".field",config);
+                }
               }
-            }
 
-            const Dune::ParameterTree& get() const
+              const Dune::ParameterTree& get() const
+              {
+                return config;
+              }
+            };
+
+            const ParamTreeHelper           treeHelper;
+            const Dune::ParameterTree       config;
+            const ValueTransform<RF>        valueTransform;
+            std::shared_ptr<Traits>         traits;
+
+            using IsoMatrixPtr   = std::shared_ptr<IsoMatrix<Traits>>;
+            using AnisoMatrixPtr = std::shared_ptr<AnisoMatrix<Traits>>;
+            IsoMatrixPtr       isoMatrix;
+            AnisoMatrixPtr     anisoMatrix;
+            bool               useAnisoMatrix;
+            TrendPart<Traits>  trendPart;
+            StochasticPartType stochasticPart;
+
+            bool                                        cacheInvMatvec;
+            bool                                        cacheInvRootMatvec;
+            mutable std::shared_ptr<StochasticPartType> invMatvecPart;
+            mutable std::shared_ptr<StochasticPartType> invRootMatvecPart;
+            mutable bool                                invMatvecValid;
+            mutable bool                                invRootMatvecValid;
+
+          public:
+
+            /**
+             * @brief Constructor reading from file or creating homogeneous field
+             */
+            template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim>>
+              explicit RandomField(const Dune::ParameterTree& config_, const std::string& fileName = "", const LoadBalance& loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
+              : config(config_), valueTransform(config), traits(new Traits(config,loadBalance,comm)),
+              trendPart(config,traits,fileName), stochasticPart(traits,fileName),
+              cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
+              invMatvecValid(false), invRootMatvecValid(false)
+          {
+            if (fileName == "")
             {
-              return config;
+              invMatvecValid = true;
+              invRootMatvecValid = true;
             }
-          };
 
-          const ParamTreeHelper           treeHelper;
-          const Dune::ParameterTree       config;
-          const ValueTransform<RF>        valueTransform;
-          std::shared_ptr<Traits>         traits;
+            const std::string& anisotropy
+              = (*traits).config.template get<std::string>("stochastic.anisotropy","none");
+            if (anisotropy == "none" || anisotropy == "axiparallel")
+            {
+              isoMatrix = IsoMatrixPtr(new IsoMatrix<Traits>(traits));
+              useAnisoMatrix = false;
+            }
+            else
+            {
+              anisoMatrix = AnisoMatrixPtr(new AnisoMatrix<Traits>(traits));
+              useAnisoMatrix = true;
+            }
 
-          using IsoMatrixPtr   = std::shared_ptr<IsoMatrix<Traits>>;
-          using AnisoMatrixPtr = std::shared_ptr<AnisoMatrix<Traits>>;
-          IsoMatrixPtr       isoMatrix;
-          AnisoMatrixPtr     anisoMatrix;
-          bool               useAnisoMatrix;
-          TrendPart<Traits>  trendPart;
-          StochasticPartType stochasticPart;
+            if (cacheInvMatvec)
+              invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
 
-          bool                                        cacheInvMatvec;
-          bool                                        cacheInvRootMatvec;
-          mutable std::shared_ptr<StochasticPartType> invMatvecPart;
-          mutable std::shared_ptr<StochasticPartType> invRootMatvecPart;
-          mutable bool                                invMatvecValid;
-          mutable bool                                invRootMatvecValid;
-
-        public:
-
-          /**
-           * @brief Constructor reading from file or creating homogeneous field
-           */
-          template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim>>
-            explicit RandomField(const Dune::ParameterTree& config_, const std::string& fileName = "", const LoadBalance& loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
-            : config(config_), valueTransform(config), traits(new Traits(config,loadBalance,comm)),
-            trendPart(config,traits,fileName), stochasticPart(traits,fileName),
-            cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
-            invMatvecValid(false), invRootMatvecValid(false)
-        {
-          if (fileName == "")
-          {
-            invMatvecValid = true;
-            invRootMatvecValid = true;
+            if (cacheInvRootMatvec)
+              invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
           }
 
-          const std::string& anisotropy
-            = (*traits).config.template get<std::string>("stochastic.anisotropy","none");
-          if (anisotropy == "none" || anisotropy == "axiparallel")
+            /**
+             * @brief Constructor reading field and config from file
+             */
+            template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim>>
+              RandomField(const std::string& fileName, const LoadBalance& loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
+              : treeHelper(fileName), config(treeHelper.get()), valueTransform(config), traits(new Traits(config,loadBalance,comm)),
+              trendPart(config,traits,fileName), stochasticPart(traits,fileName),
+              cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
+              invMatvecValid(false), invRootMatvecValid(false)
           {
-            isoMatrix = IsoMatrixPtr(new IsoMatrix<Traits>(traits));
-            useAnisoMatrix = false;
-          }
-          else
-          {
-            anisoMatrix = AnisoMatrixPtr(new AnisoMatrix<Traits>(traits));
-            useAnisoMatrix = true;
-          }
+            const std::string& anisotropy
+              = (*traits).config.template get<std::string>("stochastic.anisotropy","none");
+            if (anisotropy == "none" || anisotropy == "axiparallel")
+            {
+              isoMatrix = IsoMatrixPtr(new IsoMatrix<Traits>(traits));
+              useAnisoMatrix = false;
+            }
+            else
+            {
+              anisoMatrix = AnisoMatrixPtr(new AnisoMatrix<Traits>(traits));
+              useAnisoMatrix = true;
+            }
 
-          if (cacheInvMatvec)
-            invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
+            if (cacheInvMatvec)
+              invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
 
-          if (cacheInvRootMatvec)
-            invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
-        }
-
-          /**
-           * @brief Constructor reading field and config from file
-           */
-          template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim>>
-            RandomField(const std::string& fileName, const LoadBalance& loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
-            : treeHelper(fileName), config(treeHelper.get()), valueTransform(config), traits(new Traits(config,loadBalance,comm)),
-            trendPart(config,traits,fileName), stochasticPart(traits,fileName),
-            cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
-            invMatvecValid(false), invRootMatvecValid(false)
-        {
-          const std::string& anisotropy
-            = (*traits).config.template get<std::string>("stochastic.anisotropy","none");
-          if (anisotropy == "none" || anisotropy == "axiparallel")
-          {
-            isoMatrix = IsoMatrixPtr(new IsoMatrix<Traits>(traits));
-            useAnisoMatrix = false;
-          }
-          else
-          {
-            anisoMatrix = AnisoMatrixPtr(new AnisoMatrix<Traits>(traits));
-            useAnisoMatrix = true;
+            if (cacheInvRootMatvec)
+              invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
           }
 
-          if (cacheInvMatvec)
-            invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
+            /**
+             * @brief Constructor copying traits and covariance matrix
+             */
+            RandomField(const RandomField& other, const std::string& fileName)
+              : config(other.config), valueTransform(other.valueTransform), traits(other.traits),
+              isoMatrix(other.isoMatrix), anisoMatrix(other.anisoMatrix), useAnisoMatrix(other.useAnisoMatrix),
+              trendPart(config,traits,fileName), stochasticPart(traits,fileName),
+              cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
+              invMatvecValid(false), invRootMatvecValid(false)
+          {
+            if (cacheInvMatvec)
+              invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
 
-          if (cacheInvRootMatvec)
-            invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
-        }
-
-          /**
-           * @brief Constructor copying traits and covariance matrix
-           */
-          RandomField(const RandomField& other, const std::string& fileName)
-            : config(other.config), valueTransform(other.valueTransform), traits(other.traits),
-            isoMatrix(other.isoMatrix), anisoMatrix(other.anisoMatrix), useAnisoMatrix(other.useAnisoMatrix),
-            trendPart(config,traits,fileName), stochasticPart(traits,fileName),
-            cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
-            invMatvecValid(false), invRootMatvecValid(false)
-        {
-          if (cacheInvMatvec)
-            invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
-
-          if (cacheInvRootMatvec)
-            invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
-        }
+            if (cacheInvRootMatvec)
+              invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
+          }
 
 #if HAVE_DUNE_PDELAB
-          /**
-           * @brief Constructor converting from GridFunctionSpace and GridVector
-           */
-          template<typename GFS, typename Field>
-            RandomField(const RandomField& other, const GFS& gfs, const Field& field)
-            : config(other.config), valueTransform(other.valueTransform), traits(other.traits),
-            isoMatrix(other.isoMatrix), anisoMatrix(other.anisoMatrix), useAnisoMatrix(other.useAnisoMatrix),
-            trendPart(other.trendPart,gfs,field), stochasticPart(other.stochasticPart,gfs,field),
-            cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
-            invMatvecValid(false), invRootMatvecValid(false)
-        {
-          if (cacheInvMatvec)
-            invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
+            /**
+             * @brief Constructor converting from GridFunctionSpace and GridVector
+             */
+            template<typename GFS, typename Field>
+              RandomField(const RandomField& other, const GFS& gfs, const Field& field)
+              : config(other.config), valueTransform(other.valueTransform), traits(other.traits),
+              isoMatrix(other.isoMatrix), anisoMatrix(other.anisoMatrix), useAnisoMatrix(other.useAnisoMatrix),
+              trendPart(other.trendPart,gfs,field), stochasticPart(other.stochasticPart,gfs,field),
+              cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
+              invMatvecValid(false), invRootMatvecValid(false)
+          {
+            if (cacheInvMatvec)
+              invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
 
-          if (cacheInvRootMatvec)
-            invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
-        }
+            if (cacheInvRootMatvec)
+              invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
+          }
 
-          /**
-           * @brief Constructor converting from DiscreteGridFunction
-           */
-          template<typename DGF>
-            RandomField(const RandomField& other, const DGF& dgf)
-            : config(other.config), valueTransform(other.valueTransform), traits(other.traits),
-            isoMatrix(other.isoMatrix), anisoMatrix(other.anisoMatrix), useAnisoMatrix(other.useAnisoMatrix),
-            trendPart(other.trendPart,dgf), stochasticPart(other.stochasticPart,dgf),
-            cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
-            invMatvecValid(false), invRootMatvecValid(false)
-        {
-          if (cacheInvMatvec)
-            invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
+            /**
+             * @brief Constructor converting from DiscreteGridFunction
+             */
+            template<typename DGF>
+              RandomField(const RandomField& other, const DGF& dgf)
+              : config(other.config), valueTransform(other.valueTransform), traits(other.traits),
+              isoMatrix(other.isoMatrix), anisoMatrix(other.anisoMatrix), useAnisoMatrix(other.useAnisoMatrix),
+              trendPart(other.trendPart,dgf), stochasticPart(other.stochasticPart,dgf),
+              cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
+              invMatvecValid(false), invRootMatvecValid(false)
+          {
+            if (cacheInvMatvec)
+              invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
 
-          if (cacheInvRootMatvec)
-            invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
-        }
+            if (cacheInvRootMatvec)
+              invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(stochasticPart));
+          }
 #endif // HAVE_DUNE_PDELAB
 
-          /**
-           * @brief Copy constructor
-           */
-          RandomField(const RandomField& other)
-            : config(other.config), valueTransform(other.valueTransform), traits(other.traits),
-            isoMatrix(other.isoMatrix), anisoMatrix(other.anisoMatrix), useAnisoMatrix(other.useAnisoMatrix),
-            trendPart(other.trendPart), stochasticPart(other.stochasticPart),
-            cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
-            invMatvecValid(other.invMatvecValid), invRootMatvecValid(other.invRootMatvecValid)
-        {
-          if (cacheInvMatvec && other.cacheInvMatvec)
-            invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(*(other.invMatvecPart)));
-
-          if (cacheInvRootMatvec && other.cacheInvRootMatvec)
-            invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(*(other.invRootMatvecPart)));
-        }
-
-          /**
-           * @brief Assignment operator
-           */
-          RandomField& operator=(const RandomField& other)
+            /**
+             * @brief Copy constructor
+             */
+            RandomField(const RandomField& other)
+              : config(other.config), valueTransform(other.valueTransform), traits(other.traits),
+              isoMatrix(other.isoMatrix), anisoMatrix(other.anisoMatrix), useAnisoMatrix(other.useAnisoMatrix),
+              trendPart(other.trendPart), stochasticPart(other.stochasticPart),
+              cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
+              invMatvecValid(other.invMatvecValid), invRootMatvecValid(other.invRootMatvecValid)
           {
-            if (this != &other)
+            if (cacheInvMatvec && other.cacheInvMatvec)
+              invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(*(other.invMatvecPart)));
+
+            if (cacheInvRootMatvec && other.cacheInvRootMatvec)
+              invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(*(other.invRootMatvecPart)));
+          }
+
+            /**
+             * @brief Assignment operator
+             */
+            RandomField& operator=(const RandomField& other)
             {
-              config             = other.config;
-              valueTransform     = other.valueTransform;
-              traits             = other.traits;
-              isoMatrix          = other.isoMatrix;
-              anisoMatrix        = other.anisoMatrix;
-              useAnisoMatrix     = other.useAnisoMatrix;
-              trendPart          = other.trendPart;
-              stochasticPart     = other.stochasticPart;
-              cacheInvMatvec     = other.cacheInvMatvec;
-              cacheInvRootMatvec = other.cacheInvRootMatvec;
-
-              if (cacheInvMatvec)
+              if (this != &other)
               {
-                invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(*(other.invMatvecPart)));
-                invMatvecValid = other.invMatvecValid;
+                config             = other.config;
+                valueTransform     = other.valueTransform;
+                traits             = other.traits;
+                isoMatrix          = other.isoMatrix;
+                anisoMatrix        = other.anisoMatrix;
+                useAnisoMatrix     = other.useAnisoMatrix;
+                trendPart          = other.trendPart;
+                stochasticPart     = other.stochasticPart;
+                cacheInvMatvec     = other.cacheInvMatvec;
+                cacheInvRootMatvec = other.cacheInvRootMatvec;
+
+                if (cacheInvMatvec)
+                {
+                  invMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(*(other.invMatvecPart)));
+                  invMatvecValid = other.invMatvecValid;
+                }
+
+                if (cacheInvRootMatvec)
+                {
+                  invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(*(other.invRootMatvecPart)));
+                  invRootMatvecValid = other.invRootMatvecValid;
+                }
               }
 
-              if (cacheInvRootMatvec)
-              {
-                invRootMatvecPart = std::shared_ptr<StochasticPartType>(new StochasticPartType(*(other.invRootMatvecPart)));
-                invRootMatvecValid = other.invRootMatvecValid;
-              }
+              return *this;
             }
 
-            return *this;
-          }
+            /**
+             * @brief Cell volume of the random field discretization
+             */
+            RF cellVolume() const
+            {
+              return (*traits).cellVolume;
+            }
 
-          /**
-           * @brief Cell volume of the random field discretization
-           */
-          RF cellVolume() const
-          {
-            return (*traits).cellVolume;
-          }
+            /**
+             * @brief Number of degrees of freedom
+             */
+            unsigned int dofs() const
+            {
+              return stochasticPart.dofs() + trendPart.dofs();
+            }
 
-          /**
-           * @brief Number of degrees of freedom
-           */
-          unsigned int dofs() const
-          {
-            return stochasticPart.dofs() + trendPart.dofs();
-          }
+            /**
+             * @brief Generate a field with the desired correlation structure
+             */
+            void generate(bool allowNonWorldComm = false)
+            {
+              // create seed out of current time
+              unsigned int seed = (unsigned int) clock();
+              // different seeds for different fields
+              seed += static_cast<int>(reinterpret_cast<uintptr_t>(&stochasticPart));
 
-          /**
-           * @brief Generate a field with the desired correlation structure
-           */
-          void generate(bool allowNonWorldComm = false)
-          {
-            // create seed out of current time
-            unsigned int seed = (unsigned int) clock();
-            // different seeds for different fields
-            seed += static_cast<int>(reinterpret_cast<uintptr_t>(&stochasticPart));
+              generate(seed,allowNonWorldComm);
+            }
 
-            generate(seed,allowNonWorldComm);
-          }
+            /**
+             * @brief Generate a field with desired correlation structure using seed
+             */
+            void generate(unsigned int seed, bool allowNonWorldComm = false)
+            {
+              if (((*traits).comm != MPI_COMM_WORLD) && !allowNonWorldComm)
+                DUNE_THROW(Dune::Exception,
+                    "generation of inconsistent fields prevented, set allowNonWorldComm = true if you really want this");
 
-          /**
-           * @brief Generate a field with desired correlation structure using seed
-           */
-          void generate(unsigned int seed, bool allowNonWorldComm = false)
-          {
-            if (((*traits).comm != MPI_COMM_WORLD) && !allowNonWorldComm)
-              DUNE_THROW(Dune::Exception,
-                  "generation of inconsistent fields prevented, set allowNonWorldComm = true if you really want this");
+              if ((*traits).verbose)
+                std::cout << "generate with seed: " << seed << std::endl;
 
-            if ((*traits).verbose)
-              std::cout << "generate with seed: " << seed << std::endl;
+              if (useAnisoMatrix)
+                (*anisoMatrix).generateField(seed,stochasticPart);
+              else
+                (*isoMatrix).generateField(seed,stochasticPart);
+              trendPart.generate(seed);
 
-            if (useAnisoMatrix)
-              (*anisoMatrix).generateField(seed,stochasticPart);
-            else
-              (*isoMatrix).generateField(seed,stochasticPart);
-            trendPart.generate(seed);
+              invMatvecValid     = false;
+              invRootMatvecValid = false;
+            }
 
-            invMatvecValid     = false;
-            invRootMatvecValid = false;
-          }
+            /**
+             * @brief Generate a field without correlation structure (i.e. noise)
+             */
+            void generateUncorrelated(bool allowNonWorldComm = false)
+            {
+              // create seed out of current time
+              unsigned int seed = (unsigned int) clock();
+              // different seeds for different fields
+              seed += static_cast<int>(reinterpret_cast<uintptr_t>(&stochasticPart));
 
-          /**
-           * @brief Generate a field without correlation structure (i.e. noise)
-           */
-          void generateUncorrelated(bool allowNonWorldComm = false)
-          {
-            // create seed out of current time
-            unsigned int seed = (unsigned int) clock();
-            // different seeds for different fields
-            seed += static_cast<int>(reinterpret_cast<uintptr_t>(&stochasticPart));
+              generate(seed,allowNonWorldComm);
+            }
 
-            generate(seed,allowNonWorldComm);
-          }
+            /**
+             * @brief Generate a field containing noise using seed
+             */
+            void generateUncorrelated(unsigned int seed, bool allowNonWorldComm = false)
+            {
+              if (((*traits).comm != MPI_COMM_WORLD) && !allowNonWorldComm)
+                DUNE_THROW(Dune::Exception,
+                    "generation of inconsistent fields prevented, set allowNonWorldComm = true if you really want this");
 
-          /**
-           * @brief Generate a field containing noise using seed
-           */
-          void generateUncorrelated(unsigned int seed, bool allowNonWorldComm = false)
-          {
-            if (((*traits).comm != MPI_COMM_WORLD) && !allowNonWorldComm)
-              DUNE_THROW(Dune::Exception,
-                  "generation of inconsistent fields prevented, set allowNonWorldComm = true if you really want this");
+              if (useAnisoMatrix)
+                (*anisoMatrix).generateUncorrelatedField(seed,stochasticPart);
+              else
+                (*isoMatrix).generateUncorrelatedField(seed,stochasticPart);
+              trendPart.generateUncorrelated(seed);
 
-            if (useAnisoMatrix)
-              (*anisoMatrix).generateUncorrelatedField(seed,stochasticPart);
-            else
-              (*isoMatrix).generateUncorrelatedField(seed,stochasticPart);
-            trendPart.generateUncorrelated(seed);
-
-            invMatvecValid     = false;
-            invRootMatvecValid = false;
-          }
+              invMatvecValid     = false;
+              invRootMatvecValid = false;
+            }
 
 #if HAVE_DUNE_GRID
-          /**
-           * @brief Evaluate the random field in the coordinates of an element
-           */
-          template<typename Element>
-            void evaluate(
-                const Element& elem,
-                const typename Traits::DomainType& xElem,
-                typename Traits::RangeType& output
-                ) const
-            {
-              const typename Traits::DomainType location = elem.geometry().global(xElem);
-              evaluate(location,output);
-            }
+            /**
+             * @brief Evaluate the random field in the coordinates of an element
+             */
+            template<typename Element>
+              void evaluate(
+                  const Element& elem,
+                  const typename Traits::DomainType& xElem,
+                  typename Traits::RangeType& output
+                  ) const
+              {
+                const typename Traits::DomainType location = elem.geometry().global(xElem);
+                evaluate(location,output);
+              }
 #endif // HAVE_DUNE_GRID
 
-          /**
-           * @brief Evaluate the random field at given coordinates
-           */
-          void evaluate(const typename Traits::DomainType& location, typename Traits::RangeType& output) const
-          {
-            typename Traits::RangeType stochastic = 0., trend = 0.;
-
-            stochasticPart.evaluate(location,stochastic);
-            trendPart     .evaluate(location,trend);
-
-            output = stochastic + trend;
-            valueTransform.apply(output);
-          }
-
-          /**
-           * @brief Export random field to files on disk
-           */
-          void writeToFile(const std::string& fileName) const
-          {
-            stochasticPart.writeToFile(fileName);
-            trendPart     .writeToFile(fileName);
-
-            std::ofstream file(fileName+".field",std::ofstream::trunc);
-            config.report(file);
-          }
-
-          /**
-           * @brief Export random field as flat unstructured VTK file, requires dune-grid and dune-functions
-           */
-          template<typename GridView>
-            void writeToVTK(const std::string& fileName, const GridView& gv) const
+            /**
+             * @brief Evaluate the random field at given coordinates
+             */
+            void evaluate(const typename Traits::DomainType& location, typename Traits::RangeType& output) const
             {
-#if HAVE_DUNE_FUNCTIONS
-              Dune::VTKWriter<GridView> vtkWriter(gv,Dune::VTK::conforming);
-              auto f = Dune::Functions::makeAnalyticGridViewFunction([&](auto x)
-                  {typename Traits::RangeType output; this->evaluate(x,output); return output;},gv);
-              vtkWriter.addCellData(f,VTK::FieldInfo(fileName,VTK::FieldInfo::Type::scalar,1));
-              vtkWriter.pwrite(fileName,"","",Dune::VTK::appendedraw);
-#else //HAVE_DUNE_FUNCTIONS
-              DUNE_THROW(Dune::NotImplemented,"Unstructured VTK output requires dune-grid and dune-functions");
-#endif //HAVE_DUNE_FUNCTIONS
+              typename Traits::RangeType stochastic = 0., trend = 0.;
+
+              stochasticPart.evaluate(location,stochastic);
+              trendPart     .evaluate(location,trend);
+
+              output = stochastic + trend;
+              valueTransform.apply(output);
             }
 
-          /**
-           * @brief Export random field as unstructured VTK file, requires dune-grid and dune-functions
-           */
-          template<typename GridView>
-            void writeToVTKSeparate(const std::string& fileName, const GridView& gv) const
+            /**
+             * @brief Export random field to files on disk
+             */
+            void writeToFile(const std::string& fileName) const
             {
-#if HAVE_DUNE_FUNCTIONS
-              Dune::VTKWriter<GridView> vtkWriter(gv,Dune::VTK::conforming);
+              stochasticPart.writeToFile(fileName);
+              trendPart     .writeToFile(fileName);
+
+              std::ofstream file(fileName+".field",std::ofstream::trunc);
+              config.report(file);
+            }
+
+            /**
+             * @brief Export random field as flat unstructured VTK file, requires dune-grid and dune-functions
+             */
+            template<typename GridView>
+              void writeToVTK(const std::string& fileName, const GridView& gv) const
               {
+#if HAVE_DUNE_FUNCTIONS
+                Dune::VTKWriter<GridView> vtkWriter(gv,Dune::VTK::conforming);
                 auto f = Dune::Functions::makeAnalyticGridViewFunction([&](auto x)
-                    {typename Traits::RangeType output; stochasticPart.evaluate(x,output); return output;},gv);
-                vtkWriter.addCellData(f,VTK::FieldInfo("stochastic",VTK::FieldInfo::Type::scalar,1));
+                    {typename Traits::RangeType output; this->evaluate(x,output); return output;},gv);
+                vtkWriter.addCellData(f,VTK::FieldInfo(fileName,VTK::FieldInfo::Type::scalar,1));
+                vtkWriter.pwrite(fileName,"","",Dune::VTK::appendedraw);
+#else //HAVE_DUNE_FUNCTIONS
+                DUNE_THROW(Dune::NotImplemented,"Unstructured VTK output requires dune-grid and dune-functions");
+#endif //HAVE_DUNE_FUNCTIONS
               }
+
+            /**
+             * @brief Export random field as unstructured VTK file, requires dune-grid and dune-functions
+             */
+            template<typename GridView>
+              void writeToVTKSeparate(const std::string& fileName, const GridView& gv) const
+              {
+#if HAVE_DUNE_FUNCTIONS
+                Dune::VTKWriter<GridView> vtkWriter(gv,Dune::VTK::conforming);
+                {
+                  auto f = Dune::Functions::makeAnalyticGridViewFunction([&](auto x)
+                      {typename Traits::RangeType output; stochasticPart.evaluate(x,output); return output;},gv);
+                  vtkWriter.addCellData(f,VTK::FieldInfo("stochastic",VTK::FieldInfo::Type::scalar,1));
+                }
+                for (unsigned int i = 0; i < trendPart.size(); i++)
+                {
+                  const TrendComponent<Traits>& component = trendPart.getComponent(i);
+                  auto f = Dune::Functions::makeAnalyticGridViewFunction([&](auto x)
+                      {typename Traits::RangeType output; component.evaluate(x,output); return output;},gv);
+                  vtkWriter.addCellData(f,VTK::FieldInfo(component.name(),VTK::FieldInfo::Type::scalar,1));
+                }
+                vtkWriter.pwrite(fileName,"","",Dune::VTK::appendedraw);
+#else //HAVE_DUNE_FUNCTIONS
+                DUNE_THROW(Dune::NotImplemented,"Unstructured VTK output requires dune-grid and dune-functions");
+#endif //HAVE_DUNE_FUNCTIONS
+              }
+
+            /**
+             * @brief Export random field as flat Legacy VTK file
+             */
+            void writeToLegacyVTK(const std::string& fileName) const
+            {
+              if ((*traits).commSize > 1)
+                DUNE_THROW(Dune::NotImplemented,"legacy VTK output doesn't work for parallel runs");
+
+              LegacyVTKWriter<Traits> legacyWriter(config,fileName);
+              legacyWriter.writeScalarData("field",*this);
+            }
+
+            /**
+             * @brief Export random field as separate Legacy VTK entries
+             */
+            void writeToLegacyVTKSeparate(const std::string& fileName) const
+            {
+              if ((*traits).commSize > 1)
+                DUNE_THROW(Dune::NotImplemented,"legacy VTK output doesn't work for parallel runs");
+
+              LegacyVTKWriter<Traits> legacyWriter(config,fileName);
+              legacyWriter.writeScalarData("stochastic",stochasticPart);
               for (unsigned int i = 0; i < trendPart.size(); i++)
               {
                 const TrendComponent<Traits>& component = trendPart.getComponent(i);
-                auto f = Dune::Functions::makeAnalyticGridViewFunction([&](auto x)
-                    {typename Traits::RangeType output; component.evaluate(x,output); return output;},gv);
-                vtkWriter.addCellData(f,VTK::FieldInfo(component.name(),VTK::FieldInfo::Type::scalar,1));
+                legacyWriter.writeScalarData(component.name(),component);
               }
-              vtkWriter.pwrite(fileName,"","",Dune::VTK::appendedraw);
-#else //HAVE_DUNE_FUNCTIONS
-              DUNE_THROW(Dune::NotImplemented,"Unstructured VTK output requires dune-grid and dune-functions");
-#endif //HAVE_DUNE_FUNCTIONS
             }
 
-          /**
-           * @brief Export random field as flat Legacy VTK file
-           */
-          void writeToLegacyVTK(const std::string& fileName) const
-          {
-            if ((*traits).commSize > 1)
-              DUNE_THROW(Dune::NotImplemented,"legacy VTK output doesn't work for parallel runs");
-
-            LegacyVTKWriter<Traits> legacyWriter(config,fileName);
-            legacyWriter.writeScalarData("field",*this);
-          }
-
-          /**
-           * @brief Export random field as separate Legacy VTK entries
-           */
-          void writeToLegacyVTKSeparate(const std::string& fileName) const
-          {
-            if ((*traits).commSize > 1)
-              DUNE_THROW(Dune::NotImplemented,"legacy VTK output doesn't work for parallel runs");
-
-            LegacyVTKWriter<Traits> legacyWriter(config,fileName);
-            legacyWriter.writeScalarData("stochastic",stochasticPart);
-            for (unsigned int i = 0; i < trendPart.size(); i++)
+            /**
+             * @brief Make random field homogeneous
+             */
+            void zero()
             {
-              const TrendComponent<Traits>& component = trendPart.getComponent(i);
-              legacyWriter.writeScalarData(component.name(),component);
-            }
-          }
+              trendPart     .zero();
+              stochasticPart.zero();
 
-          /**
-           * @brief Make random field homogeneous
-           */
-          void zero()
-          {
-            trendPart     .zero();
-            stochasticPart.zero();
-
-            if (cacheInvMatvec)
-            {
-              (*invMatvecPart).zero();
-              invMatvecValid = true;
-            }
-
-            if (cacheInvRootMatvec)
-            {
-              (*invRootMatvecPart).zero();
-              invRootMatvecValid = true;
-            }
-          }
-
-          /**
-           * @brief Double spatial resolution of covariance matrix
-           */
-          void refineMatrix()
-          {
-            (*traits).refine();
-            if (useAnisoMatrix)
-              (*anisoMatrix).update();
-            else
-              (*isoMatrix).update();
-          }
-
-          /**
-           * @brief Double spatial resolution of random field
-           */
-          void refine()
-          {
-            if (cacheInvMatvec && invMatvecValid)
-            {
-              (*invMatvecPart).refine();
-              if (useAnisoMatrix)
-                stochasticPart = (*anisoMatrix) * (*invMatvecPart);
-              else
-                stochasticPart = (*isoMatrix) * (*invMatvecPart);
-
-              const RF scale = std::pow(0.5,-(*traits).dim);
-              stochasticPart *= scale;
-              *invMatvecPart *= scale;
+              if (cacheInvMatvec)
+              {
+                (*invMatvecPart).zero();
+                invMatvecValid = true;
+              }
 
               if (cacheInvRootMatvec)
               {
-                if (useAnisoMatrix)
-                  *invRootMatvecPart = (*anisoMatrix).multiplyRoot(*invMatvecPart);
-                else
-                  *invRootMatvecPart = (*isoMatrix).multiplyRoot(*invMatvecPart);
-
-                *invRootMatvecPart *= scale;
+                (*invRootMatvecPart).zero();
                 invRootMatvecValid = true;
               }
-
             }
-            else if (cacheInvRootMatvec && invRootMatvecValid)
+
+            /**
+             * @brief Double spatial resolution of covariance matrix
+             */
+            void refineMatrix()
             {
-              (*invRootMatvecPart).refine();
+              (*traits).refine();
               if (useAnisoMatrix)
-                stochasticPart = (*anisoMatrix).multiplyRoot(*invRootMatvecPart);
+                (*anisoMatrix).update();
               else
-                stochasticPart = (*isoMatrix).multiplyRoot(*invRootMatvecPart);
-
-              const RF scale = std::pow(0.5,-(*traits).dim);
-              stochasticPart     *= scale;
-              *invRootMatvecPart *= scale;
-
-              if (cacheInvMatvec)
-              {
-                *invMatvecPart = stochasticPart;
-                invMatvecValid = false;
-              }
+                (*isoMatrix).update();
             }
-            else
-            {
-              stochasticPart.refine();
 
-              if (cacheInvMatvec)
+            /**
+             * @brief Double spatial resolution of random field
+             */
+            void refine()
+            {
+              if (cacheInvMatvec && invMatvecValid)
+              {
                 (*invMatvecPart).refine();
+                if (useAnisoMatrix)
+                  stochasticPart = (*anisoMatrix) * (*invMatvecPart);
+                else
+                  stochasticPart = (*isoMatrix) * (*invMatvecPart);
 
-              if (cacheInvRootMatvec)
+                const RF scale = std::pow(0.5,-(*traits).dim);
+                stochasticPart *= scale;
+                *invMatvecPart *= scale;
+
+                if (cacheInvRootMatvec)
+                {
+                  if (useAnisoMatrix)
+                    *invRootMatvecPart = (*anisoMatrix).multiplyRoot(*invMatvecPart);
+                  else
+                    *invRootMatvecPart = (*isoMatrix).multiplyRoot(*invMatvecPart);
+
+                  *invRootMatvecPart *= scale;
+                  invRootMatvecValid = true;
+                }
+
+              }
+              else if (cacheInvRootMatvec && invRootMatvecValid)
+              {
                 (*invRootMatvecPart).refine();
-            }
-          }
+                if (useAnisoMatrix)
+                  stochasticPart = (*anisoMatrix).multiplyRoot(*invRootMatvecPart);
+                else
+                  stochasticPart = (*isoMatrix).multiplyRoot(*invRootMatvecPart);
 
-          /**
-           * @brief Double spatial resolution of covariance matrix
-           */
-          void coarsenMatrix()
-          {
-            (*traits).coarsen();
-            if (useAnisoMatrix)
-              (*anisoMatrix).update();
-            else
-              (*isoMatrix).update();
-          }
+                const RF scale = std::pow(0.5,-(*traits).dim);
+                stochasticPart     *= scale;
+                *invRootMatvecPart *= scale;
 
-          /**
-           * @brief Reduce spatial resolution of random field
-           */
-          void coarsen()
-          {
-            if (cacheInvMatvec && invMatvecValid)
-            {
-              (*invMatvecPart).coarsen();
-              if (useAnisoMatrix)
-                stochasticPart = (*anisoMatrix) * (*invMatvecPart);
+                if (cacheInvMatvec)
+                {
+                  *invMatvecPart = stochasticPart;
+                  invMatvecValid = false;
+                }
+              }
               else
-                stochasticPart = (*isoMatrix) * (*invMatvecPart);
+              {
+                stochasticPart.refine();
 
-              const RF scale = std::pow(0.5,(*traits).dim);
-              stochasticPart *= scale;
-              *invMatvecPart *= scale;
+                if (cacheInvMatvec)
+                  (*invMatvecPart).refine();
+
+                if (cacheInvRootMatvec)
+                  (*invRootMatvecPart).refine();
+              }
+            }
+
+            /**
+             * @brief Double spatial resolution of covariance matrix
+             */
+            void coarsenMatrix()
+            {
+              (*traits).coarsen();
+              if (useAnisoMatrix)
+                (*anisoMatrix).update();
+              else
+                (*isoMatrix).update();
+            }
+
+            /**
+             * @brief Reduce spatial resolution of random field
+             */
+            void coarsen()
+            {
+              if (cacheInvMatvec && invMatvecValid)
+              {
+                (*invMatvecPart).coarsen();
+                if (useAnisoMatrix)
+                  stochasticPart = (*anisoMatrix) * (*invMatvecPart);
+                else
+                  stochasticPart = (*isoMatrix) * (*invMatvecPart);
+
+                const RF scale = std::pow(0.5,(*traits).dim);
+                stochasticPart *= scale;
+                *invMatvecPart *= scale;
+
+                if (cacheInvRootMatvec)
+                {
+                  if (useAnisoMatrix)
+                    *invRootMatvecPart = (*anisoMatrix).multiplyRoot(*invMatvecPart);
+                  else
+                    *invRootMatvecPart = (*isoMatrix).multiplyRoot(*invMatvecPart);
+
+                  *invRootMatvecPart *= scale;
+                  invRootMatvecValid = true;
+                }
+              }
+              else if (cacheInvRootMatvec && invRootMatvecValid)
+              {
+                (*invRootMatvecPart).coarsen();
+                if (useAnisoMatrix)
+                  stochasticPart = (*anisoMatrix).multiplyRoot(*invRootMatvecPart);
+                else
+                  stochasticPart = (*isoMatrix).multiplyRoot(*invRootMatvecPart);
+
+                const RF scale = std::pow(0.5,(*traits).dim);
+                stochasticPart     *= scale;
+                *invRootMatvecPart *= scale;
+
+                if (cacheInvMatvec)
+                {
+                  *invMatvecPart = stochasticPart;
+                  invMatvecValid = false;
+                }
+              }
+              else
+              {
+                stochasticPart.coarsen();
+
+                if (cacheInvMatvec)
+                  (*invMatvecPart).coarsen();
+
+                if (cacheInvRootMatvec)
+                  (*invRootMatvecPart).coarsen();
+              }
+            }
+
+            /**
+             * @brief Addition assignment operator
+             */
+            RandomField& operator+=(const RandomField& other)
+            {
+              trendPart      += other.trendPart;
+              stochasticPart += other.stochasticPart;
+
+              if (cacheInvMatvec)
+              {
+                if (other.cacheInvMatvec)
+                {
+                  *invMatvecPart += *(other.invMatvecPart);
+                  invMatvecValid = invMatvecValid && other.invMatvecValid;
+                }
+                else
+                  invMatvecValid = false;
+              }
 
               if (cacheInvRootMatvec)
               {
-                if (useAnisoMatrix)
-                  *invRootMatvecPart = (*anisoMatrix).multiplyRoot(*invMatvecPart);
+                if (other.cacheInvRootMatvec)
+                {
+                  *invRootMatvecPart += *(other.invRootMatvecPart);
+                  invRootMatvecValid = invRootMatvecValid && other.invRootMatvecValid;
+                }
                 else
-                  *invRootMatvecPart = (*isoMatrix).multiplyRoot(*invMatvecPart);
-
-                *invRootMatvecPart *= scale;
-                invRootMatvecValid = true;
+                  invRootMatvecValid = false;
               }
+
+              return *this;
             }
-            else if (cacheInvRootMatvec && invRootMatvecValid)
+
+            /**
+             * @brief Subtraction assignment operator
+             */
+            RandomField& operator-=(const RandomField& other)
             {
-              (*invRootMatvecPart).coarsen();
-              if (useAnisoMatrix)
-                stochasticPart = (*anisoMatrix).multiplyRoot(*invRootMatvecPart);
-              else
-                stochasticPart = (*isoMatrix).multiplyRoot(*invRootMatvecPart);
+              trendPart      -= other.trendPart;
+              stochasticPart -= other.stochasticPart;
 
-              const RF scale = std::pow(0.5,(*traits).dim);
-              stochasticPart     *= scale;
-              *invRootMatvecPart *= scale;
+              if (cacheInvMatvec)
+              {
+                if (other.cacheInvMatvec)
+                {
+                  *invMatvecPart -= *(other.invMatvecPart);
+                  invMatvecValid = invMatvecValid && other.invMatvecValid;
+                }
+                else
+                  invMatvecValid = false;
+              }
 
+              if (cacheInvRootMatvec)
+              {
+                if (other.cacheInvRootMatvec)
+                {
+                  *invRootMatvecPart -= *(other.invRootMatvecPart);
+                  invRootMatvecValid = invRootMatvecValid && other.invRootMatvecValid;
+                }
+                else
+                  invRootMatvecValid = false;
+              }
+
+              return *this;
+            }
+
+            /**
+             * @brief Multiplication with scalar
+             */
+            RandomField& operator*=(const RF alpha)
+            {
+              trendPart      *= alpha;
+              stochasticPart *= alpha;
+
+              if (cacheInvMatvec)
+                *invMatvecPart *= alpha;
+
+              if (cacheInvRootMatvec)
+                *invRootMatvecPart *= alpha;
+
+              return *this;
+            }
+
+            /**
+             * @brief AXPY scaled addition
+             */
+            RandomField& axpy(const RandomField& other, const RF alpha)
+            {
+              trendPart     .axpy(other.trendPart     ,alpha);
+              stochasticPart.axpy(other.stochasticPart,alpha);
+
+              if (cacheInvMatvec)
+              {
+                if (other.cacheInvMatvec)
+                {
+                  (*invMatvecPart).axpy(*(other.invMatvecPart),alpha);
+                  invMatvecValid = invMatvecValid && other.invMatvecValid;
+                }
+                else
+                  invMatvecValid = false;
+              }
+
+              if (cacheInvRootMatvec)
+              {
+                if (other.cacheInvRootMatvec)
+                {
+                  (*invRootMatvecPart).axpy(*(other.invRootMatvecPart),alpha);
+                  invRootMatvecValid = invRootMatvecValid && other.invRootMatvecValid;
+                }
+                else
+                  invRootMatvecValid = false;
+              }
+
+              return *this;
+            }
+
+            /**
+             * @brief AXPY scaled addition (swapped arguments)
+             */
+            RandomField& axpy(const RF alpha, const RandomField& other)
+            {
+              return axpy(other,alpha);
+            }
+
+            /**
+             * @brief Scalar product
+             */
+            RF operator*(const RandomField& other) const
+            {
+              RF output = 0.;
+
+              output += (*this).stochasticPart * other.stochasticPart;
+              output += (*this).trendPart * other.trendPart;
+
+              return output;
+            }
+
+            /**
+             * @brief Multiply random field with covariance matrix
+             */
+            void timesMatrix()
+            {
               if (cacheInvMatvec)
               {
                 *invMatvecPart = stochasticPart;
-                invMatvecValid = false;
+                invMatvecValid  = true;
               }
-            }
-            else
-            {
-              stochasticPart.coarsen();
 
-              if (cacheInvMatvec)
-                (*invMatvecPart).coarsen();
-
-              if (cacheInvRootMatvec)
-                (*invRootMatvecPart).coarsen();
-            }
-          }
-
-          /**
-           * @brief Addition assignment operator
-           */
-          RandomField& operator+=(const RandomField& other)
-          {
-            trendPart      += other.trendPart;
-            stochasticPart += other.stochasticPart;
-
-            if (cacheInvMatvec)
-            {
-              if (other.cacheInvMatvec)
-              {
-                *invMatvecPart += *(other.invMatvecPart);
-                invMatvecValid = invMatvecValid && other.invMatvecValid;
-              }
-              else
-                invMatvecValid = false;
-            }
-
-            if (cacheInvRootMatvec)
-            {
-              if (other.cacheInvRootMatvec)
-              {
-                *invRootMatvecPart += *(other.invRootMatvecPart);
-                invRootMatvecValid = invRootMatvecValid && other.invRootMatvecValid;
-              }
-              else
-                invRootMatvecValid = false;
-            }
-
-            return *this;
-          }
-
-          /**
-           * @brief Subtraction assignment operator
-           */
-          RandomField& operator-=(const RandomField& other)
-          {
-            trendPart      -= other.trendPart;
-            stochasticPart -= other.stochasticPart;
-
-            if (cacheInvMatvec)
-            {
-              if (other.cacheInvMatvec)
-              {
-                *invMatvecPart -= *(other.invMatvecPart);
-                invMatvecValid = invMatvecValid && other.invMatvecValid;
-              }
-              else
-                invMatvecValid = false;
-            }
-
-            if (cacheInvRootMatvec)
-            {
-              if (other.cacheInvRootMatvec)
-              {
-                *invRootMatvecPart -= *(other.invRootMatvecPart);
-                invRootMatvecValid = invRootMatvecValid && other.invRootMatvecValid;
-              }
-              else
-                invRootMatvecValid = false;
-            }
-
-            return *this;
-          }
-
-          /**
-           * @brief Multiplication with scalar
-           */
-          RandomField& operator*=(const RF alpha)
-          {
-            trendPart      *= alpha;
-            stochasticPart *= alpha;
-
-            if (cacheInvMatvec)
-              *invMatvecPart *= alpha;
-
-            if (cacheInvRootMatvec)
-              *invRootMatvecPart *= alpha;
-
-            return *this;
-          }
-
-          /**
-           * @brief AXPY scaled addition
-           */
-          RandomField& axpy(const RandomField& other, const RF alpha)
-          {
-            trendPart     .axpy(other.trendPart     ,alpha);
-            stochasticPart.axpy(other.stochasticPart,alpha);
-
-            if (cacheInvMatvec)
-            {
-              if (other.cacheInvMatvec)
-              {
-                (*invMatvecPart).axpy(*(other.invMatvecPart),alpha);
-                invMatvecValid = invMatvecValid && other.invMatvecValid;
-              }
-              else
-                invMatvecValid = false;
-            }
-
-            if (cacheInvRootMatvec)
-            {
-              if (other.cacheInvRootMatvec)
-              {
-                (*invRootMatvecPart).axpy(*(other.invRootMatvecPart),alpha);
-                invRootMatvecValid = invRootMatvecValid && other.invRootMatvecValid;
-              }
-              else
-                invRootMatvecValid = false;
-            }
-
-            return *this;
-          }
-
-          /**
-           * @brief AXPY scaled addition (swapped arguments)
-           */
-          RandomField& axpy(const RF alpha, const RandomField& other)
-          {
-            return axpy(other,alpha);
-          }
-
-          /**
-           * @brief Scalar product
-           */
-          RF operator*(const RandomField& other) const
-          {
-            RF output = 0.;
-
-            output += (*this).stochasticPart * other.stochasticPart;
-            output += (*this).trendPart * other.trendPart;
-
-            return output;
-          }
-
-          /**
-           * @brief Multiply random field with covariance matrix
-           */
-          void timesMatrix()
-          {
-            if (cacheInvMatvec)
-            {
-              *invMatvecPart = stochasticPart;
-              invMatvecValid  = true;
-            }
-
-            if (cacheInvRootMatvec)
-            {
-              if (useAnisoMatrix)
-                *invRootMatvecPart = (*anisoMatrix).multiplyRoot(stochasticPart);
-              else
-                *invRootMatvecPart = (*isoMatrix).multiplyRoot(stochasticPart);
-              invRootMatvecValid = true;
-            }
-
-            if (useAnisoMatrix)
-              stochasticPart = (*anisoMatrix) * stochasticPart;
-            else
-              stochasticPart = (*isoMatrix) * stochasticPart;
-
-            trendPart.timesMatrix();
-          }
-
-          /**
-           * @brief Multiply random field with inverse of covariance matrix
-           */
-          void timesInverseMatrix()
-          {
-            if (cacheInvMatvec && invMatvecValid)
-            {
               if (cacheInvRootMatvec)
               {
                 if (useAnisoMatrix)
-                  *invRootMatvecPart = (*anisoMatrix).multiplyRoot(*invMatvecPart);
+                  *invRootMatvecPart = (*anisoMatrix).multiplyRoot(stochasticPart);
                 else
-                  *invRootMatvecPart = (*isoMatrix).multiplyRoot(*invMatvecPart);
+                  *invRootMatvecPart = (*isoMatrix).multiplyRoot(stochasticPart);
                 invRootMatvecValid = true;
               }
 
-              stochasticPart = *invMatvecPart;
-              invMatvecValid = false;
-            }
-            else
-            {
               if (useAnisoMatrix)
-                stochasticPart = (*anisoMatrix).multiplyInverse(stochasticPart);
+                stochasticPart = (*anisoMatrix) * stochasticPart;
               else
-                stochasticPart = (*isoMatrix).multiplyInverse(stochasticPart);
+                stochasticPart = (*isoMatrix) * stochasticPart;
 
-              if (cacheInvMatvec)
-                invMatvecValid = false;
-
-              if (cacheInvRootMatvec)
-                invRootMatvecValid = false;
+              trendPart.timesMatrix();
             }
 
-            trendPart.timesInverseMatrix();
-          }
-
-          /**
-           * @brief Multiply random field with approximate root of cov. matrix
-           */
-          void timesMatrixRoot()
-          {
-            if (cacheInvMatvec && cacheInvRootMatvec)
+            /**
+             * @brief Multiply random field with inverse of covariance matrix
+             */
+            void timesInverseMatrix()
             {
-              *invMatvecPart = *invRootMatvecPart;
-              invMatvecValid = invRootMatvecValid;
-            }
-
-            if (cacheInvRootMatvec)
-            {
-              *invRootMatvecPart = stochasticPart;
-              invRootMatvecValid = true;
-            }
-
-            if (useAnisoMatrix)
-              stochasticPart = (*anisoMatrix).multiplyRoot(stochasticPart);
-            else
-              stochasticPart = (*isoMatrix).multiplyRoot(stochasticPart);
-
-            trendPart.timesMatrixRoot();
-          }
-
-          /**
-           * @brief Multiply random field with approximate inverse root of cov. matrix
-           */
-          void timesInvMatRoot()
-          {
-            if (cacheInvRootMatvec && invRootMatvecValid)
-            {
-              stochasticPart = *invRootMatvecPart;
-              invRootMatvecValid = false;
-
-              if (cacheInvMatvec)
+              if (cacheInvMatvec && invMatvecValid)
               {
-                *invRootMatvecPart = *invMatvecPart;
-                invRootMatvecValid = invMatvecValid;
-                invMatvecValid  = false;
+                if (cacheInvRootMatvec)
+                {
+                  if (useAnisoMatrix)
+                    *invRootMatvecPart = (*anisoMatrix).multiplyRoot(*invMatvecPart);
+                  else
+                    *invRootMatvecPart = (*isoMatrix).multiplyRoot(*invMatvecPart);
+                  invRootMatvecValid = true;
+                }
+
+                stochasticPart = *invMatvecPart;
+                invMatvecValid = false;
               }
-            }
-            else
-            {
-              if (useAnisoMatrix)
-                stochasticPart = (*anisoMatrix).multiplyInverse(stochasticPart);
               else
-                stochasticPart = (*isoMatrix).multiplyInverse(stochasticPart);
+              {
+                if (useAnisoMatrix)
+                  stochasticPart = (*anisoMatrix).multiplyInverse(stochasticPart);
+                else
+                  stochasticPart = (*isoMatrix).multiplyInverse(stochasticPart);
+
+                if (cacheInvMatvec)
+                  invMatvecValid = false;
+
+                if (cacheInvRootMatvec)
+                  invRootMatvecValid = false;
+              }
+
+              trendPart.timesInverseMatrix();
+            }
+
+            /**
+             * @brief Multiply random field with approximate root of cov. matrix
+             */
+            void timesMatrixRoot()
+            {
+              if (cacheInvMatvec && cacheInvRootMatvec)
+              {
+                *invMatvecPart = *invRootMatvecPart;
+                invMatvecValid = invRootMatvecValid;
+              }
 
               if (cacheInvRootMatvec)
               {
@@ -871,49 +833,87 @@ namespace Dune {
               else
                 stochasticPart = (*isoMatrix).multiplyRoot(stochasticPart);
 
-              if (cacheInvMatvec)
-                invMatvecValid = false;
+              trendPart.timesMatrixRoot();
             }
 
-            trendPart.timesInvMatRoot();
-          }
+            /**
+             * @brief Multiply random field with approximate inverse root of cov. matrix
+             */
+            void timesInvMatRoot()
+            {
+              if (cacheInvRootMatvec && invRootMatvecValid)
+              {
+                stochasticPart = *invRootMatvecPart;
+                invRootMatvecValid = false;
 
-          RF oneNorm() const
-          {
-            return trendPart.oneNorm() + stochasticPart.oneNorm();
-          }
+                if (cacheInvMatvec)
+                {
+                  *invRootMatvecPart = *invMatvecPart;
+                  invRootMatvecValid = invMatvecValid;
+                  invMatvecValid  = false;
+                }
+              }
+              else
+              {
+                if (useAnisoMatrix)
+                  stochasticPart = (*anisoMatrix).multiplyInverse(stochasticPart);
+                else
+                  stochasticPart = (*isoMatrix).multiplyInverse(stochasticPart);
 
-          RF twoNorm() const
-          {
-            return std::sqrt( *this * *this);
-          }
+                if (cacheInvRootMatvec)
+                {
+                  *invRootMatvecPart = stochasticPart;
+                  invRootMatvecValid = true;
+                }
 
-          RF infNorm() const
-          {
-            return std::max(trendPart.infNorm(), stochasticPart.infNorm());
-          }
+                if (useAnisoMatrix)
+                  stochasticPart = (*anisoMatrix).multiplyRoot(stochasticPart);
+                else
+                  stochasticPart = (*isoMatrix).multiplyRoot(stochasticPart);
 
-          bool operator==(const RandomField& other) const
-          {
-            return (trendPart == other.trendPart && stochasticPart == other.stochasticPart);
-          }
+                if (cacheInvMatvec)
+                  invMatvecValid = false;
+              }
 
-          bool operator!=(const RandomField& other) const
-          {
-            return !operator==(other);
-          }
+              trendPart.timesInvMatRoot();
+            }
 
-          void localize(const typename Traits::DomainType& center, const RF radius)
-          {
-            stochasticPart.localize(center,radius);
+            RF oneNorm() const
+            {
+              return trendPart.oneNorm() + stochasticPart.oneNorm();
+            }
 
-            if (cacheInvMatvec)
-              invMatvecValid = false;
+            RF twoNorm() const
+            {
+              return std::sqrt( *this * *this);
+            }
 
-            if (cacheInvRootMatvec)
-              invRootMatvecValid = false;
-          }
-      };
+            RF infNorm() const
+            {
+              return std::max(trendPart.infNorm(), stochasticPart.infNorm());
+            }
+
+            bool operator==(const RandomField& other) const
+            {
+              return (trendPart == other.trendPart && stochasticPart == other.stochasticPart);
+            }
+
+            bool operator!=(const RandomField& other) const
+            {
+              return !operator==(other);
+            }
+
+            void localize(const typename Traits::DomainType& center, const RF radius)
+            {
+              stochasticPart.localize(center,radius);
+
+              if (cacheInvMatvec)
+                invMatvecValid = false;
+
+              if (cacheInvRootMatvec)
+                invRootMatvecValid = false;
+            }
+        };
 
     /**
      * @brief List of Gaussian random fields in 1D, 2D or 3D

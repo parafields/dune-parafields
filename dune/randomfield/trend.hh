@@ -28,7 +28,6 @@ namespace Dune {
      */
     struct TrendComponentType
     {
-
       enum Type {Mean, Slope, Disk, Block, Image};
 
       static bool isMean(Type i)
@@ -95,11 +94,17 @@ namespace Dune {
               const TrendComponentType::Type& componentType_,
               unsigned int componentCount_ = 0
               )
-            : traits(traits_), componentType(componentType_),
-            componentCount(componentCount_), extensions((*traits).extensions),
-            shiftVector(trendVector), meanVector(meanVector_), varianceVector(varianceVector_)
+            :
+              traits(traits_),
+              componentType(componentType_),
+              componentCount(componentCount_),
+              extensions((*traits).extensions),
+              shiftVector(trendVector),
+              meanVector(meanVector_),
+              varianceVector(varianceVector_)
         {
-          if (trendVector.size() != meanVector.size() || trendVector.size() != varianceVector.size())
+          if (trendVector.size() != meanVector.size()
+              || trendVector.size() != varianceVector.size())
             DUNE_THROW(Dune::Exception,"trend component size does not match");
 
           if (TrendComponentType::isMean(componentType) && trendVector.size() != 1)
@@ -265,7 +270,8 @@ namespace Dune {
               for (unsigned int i = 0; i < shiftVector.size(); i++)
               {
 #if HAVE_GSL
-                myNewShiftVector[i] = gsl_ran_gaussian_ziggurat(gslRng,1.) * std::sqrt(varianceVector[i]);
+                myNewShiftVector[i] = gsl_ran_gaussian_ziggurat(gslRng,1.)
+                  * std::sqrt(varianceVector[i]);
 #else
                 myNewShiftVector[i] = normalDist(generator) * std::sqrt(varianceVector[i]);
 #endif // HAVE_GSL
@@ -434,7 +440,10 @@ namespace Dune {
           /**
            * @brief Evaluate the trend component at a given location
            */
-          void evaluate(const typename Traits::DomainType& location, typename Traits::RangeType& output) const
+          void evaluate(
+              const typename Traits::DomainType& location,
+              typename Traits::RangeType& output
+              ) const
           {
             if (TrendComponentType::isMean(componentType))
             {
@@ -445,7 +454,8 @@ namespace Dune {
               output[0] = 0.;
 
               for (unsigned int i = 0; i < dim; i++)
-                output[0] += (meanVector[i] + shiftVector[i]) * (location[i] - extensions[i]/2.);
+                output[0] += (meanVector[i] + shiftVector[i])
+                  * (location[i] - extensions[i]/2.);
             }
             else if (TrendComponentType::isDisk(componentType))
             {
@@ -455,7 +465,8 @@ namespace Dune {
               for (unsigned int i = 0; i < dim; i++)
                 distSquared += std::pow(location[i] - (meanVector[i] + shiftVector[i]),2);
 
-              output[0] = std::exp(- distSquared / std::pow(meanVector[dim] + shiftVector[dim],2)
+              output[0] = std::exp(- distSquared
+                  / std::pow(meanVector[dim] + shiftVector[dim],2)
                   * (meanVector[dim+1] + shiftVector[dim+1]));
             }
             else if (TrendComponentType::isBlock(componentType))
@@ -552,10 +563,15 @@ namespace Dune {
             const std::vector<RF>& varianceVector,
             const std::string& imageFile_
             )
-          : TrendComponent<Traits>(traits,trendVector,meanVector,varianceVector,TrendComponentType::Image),
-          imageFile(imageFile_), pngReader(imageFile), extensions((*traits).extensions)
+          :
+            TrendComponent<Traits>(traits,trendVector,meanVector,varianceVector,
+                TrendComponentType::Image),
+            imageFile(imageFile_),
+            pngReader(imageFile),
+            extensions((*traits).extensions)
         {
-          if (trendVector.size() != meanVector.size() || trendVector.size() != varianceVector.size())
+          if (trendVector.size() != meanVector.size()
+              || trendVector.size() != varianceVector.size())
             DUNE_THROW(Dune::Exception,"trend component size does not match");
 
           if (trendVector.size() != 1)
@@ -571,9 +587,16 @@ namespace Dune {
          * @brief Constructor based on PDELab solution
          */
         template<typename GFS, typename Field>
-          ImageComponent<Traits>(const ImageComponent<Traits>& other, const GFS& gfs, const Field& field)
-          : TrendComponent<Traits>(other,gfs,field),
-          imageFile(other.imageFile), pngReader(other.pngReader), extensions(other.extensions)
+          ImageComponent<Traits>(
+              const ImageComponent<Traits>& other,
+              const GFS& gfs,
+              const Field& field
+              )
+          :
+            TrendComponent<Traits>(other,gfs,field),
+            imageFile(other.imageFile),
+            pngReader(other.pngReader),
+            extensions(other.extensions)
         {}
 
         /**
@@ -581,8 +604,11 @@ namespace Dune {
          */
         template<typename DGF>
           ImageComponent<Traits>(const ImageComponent<Traits>& other, const DGF& dgf)
-          : TrendComponent<Traits>(other,dgf),
-          imageFile(other.imageFile), pngReader(other.pngReader), extensions(other.extensions)
+          :
+            TrendComponent<Traits>(other,dgf),
+            imageFile(other.imageFile),
+            pngReader(other.pngReader),
+            extensions(other.extensions)
         {}
 #endif // HAVE_DUNE_PDELAB
 
@@ -605,9 +631,13 @@ namespace Dune {
         /**
          * @brief Evaluate the trend component at a given location
          */
-        void evaluate(const typename Traits::DomainType& location, typename Traits::RangeType& output) const
+        void evaluate(
+            const typename Traits::DomainType& location,
+            typename Traits::RangeType& output
+            ) const
         {
-          output[0] = (this->meanVector[0] + this->shiftVector[0]) * pngReader.evaluate(location,extensions);
+          output[0] = (this->meanVector[0] + this->shiftVector[0])
+            * pngReader.evaluate(location,extensions);
         }
 
         /**
@@ -651,7 +681,8 @@ namespace Dune {
         using RF = typename Traits::RF;
 
         std::shared_ptr<Traits> traits;
-        std::vector<TrendComponent<Traits>> componentVector;
+
+        std::vector<TrendComponent<Traits>>     componentVector;
         std::shared_ptr<ImageComponent<Traits>> imageComponent;
 
         public:
@@ -664,7 +695,8 @@ namespace Dune {
             const std::shared_ptr<Traits>& traits_,
             const std::string& fileName = ""
             )
-          : traits(traits_)
+          :
+            traits(traits_)
         {
           std::vector<RF> emptyVector, trendVector, meanVector, varianceVector;
 
@@ -807,7 +839,8 @@ namespace Dune {
             }
 
             const std::string imageFile = config.get<std::string>("image.filename");
-            imageComponent = std::make_shared<ImageComponent<Traits>>(traits,trendVector,meanVector,varianceVector,imageFile);
+            imageComponent = std::make_shared<ImageComponent<Traits>>(traits,trendVector,
+                meanVector,varianceVector,imageFile);
           }
         }
 
@@ -816,35 +849,45 @@ namespace Dune {
          * @brief Constructor based on PDELab solution
          */
         template<typename GFS, typename Field>
-          TrendPart<Traits>(const TrendPart<Traits>& other, const GFS& gfs, const Field& field)
-          : traits(other.traits), componentVector(other.componentVector)
-          {
-            for (unsigned int i = 0; i < componentVector.size(); i++)
-              componentVector[i].construct(gfs,field);
+          TrendPart<Traits>(
+              const TrendPart<Traits>& other,
+              const GFS& gfs,
+              const Field& field
+              )
+          :
+            traits(other.traits),
+            componentVector(other.componentVector)
+        {
+          for (unsigned int i = 0; i < componentVector.size(); i++)
+            componentVector[i].construct(gfs,field);
 
-            if (other.imageComponent)
-            {
-              imageComponent = std::make_shared<ImageComponent<Traits>>(*(other.imageComponent));
-              imageComponent->construct(gfs,field);
-            }
+          if (other.imageComponent)
+          {
+            imageComponent = std::make_shared<ImageComponent<Traits>>
+              (*(other.imageComponent));
+            imageComponent->construct(gfs,field);
           }
+        }
 
         /**
          * @brief Constructor based on PDELab DiscreteGridFunction
          */
         template<typename DGF>
           TrendPart<Traits>(const TrendPart<Traits>& other, const DGF& dgf)
-          : traits(other.traits), componentVector(other.componentVector)
-          {
-            for (unsigned int i = 0; i < componentVector.size(); i++)
-              componentVector[i].construct(dgf);
+          :
+            traits(other.traits),
+            componentVector(other.componentVector)
+        {
+          for (unsigned int i = 0; i < componentVector.size(); i++)
+            componentVector[i].construct(dgf);
 
-            if (other.imageComponent)
-            {
-              imageComponent = std::make_shared<ImageComponent<Traits>>(*(other.imageComponent));
-              imageComponent->construct(dgf);
-            }
+          if (other.imageComponent)
+          {
+            imageComponent = std::make_shared<ImageComponent<Traits>>
+              (*(other.imageComponent));
+            imageComponent->construct(dgf);
           }
+        }
 #endif // HAVE_DUNE_PDELAB
 
         /**
@@ -1110,7 +1153,10 @@ namespace Dune {
         /**
          * @brief Evaluate the trend part at a given location
          */
-        void evaluate(const typename Traits::DomainType& x, typename Traits::RangeType& output) const
+        void evaluate(
+            const typename Traits::DomainType& x,
+            typename Traits::RangeType& output
+            ) const
         {
           output = 0.;
           typename Traits::RangeType compOutput = 0.;

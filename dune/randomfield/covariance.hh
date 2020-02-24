@@ -20,7 +20,8 @@ namespace Dune {
         public:
 
         ScaledIdentityMatrix(const Dune::ParameterTree& config)
-          : value(config.get<RF>("stochastic.corrLength"))
+          :
+            value(config.get<RF>("stochastic.corrLength"))
         {
           value = 1./value;
         }
@@ -43,7 +44,8 @@ namespace Dune {
         public:
 
         DiagonalMatrix(const Dune::ParameterTree& config)
-          : diagonalValues(config.get<std::array<RF,dim>>("stochastic.corrLength"))
+          :
+            diagonalValues(config.get<std::array<RF,dim>>("stochastic.corrLength"))
         {
           for (unsigned int i = 0; i < dim; i++)
             diagonalValues[i] = 1./diagonalValues[i];
@@ -67,7 +69,8 @@ namespace Dune {
         public:
 
         GeneralMatrix(const Dune::ParameterTree& config)
-          : matrixValues(config.get<std::array<RF,dim*dim>>("stochastic.corrLength"))
+          :
+            matrixValues(config.get<std::array<RF,dim*dim>>("stochastic.corrLength"))
         {
           std::array<RF,dim*dim> copy(matrixValues);
           if (dim == 3)
@@ -145,7 +148,8 @@ namespace Dune {
               if (h_eff > 1.)
                 return 0.;
               else
-                return variance * (1. - 2./M_PI*(h_eff*std::sqrt(1.-std::pow(h_eff,2)) + std::asin(h_eff)));
+                return variance * (1. - 2./M_PI*(h_eff*std::sqrt(1.-std::pow(h_eff,2))
+                      + std::asin(h_eff)));
             }
             else if (dim == 1)
             {
@@ -155,7 +159,8 @@ namespace Dune {
                 return variance * (1. - h_eff);
             }
             else
-              DUNE_THROW(Dune::NotImplemented,"spherical covariance only defined for 1D, 2D and 3D");
+              DUNE_THROW(Dune::NotImplemented,
+                  "spherical covariance only defined for 1D, 2D and 3D");
           }
     };
 
@@ -231,7 +236,8 @@ namespace Dune {
               sum += x[i] * x[i];
             RF h_eff = std::sqrt(sum);
 
-            return variance * (1. + std::sqrt(3.)*h_eff) * std::exp(-std::sqrt(3.) * h_eff);
+            return variance * (1. + std::sqrt(3.)*h_eff)
+              * std::exp(-std::sqrt(3.) * h_eff);
           }
     };
 
@@ -250,7 +256,8 @@ namespace Dune {
               sum += x[i] * x[i];
             RF h_eff = std::sqrt(sum);
 
-            return variance * (1. + std::sqrt(5.)*h_eff + 5./3.*h_eff*h_eff) * std::exp(-std::sqrt(5.) * h_eff);
+            return variance * (1. + std::sqrt(5.)*h_eff + 5./3.*h_eff*h_eff)
+              * std::exp(-std::sqrt(5.) * h_eff);
           }
     };
 
@@ -319,7 +326,8 @@ namespace Dune {
                     - 3.5 * std::pow(h_eff,5) + 0.75 * std::pow(h_eff,7));
             }
             else
-              DUNE_THROW(Dune::NotImplemented,"cubic covariance only applicable in 1D or 2D");
+              DUNE_THROW(Dune::NotImplemented,
+                  "cubic covariance only applicable in 1D or 2D");
           }
     };
 

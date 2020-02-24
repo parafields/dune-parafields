@@ -55,8 +55,12 @@ namespace Dune {
         /**
          * @brief Constructor
          */
-        StochasticPart(const std::shared_ptr<Traits>& traits_, const std::string& fileName)
-          : traits(traits_)
+        StochasticPart(
+            const std::shared_ptr<Traits>& traits_,
+            const std::string& fileName
+            )
+          :
+            traits(traits_)
         {
           update();
 
@@ -73,7 +77,8 @@ namespace Dune {
 
             evalValid  = false;
 #else //HAVE_HDF5
-            DUNE_THROW(Dune::NotImplemented,"Writing and reading field files requires parallel HDF5 support");
+            DUNE_THROW(Dune::NotImplemented,
+                "Writing and reading field files requires parallel HDF5 support");
 #endif //HAVE_HDF5
           }
           else
@@ -88,82 +93,84 @@ namespace Dune {
 #if HAVE_DUNE_PDELAB
         template<typename DGF>
           StochasticPart(const StochasticPart& other, const DGF& dgf)
-          : traits(other.traits)
+          :
+            traits(other.traits)
+        {
+          update();
+
+          using DF         = typename Traits::DomainField;
+          using DomainType = typename Traits::DomainType;
+
+          DomainType minCoords;
+          DomainType maxCoords;
+          DomainType coords;
+          std::array<unsigned int,dim> minIndices;
+          std::array<unsigned int,dim> maxIndices;
+          Dune::FieldVector<RF,1> value;
+
+          for (const auto& elem : elements(dgf.getGridView(),Dune::Partitions::interior))
           {
-            update();
-
-            using DF         = typename Traits::DomainField;
-            using DomainType = typename Traits::DomainType;
-
-            DomainType minCoords;
-            DomainType maxCoords;
-            DomainType coords;
-            std::array<unsigned int,dim> minIndices;
-            std::array<unsigned int,dim> maxIndices;
-            Dune::FieldVector<RF,1> value;
-
-            for (const auto& elem : elements(dgf.getGridView(),Dune::Partitions::interior))
+            for (unsigned int i = 0; i < dim; i++)
             {
+              minCoords[i] =  std::numeric_limits<DF>::max();
+              maxCoords[i] = -std::numeric_limits<DF>::max();
+            }
+
+            for (unsigned int j = 0; j < elem.geometry().corners(); j++)
+            {
+              const DomainType& corner = elem.geometry().corner(j);
+
               for (unsigned int i = 0; i < dim; i++)
               {
-                minCoords[i] =  std::numeric_limits<DF>::max();
-                maxCoords[i] = -std::numeric_limits<DF>::max();
-              }
-
-              for (unsigned int j = 0; j < elem.geometry().corners(); j++)
-              {
-                const DomainType& corner = elem.geometry().corner(j);
-
-                for (unsigned int i = 0; i < dim; i++)
-                {
-                  const DF coord = corner[i];
-                  if (coord + 1e-6 < minCoords[i])
-                    minCoords[i] = coord + 1e-6;
-                  if (coord - 1e-6 > maxCoords[i])
-                    maxCoords[i] = coord - 1e-6;
-                }
-              }
-
-              (*traits).coordsToIndices(minCoords,minIndices,localEvalOffset);
-              (*traits).coordsToIndices(maxCoords,maxIndices,localEvalOffset);
-
-              evalIndices = minIndices;
-
-              // iterate over all matching indices
-              while (true)
-              {
-                (*traits).indicesToCoords(evalIndices,localEvalOffset,coords);
-                const typename Traits::DomainType& local = elem.geometry().local(coords);
-
-                if (referenceElement(elem.geometry()).checkInside(local))
-                {
-                  const unsigned int index = Traits::indicesToIndex(evalIndices,localEvalCells);
-                  dgf.evaluate(elem,local,value);
-                  evalVector[index] = value[0];
-                }
-
-                // select next set of indices
-                unsigned int i;
-                for (i = 0; i < dim; i++)
-                {
-                  evalIndices[i]++;
-                  if (evalIndices[i] <= maxIndices[i])
-                    break;
-                  evalIndices[i] = minIndices[i];
-                }
-                if (i == dim)
-                  break;
+                const DF coord = corner[i];
+                if (coord + 1e-6 < minCoords[i])
+                  minCoords[i] = coord + 1e-6;
+                if (coord - 1e-6 > maxCoords[i])
+                  maxCoords[i] = coord - 1e-6;
               }
             }
 
-            evalToData();
-            evalValid  = true;
+            (*traits).coordsToIndices(minCoords,minIndices,localEvalOffset);
+            (*traits).coordsToIndices(maxCoords,maxIndices,localEvalOffset);
+
+            evalIndices = minIndices;
+
+            // iterate over all matching indices
+            while (true)
+            {
+              (*traits).indicesToCoords(evalIndices,localEvalOffset,coords);
+              const typename Traits::DomainType& local = elem.geometry().local(coords);
+
+              if (referenceElement(elem.geometry()).checkInside(local))
+              {
+                const unsigned int index = Traits::indicesToIndex(evalIndices,localEvalCells);
+                dgf.evaluate(elem,local,value);
+                evalVector[index] = value[0];
+              }
+
+              // select next set of indices
+              unsigned int i;
+              for (i = 0; i < dim; i++)
+              {
+                evalIndices[i]++;
+                if (evalIndices[i] <= maxIndices[i])
+                  break;
+                evalIndices[i] = minIndices[i];
+              }
+              if (i == dim)
+                break;
+            }
           }
+
+          evalToData();
+          evalValid  = true;
+        }
 
         template<typename GFS, typename Field>
           StochasticPart(const StochasticPart& other, const GFS& gfs, const Field& field)
-          : StochasticPart(other,Dune::PDELab::DiscreteGridFunction<GFS,Field>(gfs,field))
-          {}
+          :
+            StochasticPart(other,Dune::PDELab::DiscreteGridFunction<GFS,Field>(gfs,field))
+        {}
 #endif // HAVE_DUNE_PDELAB
 
         /**
@@ -203,7 +210,8 @@ namespace Dune {
             localEvalOffset[0] = rank * localEvalCells[0];
           }
           else if ((*traits).verbose)
-            std::cout << "Note: dimension of field has to be 1, 2 or 3 for data redistribution and overlap" << std::endl;
+            std::cout << "Note: dimension of field has to be 1, 2 or 3"
+              << " for data redistribution and overlap" << std::endl;
 
           dataVector.resize(localDomainSize);
           evalVector.resize(localDomainSize);
@@ -232,7 +240,8 @@ namespace Dune {
           if (rank == 0)
             writeToXDMF<RF,dim>((*traits).cells,(*traits).extensions,fileName);
 #else //HAVE_HDF5
-          DUNE_THROW(Dune::NotImplemented,"Writing and reading field files requires parallel HDF5 support");
+          DUNE_THROW(Dune::NotImplemented,
+              "Writing and reading field files requires parallel HDF5 support");
 #endif //HAVE_HDF5
         }
 
@@ -344,7 +353,10 @@ namespace Dune {
         /**
          * @brief Evaluate stochastic part at given location
          */
-        void evaluate(const typename Traits::DomainType& location, typename Traits::RangeType& output) const
+        void evaluate(
+            const typename Traits::DomainType& location,
+            typename Traits::RangeType& output
+            ) const
         {
           if (!evalValid)
             dataToEval();
@@ -363,17 +375,23 @@ namespace Dune {
 
           if (dim == 3)
           {
-            if (countIndices[0] == 2*dim && countIndices[1] == 2*dim && countIndices[2] != 2*dim)
+            if (countIndices[0] == 2*dim && countIndices[1] == 2*dim
+                && countIndices[2] != 2*dim)
             {
-              output[0] = overlap[countIndices[2]][evalIndices[0] + evalIndices[1]*localEvalCells[0]];
+              output[0] = overlap[countIndices[2]][evalIndices[0]
+                + evalIndices[1]*localEvalCells[0]];
             }
-            else if (countIndices[0] == 2*dim && countIndices[1] != 2*dim && countIndices[2] == 2*dim)
+            else if (countIndices[0] == 2*dim && countIndices[1] != 2*dim
+                && countIndices[2] == 2*dim)
             {
-              output[0] = overlap[countIndices[1]][evalIndices[2] + evalIndices[0]*localEvalCells[2]];
+              output[0] = overlap[countIndices[1]][evalIndices[2]
+                + evalIndices[0]*localEvalCells[2]];
             }
-            else if (countIndices[0] != 2*dim && countIndices[1] == 2*dim && countIndices[2] == 2*dim)
+            else if (countIndices[0] != 2*dim && countIndices[1] == 2*dim
+                && countIndices[2] == 2*dim)
             {
-              output[0] = overlap[countIndices[0]][evalIndices[1] + evalIndices[2]*localEvalCells[1]];
+              output[0] = overlap[countIndices[0]][evalIndices[1]
+                + evalIndices[2]*localEvalCells[1]];
             }
             else
             {

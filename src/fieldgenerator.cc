@@ -56,7 +56,7 @@ class GridHelper
 
   GridHelper(const Dune::ParameterTree& config)
   {
-    levels   = config.get<int>                      ("grid.levels"    ,1);
+    levels   = config.get<int>                      ("grid.levels",1);
     maxExt   = config.get<std::vector<DF>>          ("grid.extensions");
     maxCells = config.get<std::vector<unsigned int>>("grid.cells");
 
@@ -68,7 +68,8 @@ class GridHelper
       for (unsigned int j = 0; j < maxCells.size(); j++)
       {
         if (minCells[j]%2 != 0)
-          DUNE_THROW(Dune::Exception,"cannot create enough levels for hierarchical grid, check number of cells");
+          DUNE_THROW(Dune::Exception,
+              "cannot create enough levels for hierarchical grid, check number of cells");
 
         minCells[j] /= 2;
       }
@@ -117,7 +118,8 @@ void generate(const Dune::ParameterTree& config)
   const std::string legacyVtkOut     = config.template get<std::string>("output.legacyVtk",        "");
   const std::string legacyVtkSepOut  = config.template get<std::string>("output.legacyVtkSeparate","");
   if (hdf5Out == "" && vtkOut == "" && vtkSepOut == "" && legacyVtkOut == "" && legacyVtkSepOut == "")
-    DUNE_THROW(Dune::Exception,std::string("no output file given, please specify field (HDF5) or VTK output file (or both)\n")
+    DUNE_THROW(Dune::Exception,
+        std::string("no output file given, please specify field (HDF5) or VTK output file (or both)\n")
         + std::string("example: -output.dune field -output.vtk fieldVis"));
 
   Dune::RandomField::RandomField<GridTraits> field(config);
@@ -149,7 +151,8 @@ void generate(const Dune::ParameterTree& config)
     Dune::YaspGrid<dim> yaspGrid(gh.L(),gh.N(),gh.B(),1);
     field.writeToVTK(vtkOut,yaspGrid.leafGridView());
 #else //HAVE_DUNE_GRID
-    DUNE_THROW(Dune::Exception,"unstructured VTK output requires dune-grid and dune-functions");
+    DUNE_THROW(Dune::Exception,
+        "unstructured VTK output requires dune-grid and dune-functions");
 #endif //HAVE_DUNE_GRID
   }
   if (vtkSepOut != "")
@@ -159,7 +162,8 @@ void generate(const Dune::ParameterTree& config)
     Dune::YaspGrid<dim> yaspGrid(gh.L(),gh.N(),gh.B(),1);
     field.writeToVTKSeparate(vtkSepOut,yaspGrid.leafGridView());
 #else //HAVE_DUNE_GRID
-    DUNE_THROW(Dune::Exception,"unstructured VTK output requires dune-grid and dune-functions");
+    DUNE_THROW(Dune::Exception,
+        "unstructured VTK output requires dune-grid and dune-functions");
 #endif //HAVE_DUNE_GRID
   }
   if (legacyVtkOut != "")
@@ -184,7 +188,8 @@ void generateList(const Dune::ParameterTree& config)
   const std::string legacyVtkOut     = config.template get<std::string>("output.legacyVtk",        "");
   const std::string legacyVtkSepOut  = config.template get<std::string>("output.legacyVtkSeparate","");
   if (hdf5Out == "" && vtkOut == "" && vtkSepOut == "" && legacyVtkOut == "" && legacyVtkSepOut == "")
-    DUNE_THROW(Dune::Exception,std::string("no output file given, please specify field (HDF5) or VTK output file (or both)\n")
+    DUNE_THROW(Dune::Exception,
+        std::string("no output file given, please specify field (HDF5) or VTK output file (or both)\n")
         + std::string("example: -output.dune field -output.vtk fieldVis"));
 
   Dune::RandomField::RandomFieldList<GridTraits> field(config);
@@ -216,7 +221,8 @@ void generateList(const Dune::ParameterTree& config)
     Dune::YaspGrid<dim> yaspGrid(gh.L(),gh.N(),gh.B(),1);
     field.writeToVTK(vtkOut,yaspGrid.leafGridView());
 #else //HAVE_DUNE_GRID
-    DUNE_THROW(Dune::Exception,"unstructured VTK output requires dune-grid and dune-functions");
+    DUNE_THROW(Dune::Exception,
+        "unstructured VTK output requires dune-grid and dune-functions");
 #endif //HAVE_DUNE_GRID
   }
   if (vtkSepOut != "")
@@ -226,7 +232,8 @@ void generateList(const Dune::ParameterTree& config)
     Dune::YaspGrid<dim> yaspGrid(gh.L(),gh.N(),gh.B(),1);
     field.writeToVTKSeparate(vtkSepOut,yaspGrid.leafGridView());
 #else //HAVE_DUNE_GRID
-    DUNE_THROW(Dune::Exception,"unstructured VTK output requires dune-grid and dune-functions");
+    DUNE_THROW(Dune::Exception,
+        "unstructured VTK output requires dune-grid and dune-functions");
 #endif //HAVE_DUNE_GRID
   }
   if (legacyVtkOut != "")
@@ -238,7 +245,11 @@ void generateList(const Dune::ParameterTree& config)
 /**
  * @brief Generate random field using supplied parameters
  */
-void generateFields(const Dune::MPIHelper& helper, const std::string& configFilename, int argc, char** argv)
+void generateFields(
+    const Dune::MPIHelper& helper,
+    const std::string& configFilename,
+    int argc, char** argv
+    )
 {
   Dune::ParameterTree config;
   Dune::ParameterTreeParser parser;
@@ -262,7 +273,8 @@ void generateFields(const Dune::MPIHelper& helper, const std::string& configFile
     else if (extensions.size() == 4)
       generate<4>(config);
     else
-      DUNE_THROW(Dune::NotImplemented,"dimension (size of grid.extensions) has to be 1, 2, 3 or 4");
+      DUNE_THROW(Dune::NotImplemented,
+          "dimension (size of grid.extensions) has to be 1, 2, 3 or 4");
   }
   else
   {
@@ -277,7 +289,8 @@ void generateFields(const Dune::MPIHelper& helper, const std::string& configFile
     else if (extensions.size() == 4)
       generateList<4>(config);
     else
-      DUNE_THROW(Dune::NotImplemented,"dimension (size of grid.extensions) has to be 1, 2, 3 or 4");
+      DUNE_THROW(Dune::NotImplemented,
+          "dimension (size of grid.extensions) has to be 1, 2, 3 or 4");
   }
 }
 

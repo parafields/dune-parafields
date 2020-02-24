@@ -1,6 +1,6 @@
 // -*- tab-width: 2; indent-tabs-mode: nil -*-
-#ifndef DUNE_RANDOMFIELD_MATRIX_HH
-#define	DUNE_RANDOMFIELD_MATRIX_HH
+#ifndef DUNE_RANDOMFIELD_DFTMATRIX_HH
+#define	DUNE_RANDOMFIELD_DFTMATRIX_HH
 
 #include<string>
 #include<vector>
@@ -54,7 +54,10 @@ namespace Dune {
         public:
 
         DFTMatrix<Traits>(const std::shared_ptr<Traits>& traits_)
-          : traits(traits_), covariance(), fftTransformedMatrix(NULL)
+          :
+            traits(traits_),
+            covariance(),
+            fftTransformedMatrix(NULL)
         {
           update();
         }
@@ -149,7 +152,6 @@ namespace Dune {
          */
         void generateField(unsigned int seed, StochasticPartType& stochasticPart) const
         {
-
           if (fftTransformedMatrix == NULL)
             fillTransformedMatrix();
 
@@ -302,12 +304,13 @@ namespace Dune {
         template<typename Covariance>
           void fillCovarianceMatrix() const
           {
-            if ((*traits).config.template get<std::string>("stochastic.anisotropy","none") == "none")
+            const std::string& anisotropy = (*traits).config.template get<std::string>("stochastic.anisotropy","none");
+            if (anisotropy == "none")
               computeCovarianceMatrixEntries<Covariance,ScaledIdentityMatrix<RF,dim>>();
-            else if ((*traits).config.template get<std::string>("stochastic.anisotropy") == "axiparallel")
+            else if (anisotropy == "axiparallel")
               computeCovarianceMatrixEntries<Covariance,DiagonalMatrix<RF,dim>>();
-            else if ((*traits).config.template get<std::string>("stochastic.anisotropy") == "geometric")
-              computeCovarianceMatrixEntries<Covariance,GeneralMatrix<RF, dim>>();
+            else if (anisotropy == "geometric")
+              computeCovarianceMatrixEntries<Covariance,GeneralMatrix<RF,dim>>();
             else
               DUNE_THROW(Dune::Exception,
                   "stochastic.anisotropy must be \"none\", \"axiparallel\" or \"geometric\"");
@@ -702,4 +705,4 @@ namespace Dune {
   }
 }
 
-#endif // DUNE_RANDOMFIELD_MATRIX_HH
+#endif // DUNE_RANDOMFIELD_DFTMATRIX_HH
