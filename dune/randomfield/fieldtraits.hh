@@ -83,6 +83,7 @@ namespace Dune {
           }
       };
 
+    // forward declarations
     template<typename Traits> class TrendPart;
     template<typename Traits> class TrendComponent;
     template<typename Traits> class ImageComponent;
@@ -111,6 +112,9 @@ namespace Dune {
 
           using IsoMatrixType    = IsoMatrix<ThisType>;
           using AnisoMatrixType  = AnisoMatrix<ThisType>;
+
+          using Index   = unsigned int;
+          using Indices = std::array<Index,dim>;
 
 #if HAVE_DUNE_PDELAB
           // allows treating a RandomField as a PDELab function
@@ -157,21 +161,21 @@ namespace Dune {
           unsigned int embeddingFactor;
 
           // properties of random field
-          std::array<unsigned int,dim> cells;
-          unsigned int                 domainSize;
-          std::array<unsigned int,dim> localCells;
-          std::array<unsigned int,dim> localOffset;
-          unsigned int                 localDomainSize;
+          Indices cells;
+          Index   domainSize;
+          Indices localCells;
+          Indices localOffset;
+          Index   localDomainSize;
 
           // properties on extended domain
-          std::array<unsigned int,dim> extendedCells;
-          unsigned int                 extendedDomainSize;
-          std::array<unsigned int,dim> localExtendedCells;
-          std::array<unsigned int,dim> localExtendedOffset;
-          unsigned int                 localExtendedDomainSize;
+          Indices extendedCells;
+          Index   extendedDomainSize;
+          Indices localExtendedCells;
+          Indices localExtendedOffset;
+          Index   localExtendedDomainSize;
 
-          mutable std::array<unsigned int,dim> globalIndices;
-          mutable std::array<unsigned int,dim> localIndices;
+          mutable Indices globalIndices;
+          mutable Indices localIndices;
 
           public:
 
@@ -182,17 +186,17 @@ namespace Dune {
                 const MPI_Comm comm_
                 )
             : config(config_), comm(comm_),
-            extensions        (config.get<std::array<RF,dim>>          ("grid.extensions")),
-            variance          (config.get<RF>                          ("stochastic.variance")),
-            covariance        (config.get<std::string>                 ("stochastic.covariance")),
-            periodic          (config.get<bool>                        ("randomField.periodic",false)),
-            approximate       (config.get<bool>                        ("randomField.approximate",false)),
-            verbose           (config.get<bool>                        ("randomField.verbose",false)),
-            cgIterations      (config.get<unsigned int>                ("randomField.cgIterations",100)),
-            cacheInvMatvec    (config.get<bool>                        ("randomField.cacheInvMatvec",true)),
-            cacheInvRootMatvec(config.get<bool>                        ("randomField.cacheInvRootMatvec",false)),
-            embeddingFactor   (config.get<unsigned int>                ("randomField.embeddingFactor",2)),
-            cells             (config.get<std::array<unsigned int,dim>>("grid.cells"))
+            extensions        (config.get<std::array<RF,dim>>("grid.extensions")),
+            variance          (config.get<RF>                ("stochastic.variance")),
+            covariance        (config.get<std::string>       ("stochastic.covariance")),
+            periodic          (config.get<bool>              ("randomField.periodic",false)),
+            approximate       (config.get<bool>              ("randomField.approximate",false)),
+            verbose           (config.get<bool>              ("randomField.verbose",false)),
+            cgIterations      (config.get<unsigned int>      ("randomField.cgIterations",100)),
+            cacheInvMatvec    (config.get<bool>              ("randomField.cacheInvMatvec",true)),
+            cacheInvRootMatvec(config.get<bool>              ("randomField.cacheInvRootMatvec",false)),
+            embeddingFactor   (config.get<unsigned int>      ("randomField.embeddingFactor",2)),
+            cells             (config.get<Indices>           ("grid.cells"))
           {
             MPI_Comm_rank(comm,&rank);
             MPI_Comm_size(comm,&commSize);
@@ -340,9 +344,9 @@ namespace Dune {
            * @brief Convert an index tuple into a one dimensional encoding
            */
           template<unsigned int currentDim = 0>
-            static unsigned int indicesToIndex(
-                const std::array<unsigned int,dim>& indices,
-                const std::array<unsigned int,dim>& bound
+            static Index indicesToIndex(
+                const Indices& indices,
+                const Indices& bound
                 )
             {
               if constexpr(currentDim == dim-1)
@@ -357,9 +361,9 @@ namespace Dune {
            */
           template<unsigned int currentDim = 0>
             static void indexToIndices(
-                const unsigned int index,
-                std::array<unsigned int,dim>& indices,
-                const std::array<unsigned int,dim>& bound
+                const Index index,
+                Indices& indices,
+                const Indices& bound
                 )
             {
               indices[currentDim] = index % bound[currentDim];
@@ -372,13 +376,13 @@ namespace Dune {
            */
           void coordsToIndices(
               const DomainType& location,
-              std::array<unsigned int,dim>& localIndices,
-              const std::array<unsigned int,dim>& offset
+              Indices& localIndices,
+              const Indices& offset
               ) const
           {
             for (unsigned int i = 0; i < dim; i++)
             {
-              globalIndices[i] = (unsigned int) (location[i] * (cells[i] + 1e-6) / extensions[i]);
+              globalIndices[i] = Index(location[i] * (cells[i] + 1e-6) / extensions[i]);
               localIndices[i]  = globalIndices[i] - offset[i];
             }
           }
@@ -387,8 +391,8 @@ namespace Dune {
            * @brief Convert integer indices into corresponding spatial coordinates
            */
           void indicesToCoords(
-              const std::array<unsigned int,dim>& localIndices,
-              const std::array<unsigned int,dim>& offset,
+              const Indices& localIndices,
+              const Indices& offset,
               DomainType& location
               ) const
           {

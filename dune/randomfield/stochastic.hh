@@ -20,7 +20,9 @@ namespace Dune {
     template<typename Traits>
       class StochasticPart
       {
-        using RF = typename Traits::RF;
+        using RF      = typename Traits::RF;
+        using Index   = typename Traits::Index;
+        using Indices = typename Traits::Indices;
 
         enum {dim = Traits::dim};
 
@@ -30,25 +32,25 @@ namespace Dune {
         std::shared_ptr<Traits> traits;
 
         int rank, commSize;
-        std::array<RF,dim>           extensions;
-        std::array<unsigned int,dim> cells;
-        unsigned int                 level;
-        std::array<unsigned int,dim> localCells;
-        std::array<unsigned int,dim> localOffset;
-        unsigned int                 localDomainSize;
-        unsigned int                 sliceSize;
-        std::array<unsigned int,dim> localEvalCells;
-        std::array<unsigned int,dim> localEvalOffset;
-        std::array<int,dim>          procPerDim;
+        std::array<RF,dim>  extensions;
+        Indices             cells;
+        unsigned int        level;
+        Indices             localCells;
+        Indices             localOffset;
+        Index               localDomainSize;
+        Index               sliceSize;
+        Indices             localEvalCells;
+        Indices             localEvalOffset;
+        std::array<int,dim> procPerDim;
 
-        std::vector<RF> dataVector;
-        mutable std::vector<RF> evalVector;
+        std::vector<RF>                      dataVector;
+        mutable std::vector<RF>              evalVector;
         mutable std::vector<std::vector<RF>> overlap;
 
-        mutable bool evalValid;
-        mutable std::array<unsigned int,dim> cellIndices;
-        mutable std::array<unsigned int,dim> evalIndices;
-        mutable std::array<unsigned int,dim> countIndices;
+        mutable bool    evalValid;
+        mutable Indices cellIndices;
+        mutable Indices evalIndices;
+        mutable Indices countIndices;
 
         public:
 
@@ -104,8 +106,8 @@ namespace Dune {
           DomainType minCoords;
           DomainType maxCoords;
           DomainType coords;
-          std::array<unsigned int,dim> minIndices;
-          std::array<unsigned int,dim> maxIndices;
+          Indices minIndices;
+          Indices maxIndices;
           Dune::FieldVector<RF,1> value;
 
           for (const auto& elem : elements(dgf.getGridView(),Dune::Partitions::interior))
@@ -143,7 +145,8 @@ namespace Dune {
 
               if (referenceElement(elem.geometry()).checkInside(local))
               {
-                const unsigned int index = Traits::indicesToIndex(evalIndices,localEvalCells);
+                const Index index
+                  = Traits::indicesToIndex(evalIndices,localEvalCells);
                 dgf.evaluate(elem,local,value);
                 evalVector[index] = value[0];
               }
@@ -261,10 +264,8 @@ namespace Dune {
          */
         StochasticPart& operator+=(const StochasticPart& other)
         {
-          for (unsigned int i = 0; i < localDomainSize; ++i)
-          {
+          for (Index i = 0; i < localDomainSize; ++i)
             dataVector[i] += other.dataVector[i];
-          }
 
           evalValid = false;
 
@@ -276,10 +277,8 @@ namespace Dune {
          */
         StochasticPart& operator-=(const StochasticPart& other)
         {
-          for (unsigned int i = 0; i < localDomainSize; ++i)
-          {
+          for (Index i = 0; i < localDomainSize; ++i)
             dataVector[i] -= other.dataVector[i];
-          }
 
           evalValid = false;
 
@@ -291,10 +290,8 @@ namespace Dune {
          */
         StochasticPart& operator*=(const RF alpha)
         {
-          for (unsigned int i = 0; i < localDomainSize; ++i)
-          {
+          for (Index i = 0; i < localDomainSize; ++i)
             dataVector[i] *= alpha;
-          }
 
           evalValid = false;
 
@@ -306,10 +303,8 @@ namespace Dune {
          */
         StochasticPart& axpy(const StochasticPart& other, const RF alpha)
         {
-          for (unsigned int i = 0; i < localDomainSize; ++i)
-          {
+          for (Index i = 0; i < localDomainSize; ++i)
             dataVector[i] += other.dataVector[i] * alpha;
-          }
 
           evalValid = false;
 
@@ -323,7 +318,7 @@ namespace Dune {
         {
           RF sum = 0., mySum = 0.;
 
-          for (unsigned int i = 0; i < localDomainSize; ++i)
+          for (Index i = 0; i < localDomainSize; ++i)
             mySum += dataVector[i] * other.dataVector[i];
 
           MPI_Allreduce(&mySum,&sum,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
@@ -334,7 +329,7 @@ namespace Dune {
         {
           int same = true, mySame = true;
 
-          for (unsigned int i = 0; i < localDomainSize; ++i)
+          for (Index i = 0; i < localDomainSize; ++i)
             if (dataVector[i] != other.dataVector[i])
             {
               mySame = false;
@@ -363,7 +358,7 @@ namespace Dune {
 
           (*traits).coordsToIndices(location,evalIndices,localEvalOffset);
 
-          for (unsigned int i = 0; i < dim; i++)
+          for (Index i = 0; i < dim; i++)
           {
             if (evalIndices[i] > localEvalCells[i])
               countIndices[i] = 2*i;
@@ -403,7 +398,7 @@ namespace Dune {
                   evalIndices[i]--;
               }
 
-              const unsigned int index = Traits::indicesToIndex(evalIndices,localEvalCells);
+              const Index& index = Traits::indicesToIndex(evalIndices,localEvalCells);
               output[0] = evalVector[index];
             }
           }
@@ -427,7 +422,7 @@ namespace Dune {
                   evalIndices[i]--;
               }
 
-              const unsigned int index = Traits::indicesToIndex(evalIndices,localEvalCells);
+              const Index& index = Traits::indicesToIndex(evalIndices,localEvalCells);
               output[0] = evalVector[index];
             }
           }
@@ -447,7 +442,7 @@ namespace Dune {
                   evalIndices[i]--;
               }
 
-              const unsigned int index = Traits::indicesToIndex(evalIndices,localEvalCells);
+              const Index& index = Traits::indicesToIndex(evalIndices,localEvalCells);
               output[0] = evalVector[index];
             }
           }
@@ -460,10 +455,8 @@ namespace Dune {
          */
         void zero()
         {
-          for (unsigned int i = 0; i < localDomainSize; i++)
-          {
+          for (Index i = 0; i < localDomainSize; i++)
             dataVector[i] = 0.;
-          }
 
           evalValid = false;
         }
@@ -478,7 +471,7 @@ namespace Dune {
             const std::vector<RF> oldData = dataVector;
             update();
 
-            std::array<unsigned int,dim> oldLocalCells;
+            Indices oldLocalCells;
             for (unsigned int i = 0; i < dim; i++)
             {
               oldLocalCells[i] = localCells[i]/2;
@@ -486,8 +479,8 @@ namespace Dune {
 
             dataVector.resize(localDomainSize);
 
-            std::array<unsigned int,dim> oldIndices;
-            std::array<unsigned int,dim> newIndices;
+            Indices oldIndices;
+            Indices newIndices;
             if (dim == 3)
             {
               for (oldIndices[2] = 0; oldIndices[2] < oldLocalCells[2]; oldIndices[2]++)
@@ -498,8 +491,8 @@ namespace Dune {
                     newIndices[1] = 2*oldIndices[1];
                     newIndices[2] = 2*oldIndices[2];
 
-                    const unsigned int oldIndex = Traits::indicesToIndex(oldIndices,oldLocalCells);
-                    const unsigned int newIndex = Traits::indicesToIndex(newIndices,localCells);
+                    const Index oldIndex = Traits::indicesToIndex(oldIndices,oldLocalCells);
+                    const Index newIndex = Traits::indicesToIndex(newIndices,localCells);
                     const RF oldValue = oldData[oldIndex];
 
                     dataVector[newIndex                                                  ] = oldValue;
@@ -520,8 +513,8 @@ namespace Dune {
                   newIndices[0] = 2*oldIndices[0];
                   newIndices[1] = 2*oldIndices[1];
 
-                  const unsigned int oldIndex = Traits::indicesToIndex(oldIndices,oldLocalCells);
-                  const unsigned int newIndex = Traits::indicesToIndex(newIndices,localCells);
+                  const Index oldIndex = Traits::indicesToIndex(oldIndices,oldLocalCells);
+                  const Index newIndex = Traits::indicesToIndex(newIndices,localCells);
                   const RF oldValue = oldData[oldIndex];
 
                   dataVector[newIndex                    ] = oldValue;
@@ -551,7 +544,7 @@ namespace Dune {
             const std::vector<RF> oldData = dataVector;
             update();
 
-            std::array<unsigned int,dim> oldLocalCells;
+            Indices oldLocalCells;
             for (unsigned int i = 0; i < dim; i++)
             {
               oldLocalCells[i] = localCells[i]*2;
@@ -559,8 +552,8 @@ namespace Dune {
 
             dataVector.resize(localDomainSize);
 
-            std::array<unsigned int,dim> oldIndices;
-            std::array<unsigned int,dim> newIndices;
+            Indices oldIndices;
+            Indices newIndices;
             if (dim == 3)
             {
               for (newIndices[2] = 0; newIndices[2] < localCells[2]; newIndices[2]++)
@@ -571,8 +564,8 @@ namespace Dune {
                     oldIndices[1] = 2*newIndices[1];
                     oldIndices[2] = 2*newIndices[2];
 
-                    const unsigned int oldIndex = Traits::indicesToIndex(oldIndices,oldLocalCells);
-                    const unsigned int newIndex = Traits::indicesToIndex(newIndices,localCells);
+                    const Index oldIndex = Traits::indicesToIndex(oldIndices,oldLocalCells);
+                    const Index newIndex = Traits::indicesToIndex(newIndices,localCells);
 
                     RF newValue = 0.;
                     newValue += oldData[oldIndex                                                           ];
@@ -594,8 +587,8 @@ namespace Dune {
                   oldIndices[0] = 2*newIndices[0];
                   oldIndices[1] = 2*newIndices[1];
 
-                  const unsigned int oldIndex = Traits::indicesToIndex(oldIndices,oldLocalCells);
-                  const unsigned int newIndex = Traits::indicesToIndex(newIndices,localCells);
+                  const Index oldIndex = Traits::indicesToIndex(oldIndices,oldLocalCells);
+                  const Index newIndex = Traits::indicesToIndex(newIndices,localCells);
 
                   RF newValue = 0.;
                   newValue += oldData[oldIndex                       ];
@@ -623,7 +616,7 @@ namespace Dune {
         {
           RF sum = 0., mySum = 0.;
 
-          for (unsigned int i = 0; i < localDomainSize; ++i)
+          for (Index i = 0; i < localDomainSize; ++i)
             mySum += std::abs(dataVector[i]);
 
           MPI_Allreduce(&mySum,&sum,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
@@ -637,7 +630,7 @@ namespace Dune {
         {
           RF max = 0., myMax = 0.;
 
-          for (unsigned int i = 0; i < localDomainSize; ++i)
+          for (Index i = 0; i < localDomainSize; ++i)
             myMax = std::max(myMax, std::abs(dataVector[i]));
 
           MPI_Allreduce(&myMax,&max,1,MPI_DOUBLE,MPI_MAX,(*traits).comm);
@@ -650,7 +643,7 @@ namespace Dune {
           const RF factor = std::pow(2.*3.14159,-(dim/2.));
           RF distSquared;
 
-          for (unsigned int i = 0; i < localDomainSize; i++)
+          for (Index i = 0; i < localDomainSize; i++)
           {
             Traits::indexToIndices(i,cellIndices,localCells);
             Traits::indicesToCoords(cellIndices,localOffset,location);
@@ -693,42 +686,38 @@ namespace Dune {
           MPI_Request request;
           MPI_Status status;
 
-          unsigned int numSlices = procPerDim[0]*localDomainSize/localCells[0];
-          unsigned int sliceSize = localDomainSize/numSlices;
+          Index numSlices = procPerDim[0]*localDomainSize/localCells[0];
+          Index sliceSize = localDomainSize/numSlices;
 
           if (dim == 3)
           {
-            unsigned int px = procPerDim[0];
-            unsigned int py = procPerDim[1];
-            unsigned int ny = localCells[dim-2];
-            unsigned int nz = localCells[dim-1];
-            unsigned int dy = ny/py;
+            Index px = procPerDim[0];
+            Index py = procPerDim[1];
+            Index ny = localCells[dim-2];
+            Index nz = localCells[dim-1];
+            Index dy = ny/py;
 
-            for (unsigned int i = 0; i < numSlices; i++)
+            for (Index i = 0; i < numSlices; i++)
             {
-              unsigned int term1 = (i%px) * (dy*nz);
-              unsigned int term2 = ((i/(dy*px)*dy)%ny) * (nz*px);
-              unsigned int term3 = (i/(ny*px)) * dy;
-              unsigned int term4 = (i/px) % dy;
+              Index term1 = (i%px) * (dy*nz);
+              Index term2 = ((i/(dy*px)*dy)%ny) * (nz*px);
+              Index term3 = (i/(ny*px)) * dy;
+              Index term4 = (i/px) % dy;
 
-              unsigned int iNew = term1 + term2 + term3 + term4;
+              Index iNew = term1 + term2 + term3 + term4;
 
-              for (unsigned int j = 0; j < sliceSize; j++)
-              {
+              for (Index j = 0; j < sliceSize; j++)
                 resorted[iNew * sliceSize + j] = dataVector[i * sliceSize + j];
-              }
             }
           }
           else if (dim == 2)
           {
-            for (unsigned int i = 0; i < numSlices; i++)
+            for (Index i = 0; i < numSlices; i++)
             {
-              unsigned int iNew = i/procPerDim[0] + (i%procPerDim[0])*localCells[dim-1];
+              const Index iNew = i/procPerDim[0] + (i%procPerDim[0])*localCells[dim-1];
 
-              for (unsigned int j = 0; j < sliceSize; j++)
-              {
+              for (Index j = 0; j < sliceSize; j++)
                 resorted[iNew * sliceSize + j] = dataVector[i * sliceSize + j];
-              }
             }
           }
           else
@@ -789,41 +778,38 @@ namespace Dune {
             MPI_Recv (&(resorted  [i*localDomainSize/numComms]), localDomainSize/numComms,
                 MPI_DOUBLE, (rank/numComms)*numComms + i, 0, (*traits).comm, &status);
 
-          unsigned int numSlices = procPerDim[0]*localDomainSize/localCells[0];
-          unsigned int sliceSize = localDomainSize/numSlices;
+          Index numSlices = procPerDim[0]*localDomainSize/localCells[0];
+          Index sliceSize = localDomainSize/numSlices;
 
           if (dim == 3)
           {
-            for (unsigned int i = 0; i < numSlices; i++)
+            for (Index i = 0; i < numSlices; i++)
             {
-              unsigned int px = procPerDim[0];
-              unsigned int py = procPerDim[1];
-              unsigned int ny = localCells[dim-2];
-              unsigned int nz = localCells[dim-1];
-              unsigned int dy = ny/py;
+              Index px = procPerDim[0];
+              Index py = procPerDim[1];
+              Index ny = localCells[dim-2];
+              Index nz = localCells[dim-1];
+              Index dy = ny/py;
 
-              unsigned int term1 = (i%px) * (dy*nz);
-              unsigned int term2 = ((i/(dy*px)*dy)%ny) * (nz*px);
-              unsigned int term3 = (i/(ny*px)) * dy;
-              unsigned int term4 = (i/px) % dy;
+              Index term1 = (i%px) * (dy*nz);
+              Index term2 = ((i/(dy*px)*dy)%ny) * (nz*px);
+              Index term3 = (i/(ny*px)) * dy;
+              Index term4 = (i/px) % dy;
 
-              unsigned int iNew = term1 + term2 + term3 + term4;
+              Index iNew = term1 + term2 + term3 + term4;
 
-              for (unsigned int j = 0; j < sliceSize; j++)
-              {
+              for (Index j = 0; j < sliceSize; j++)
                 dataVector[i * sliceSize + j] = resorted[iNew * sliceSize + j];
-              }
             }
           }
           else if (dim == 2)
           {
-            for (unsigned int i = 0; i < numSlices; i++)
+            for (Index i = 0; i < numSlices; i++)
             {
-              unsigned int iNew = i/procPerDim[0] + (i%procPerDim[0])*localCells[dim-1];
-              for (unsigned int j = 0; j < sliceSize; j++)
-              {
+              Index iNew = i/procPerDim[0] + (i%procPerDim[0])*localCells[dim-1];
+
+              for (Index j = 0; j < sliceSize; j++)
                 dataVector[i * sliceSize + j] = resorted[iNew * sliceSize + j];
-              }
             }
           }
           else
@@ -844,8 +830,8 @@ namespace Dune {
           {
             for (unsigned int i = 0; i < dim; i++)
             {
-              const unsigned int iNext     = (i+1)%dim;
-              const unsigned int iNextNext = (i+2)%dim;
+              const Index iNext     = (i+1)%dim;
+              const Index iNextNext = (i+2)%dim;
               for (evalIndices[iNext] = 0; evalIndices[iNext] < localEvalCells[iNext]; evalIndices[iNext]++)
               {
                 for (evalIndices[iNextNext] = 0;
@@ -878,15 +864,15 @@ namespace Dune {
           {
             for (unsigned int i = 0; i < dim; i++)
             {
-              const unsigned int iNext = (i+1)%dim;
+              const Index iNext = (i+1)%dim;
               for (evalIndices[iNext] = 0; evalIndices[iNext] < localEvalCells[iNext]; evalIndices[iNext]++)
               {
                 evalIndices[i] = 0;
-                const unsigned int index  = Traits::indicesToIndex(evalIndices,localEvalCells);
+                const Index index  = Traits::indicesToIndex(evalIndices,localEvalCells);
                 extract[2*i  ][evalIndices[iNext]] = evalVector[index];
 
                 evalIndices[i] = localEvalCells[i] - 1;
-                const unsigned int index2 = Traits::indicesToIndex(evalIndices,localEvalCells);
+                const Index index2 = Traits::indicesToIndex(evalIndices,localEvalCells);
                 extract[2*i+1][evalIndices[iNext]] = evalVector[index2];
               }
             }

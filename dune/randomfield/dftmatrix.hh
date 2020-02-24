@@ -26,7 +26,10 @@ namespace Dune {
       {
         using StochasticPartType = StochasticPart<Traits>;
 
-        using RF = typename Traits::RF;
+        using RF      = typename Traits::RF;
+        using Index   = typename Traits::Index;
+        using Indices = typename Traits::Indices;
+
         enum {dim = Traits::dim};
 
         const std::shared_ptr<Traits> traits;
@@ -41,13 +44,13 @@ namespace Dune {
 
         ptrdiff_t allocLocal, localN0, local0Start;
 
-        std::array<unsigned int,dim> localCells;
-        unsigned int                 localDomainSize;
-        std::array<unsigned int,dim> extendedCells;
-        unsigned int                 extendedDomainSize;
-        std::array<unsigned int,dim> localExtendedCells;
-        std::array<unsigned int,dim> localExtendedOffset;
-        unsigned int                 localExtendedDomainSize;
+        Indices localCells;
+        Index   localDomainSize;
+        Indices extendedCells;
+        Index   extendedDomainSize;
+        Indices localExtendedCells;
+        Indices localExtendedOffset;
+        Index   localExtendedDomainSize;
 
         mutable fftw_complex* fftTransformedMatrix;
 
@@ -132,7 +135,7 @@ namespace Dune {
           StochasticPartType output(input);
 
           bool fieldZero = true;
-          for (unsigned int i = 0; i < localDomainSize; i++)
+          for (Index i = 0; i < localDomainSize; i++)
             if (std::abs(input.dataVector[i]) > 1e-10)
               fieldZero = false;
 
@@ -170,7 +173,7 @@ namespace Dune {
 
           RF lambda = 0.;
 
-          for (unsigned int index = 0; index < localExtendedDomainSize; index++)
+          for (Index index = 0; index < localExtendedDomainSize; index++)
           {
             lambda = std::sqrt(std::abs(fftTransformedMatrix[index][0]) / extendedDomainSize);
 
@@ -201,7 +204,7 @@ namespace Dune {
           std::default_random_engine generator(seed);
           std::normal_distribution<RF> normalDist(0.,1.);
 
-          for (unsigned int index = 0; index < localDomainSize; index++)
+          for (Index index = 0; index < localDomainSize; index++)
             stochasticPart.dataVector[index] = normalDist(generator);
 
           stochasticPart.evalValid = false;
@@ -212,7 +215,7 @@ namespace Dune {
          */
         void setVarianceAsField(StochasticPartType& stochasticPart) const
         {
-          for (unsigned int index = 0; index < localDomainSize; index++)
+          for (Index index = 0; index < localDomainSize; index++)
             stochasticPart.dataVector[index] = variance;
 
           stochasticPart.evalValid = false;
@@ -258,7 +261,7 @@ namespace Dune {
           unsigned int myNegative = 0;
           unsigned int mySmallNegative = 0;
           RF mySmallest = std::numeric_limits<RF>::max();
-          for (unsigned int index = 0; index < localExtendedDomainSize; index++)
+          for (Index index = 0; index < localExtendedDomainSize; index++)
           {
             if (fftTransformedMatrix[index][0] < mySmallest)
               mySmallest = fftTransformedMatrix[index][0];
@@ -321,10 +324,10 @@ namespace Dune {
           {
             GeometryMatrix matrix((*traits).config);
 
-            const Covariance             covariance;
-            std::array<RF,dim>           coord;
-            std::array<RF,dim>           transCoord;
-            std::array<unsigned int,dim> indices;
+            const Covariance   covariance;
+            std::array<RF,dim> coord;
+            std::array<RF,dim> transCoord;
+            Indices            indices;
 
             for (unsigned int index = 0; index < localExtendedDomainSize; index++)
             {
@@ -381,7 +384,7 @@ namespace Dune {
             fftw_execute(plan_backward);
             fftw_destroy_plan(plan_backward);
 
-            for (unsigned int i = 0; i < localExtendedDomainSize; i++)
+            for (Index i = 0; i < localExtendedDomainSize; i++)
             {
               vector[i][0] /= extendedDomainSize;
               vector[i][1] /= extendedDomainSize;
@@ -505,7 +508,7 @@ namespace Dune {
          */
         void fieldToExtendedField(std::vector<RF>& field, fftw_complex* extendedField) const
         {
-          for(unsigned int i = 0; i < localExtendedDomainSize; i++)
+          for(Index i = 0; i < localExtendedDomainSize; i++)
           {
             extendedField[i][0] = 0.;
             extendedField[i][1] = 0.;
@@ -513,11 +516,11 @@ namespace Dune {
 
           if (commSize == 1)
           {
-            std::array<unsigned int,dim> indices;
-            for (unsigned int index = 0; index < localDomainSize; index++)
+            Indices indices;
+            for (Index index = 0; index < localDomainSize; index++)
             {
               Traits::indexToIndices(index,indices,localCells);
-              const unsigned int extIndex = Traits::indicesToIndex(indices,localExtendedCells);
+              const Index extIndex = Traits::indicesToIndex(indices,localExtendedCells);
 
               extendedField[extIndex][0] = field[index];
             }
@@ -534,7 +537,7 @@ namespace Dune {
             {
               MPI_Status status;
               std::vector<RF> localCopy(localDomainSize);
-              std::array<unsigned int,dim> indices;
+              Indices indices;
 
               unsigned int receiveSize = std::min(embeddingFactor, commSize - rank*embeddingFactor);
               for (unsigned int i = 0; i < receiveSize; i++)
@@ -542,11 +545,11 @@ namespace Dune {
                 MPI_Recv(&(localCopy[0]), localDomainSize, MPI_DOUBLE,
                     rank*embeddingFactor + i,   0, (*traits).comm, &status);
 
-                for (unsigned int index = 0; index < localDomainSize; index++)
+                for (Index index = 0; index < localDomainSize; index++)
                 {
                   Traits::indexToIndices(index,indices,localCells);
-                  const unsigned int offset =  i * localExtendedDomainSize/embeddingFactor;
-                  const unsigned int extIndex
+                  const Index offset =  i * localExtendedDomainSize/embeddingFactor;
+                  const Index extIndex
                     = Traits::indicesToIndex(indices,localExtendedCells) + offset;
 
                   extendedField[extIndex][0] = localCopy[index];
@@ -563,18 +566,16 @@ namespace Dune {
          */
         void extendedFieldToField(std::vector<RF>& field, fftw_complex* extendedField) const
         {
-          for (unsigned int i = 0; i < localDomainSize; i++)
-          {
+          for (Index i = 0; i < localDomainSize; i++)
             field[i] = 0.;
-          }
 
           if (commSize == 1)
           {
-            std::array<unsigned int,dim> indices;
-            for (unsigned int index = 0; index < localDomainSize; index++)
+            Indices indices;
+            for (Index index = 0; index < localDomainSize; index++)
             {
               Traits::indexToIndices(index,indices,localCells);
-              const unsigned int extIndex = Traits::indicesToIndex(indices,localExtendedCells);
+              const Index extIndex = Traits::indicesToIndex(indices,localExtendedCells);
 
               field[index] = extendedField[extIndex][0];
             }
@@ -591,16 +592,16 @@ namespace Dune {
               unsigned int sendSize = std::min(embeddingFactor, commSize - rank*embeddingFactor);
               localCopy.resize(sendSize);
               request.resize(sendSize);
-              std::array<unsigned int,dim> indices;
+              Indices indices;
 
               for (unsigned int i = 0; i < sendSize; i++)
               {
                 localCopy[i].resize(localDomainSize);
-                for (unsigned int index = 0; index < localDomainSize; index++)
+                for (Index index = 0; index < localDomainSize; index++)
                 {
                   Traits::indexToIndices(index,indices,localCells);
-                  const unsigned int offset =  i * localExtendedDomainSize/embeddingFactor;
-                  const unsigned int extIndex = Traits::indicesToIndex(indices,localExtendedCells);
+                  const Index offset =  i * localExtendedDomainSize/embeddingFactor;
+                  const Index extIndex = Traits::indicesToIndex(indices,localExtendedCells);
 
                   localCopy[i][index] = extendedField[extIndex + offset][0];
                 }
@@ -636,7 +637,7 @@ namespace Dune {
           fieldToExtendedField(input,extendedField);
           forwardTransform(extendedField);
 
-          for (unsigned int i = 0; i < localExtendedDomainSize; i++)
+          for (Index i = 0; i < localExtendedDomainSize; i++)
           {
             extendedField[i][0] *= fftTransformedMatrix[i][0];
             extendedField[i][1] *= fftTransformedMatrix[i][0];
@@ -662,7 +663,7 @@ namespace Dune {
           fieldToExtendedField(input,extendedField);
           forwardTransform(extendedField);
 
-          for (unsigned int i = 0; i < localExtendedDomainSize; i++)
+          for (Index i = 0; i < localExtendedDomainSize; i++)
           {
             extendedField[i][0] *= std::sqrt(fftTransformedMatrix[i][0]);
             extendedField[i][1] *= std::sqrt(fftTransformedMatrix[i][0]);
@@ -688,7 +689,7 @@ namespace Dune {
           fieldToExtendedField(input,extendedField);
           forwardTransform(extendedField);
 
-          for (unsigned int i = 0; i < localExtendedDomainSize; i++)
+          for (Index i = 0; i < localExtendedDomainSize; i++)
           {
             extendedField[i][0] /= fftTransformedMatrix[i][0];
             extendedField[i][1] /= fftTransformedMatrix[i][0];
