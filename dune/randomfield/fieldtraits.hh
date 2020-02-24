@@ -51,7 +51,8 @@ namespace Dune {
             if (i > 0) // test all subdivisions recursively
             {
               for (unsigned int k = 1; k <= (unsigned int)P; k++)
-                if (P%k == 0)
+                // dune-randomfield needs exact divisibility
+                if (P%k == 0 && size[i]%k == 0)
                 {
                   // P divisible by k
                   trydims[i] = k;
@@ -60,24 +61,28 @@ namespace Dune {
             }
             else
             {
-              // found a possible combination
-              trydims[0] = P;
-
-              // check for optimality
-              double m = -1.;
-
-              for (unsigned int k = 0; k < dim; k++)
+              // dune-randomfield needs exact divisibility
+              if (size[0]%P == 0)
               {
-                double mm = ((double)size[k])/((double)trydims[k]);
-                if (fmod((double)size[k],(double)trydims[k]) > 0.0001)
-                  mm *= 3;
-                if ( mm > m )
-                  m = mm;
-              }
-              if (m < opt)
-              {
-                opt = m;
-                dims = trydims;
+                // found a possible combination
+                trydims[0] = P;
+
+                // check for optimality
+                double m = -1.;
+
+                for (unsigned int k = 0; k < dim; k++)
+                {
+                  double mm = ((double)size[k])/((double)trydims[k]);
+                  if (fmod((double)size[k],(double)trydims[k]) > 0.0001)
+                    mm *= 3;
+                  if ( mm > m )
+                    m = mm;
+                }
+                if (m < opt)
+                {
+                  opt = m;
+                  dims = trydims;
+                }
               }
             }
           }
