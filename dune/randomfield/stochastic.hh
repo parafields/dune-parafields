@@ -52,6 +52,8 @@ namespace Dune {
         mutable Indices evalIndices;
         mutable Indices countIndices;
 
+        enum {toEval, fromEval, toOverlap};
+
         public:
 
         /**
@@ -683,9 +685,6 @@ namespace Dune {
             return;
           }
 
-          MPI_Request request;
-          MPI_Status status;
-
           Index numSlices = procPerDim[0]*localDomainSize/localCells[0];
           Index sliceSize = localDomainSize/numSlices;
 
@@ -730,16 +729,17 @@ namespace Dune {
             numComms = procPerDim[0];
           else
             DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
+          std::vector<MPI_Request> request(numComms);
 
           for (unsigned int i = 0; i < numComms; i++)
             MPI_Isend(&(resorted  [i*localDomainSize/numComms]), localDomainSize/numComms,
-                MPI_DOUBLE, (rank/numComms)*numComms + i, 0, (*traits).comm, &request);
+                MPI_DOUBLE, (rank/numComms)*numComms + i, toEval, (*traits).comm, &request[i]);
 
           for (unsigned int i = 0; i < numComms; i++)
             MPI_Recv (&(evalVector[i*localDomainSize/numComms]), localDomainSize/numComms,
-                MPI_DOUBLE, (rank/numComms)*numComms + i, 0, (*traits).comm, &status);
+                MPI_DOUBLE, (rank/numComms)*numComms + i, toEval, (*traits).comm, MPI_STATUS_IGNORE);
 
-          MPI_Barrier((*traits).comm);
+          MPI_Waitall(request.size(),&(request[0]),MPI_STATUSES_IGNORE);
 
           exchangeOverlap();
 
@@ -759,9 +759,6 @@ namespace Dune {
 
           std::vector<RF> resorted(dataVector.size(),0.);
 
-          MPI_Request request;
-          MPI_Status status;
-
           unsigned int numComms;
           if (dim == 3)
             numComms = procPerDim[0]*procPerDim[1];
@@ -769,14 +766,15 @@ namespace Dune {
             numComms = procPerDim[0];
           else
             DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
+          std::vector<MPI_Request> request(numComms);
 
           for (unsigned int i = 0; i < numComms; i++)
             MPI_Isend(&(evalVector[i*localDomainSize/numComms]), localDomainSize/numComms,
-                MPI_DOUBLE, (rank/numComms)*numComms + i, 0, (*traits).comm, &request);
+                MPI_DOUBLE, (rank/numComms)*numComms + i, fromEval, (*traits).comm, &request[i]);
 
           for (unsigned int i = 0; i < numComms; i++)
             MPI_Recv (&(resorted  [i*localDomainSize/numComms]), localDomainSize/numComms,
-                MPI_DOUBLE, (rank/numComms)*numComms + i, 0, (*traits).comm, &status);
+                MPI_DOUBLE, (rank/numComms)*numComms + i, fromEval, (*traits).comm, MPI_STATUS_IGNORE);
 
           Index numSlices = procPerDim[0]*localDomainSize/localCells[0];
           Index sliceSize = localDomainSize/numSlices;
@@ -815,7 +813,7 @@ namespace Dune {
           else
             DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
 
-          MPI_Barrier((*traits).comm);
+          MPI_Waitall(request.size(),&(request[0]),MPI_STATUSES_IGNORE);
         }
 
         /**
@@ -891,23 +889,22 @@ namespace Dune {
           else
             DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
 
-          MPI_Request request;
-          MPI_Status status;
+          std::vector<MPI_Request> request(2*dim);
 
           for (unsigned int i = 0; i < dim; i++)
           {
             MPI_Isend(&(extract[2*i  ][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE,
-                neighbor[2*i  ], 0, (*traits).comm, &request);
+                neighbor[2*i  ], toOverlap, (*traits).comm, &request[2*i]);
             MPI_Recv (&(overlap[2*i+1][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE,
-                neighbor[2*i+1], 0, (*traits).comm, &status);
+                neighbor[2*i+1], toOverlap, (*traits).comm, MPI_STATUS_IGNORE);
 
             MPI_Isend(&(extract[2*i+1][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE,
-                neighbor[2*i+1], 0, (*traits).comm, &request);
+                neighbor[2*i+1], toOverlap, (*traits).comm, &request[2*i+1]);
             MPI_Recv (&(overlap[2*i  ][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE,
-                neighbor[2*i  ], 0, (*traits).comm, &status);
+                neighbor[2*i  ], toOverlap, (*traits).comm, MPI_STATUS_IGNORE);
           }
 
-          MPI_Barrier((*traits).comm);
+          MPI_Waitall(request.size(),&(request[0]),MPI_STATUSES_IGNORE);
         }
 
       };

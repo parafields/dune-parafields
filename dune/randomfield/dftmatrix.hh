@@ -55,6 +55,8 @@ namespace Dune {
         mutable fftw_complex*    fftTransformedMatrix;
         mutable std::vector<RF>* spareField;
 
+        enum {toExtended, fromExtended};
+
         public:
 
         DFTMatrix<Traits>(const std::shared_ptr<Traits>& traits_)
@@ -556,11 +558,10 @@ namespace Dune {
             MPI_Request request;
 
             MPI_Isend(&(field[0]), localDomainSize, MPI_DOUBLE,
-                rank/embeddingFactor, 0, (*traits).comm, &request);
+                rank/embeddingFactor, toExtended, (*traits).comm, &request);
 
             if (rank*embeddingFactor < commSize)
             {
-              MPI_Status status;
               std::vector<RF> localCopy(localDomainSize);
               Indices indices;
 
@@ -568,7 +569,7 @@ namespace Dune {
               for (Index i = 0; i < receiveSize; i++)
               {
                 MPI_Recv(&(localCopy[0]), localDomainSize, MPI_DOUBLE,
-                    rank*embeddingFactor + i,   0, (*traits).comm, &status);
+                    rank*embeddingFactor + i, toExtended, (*traits).comm, MPI_STATUS_IGNORE);
 
                 for (Index index = 0; index < localDomainSize; index++)
                 {
@@ -582,7 +583,7 @@ namespace Dune {
               }
             }
 
-            MPI_Barrier((*traits).comm);
+            MPI_Wait(&request,MPI_STATUS_IGNORE);
           }
         }
 
@@ -612,18 +613,18 @@ namespace Dune {
           else
           {
             const int embeddingFactor = (*traits).embeddingFactor;
-            MPI_Status status;
-            std::vector<std::vector<RF>> localCopy;
-            std::vector<MPI_Request>     request;
 
             if (rank*embeddingFactor < commSize)
             {
-              unsigned int sendSize = std::min(embeddingFactor, commSize - rank*embeddingFactor);
+              std::vector<std::vector<RF>> localCopy;
+              std::vector<MPI_Request>     request;
+
+              Index sendSize = std::min(embeddingFactor, commSize - rank*embeddingFactor);
               localCopy.resize(sendSize);
               request.resize(sendSize);
               Indices indices;
 
-              for (unsigned int i = 0; i < sendSize; i++)
+              for (Index i = 0; i < sendSize; i++)
               {
                 localCopy[i].resize(localDomainSize);
                 for (Index index = 0; index < localDomainSize; index++)
@@ -636,19 +637,19 @@ namespace Dune {
                 }
 
                 MPI_Isend(&(localCopy[i][0]), localDomainSize, MPI_DOUBLE,
-                    rank*embeddingFactor + i, 0, (*traits).comm, &(request[i]));
+                    rank*embeddingFactor + i, fromExtended, (*traits).comm, &(request[i]));
               }
 
               MPI_Recv(&(field[0]), localDomainSize, MPI_DOUBLE,
-                  rank/embeddingFactor, 0, (*traits).comm, &status);
+                  rank/embeddingFactor, fromExtended, (*traits).comm, MPI_STATUS_IGNORE);
+
+              MPI_Waitall(request.size(),&(request[0]),MPI_STATUSES_IGNORE);
             }
             else
             {
               MPI_Recv(&(field[0]), localDomainSize, MPI_DOUBLE,
-                  rank/embeddingFactor, 0, (*traits).comm, &status);
+                  rank/embeddingFactor, fromExtended, (*traits).comm, MPI_STATUS_IGNORE);
             }
-
-            MPI_Barrier((*traits).comm);
           }
         }
 
