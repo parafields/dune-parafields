@@ -52,15 +52,16 @@ namespace Dune {
         Indices localExtendedOffset;
         Index   localExtendedDomainSize;
 
-        mutable fftw_complex* fftTransformedMatrix;
+        mutable fftw_complex*    fftTransformedMatrix;
+        mutable std::vector<RF>* spareField;
 
         public:
 
         DFTMatrix<Traits>(const std::shared_ptr<Traits>& traits_)
           :
             traits(traits_),
-            covariance(),
-            fftTransformedMatrix(nullptr)
+            fftTransformedMatrix(nullptr),
+            spareField(nullptr)
         {
           update();
         }
@@ -69,6 +70,8 @@ namespace Dune {
         {
           if (fftTransformedMatrix != nullptr)
             fftw_free(fftTransformedMatrix);
+          if (spareField != nullptr)
+            delete spareField;
         }
 
         /*
@@ -168,35 +171,54 @@ namespace Dune {
           std::normal_distribution<RF> normalDist(0.,1.);
 #endif // HAVE_GSL
 
-          fftw_complex* extendedField = fftw_alloc_complex(allocLocal);
-
-          RF lambda = 0.;
-
-          for (Index index = 0; index < localExtendedDomainSize; index++)
+          if (!spareField)
           {
-            lambda = std::sqrt(std::abs(fftTransformedMatrix[index][0]) / extendedDomainSize);
+            if ((*traits).verbose && rank == 0)
+              std::cout << "generating new fields" << std::endl;
+            fftw_complex* extendedField = fftw_alloc_complex(allocLocal);
+
+            RF lambda = 0.;
+
+            for (Index index = 0; index < localExtendedDomainSize; index++)
+            {
+              lambda = std::sqrt(std::abs(fftTransformedMatrix[index][0]) * extendedDomainSize);
 
 #if HAVE_GSL
-            extendedField[index][0] = lambda * gsl_ran_gaussian_ziggurat(gslRng,1.);
-            extendedField[index][1] = lambda * gsl_ran_gaussian_ziggurat(gslRng,1.);
+              extendedField[index][0] = lambda * gsl_ran_gaussian_ziggurat(gslRng,1.);
+              extendedField[index][1] = lambda * gsl_ran_gaussian_ziggurat(gslRng,1.);
 #else
-            extendedField[index][0] = lambda * normalDist(generator);
-            extendedField[index][1] = lambda * normalDist(generator);
+              extendedField[index][0] = lambda * normalDist(generator);
+              extendedField[index][1] = lambda * normalDist(generator);
 #endif // HAVE_GSL
+            }
+
+            backwardTransform(extendedField);
+
+            extendedFieldToField(stochasticPart.dataVector,extendedField,0);
+            stochasticPart.evalValid = false;
+
+            spareField = new std::vector<RF>(stochasticPart.dataVector.size());
+            extendedFieldToField(*spareField,extendedField,1);
+
+            fftw_free(extendedField);
           }
-
-          forwardTransform(extendedField);
-
-          extendedFieldToField(stochasticPart.dataVector,extendedField);
-          stochasticPart.evalValid = false;
-
-          fftw_free(extendedField);
+          else
+          {
+            if ((*traits).verbose && rank == 0)
+              std::cout << "using spare field" << std::endl;
+            stochasticPart.dataVector = *spareField;
+            delete spareField;
+            spareField = nullptr;
+          }
         }
 
         /**
          * @brief Generate uncorrelated random field (i.e. noise)
          */
-        void generateUncorrelatedField(unsigned int seed, StochasticPartType& stochasticPart) const
+        void generateUncorrelatedField(
+            unsigned int seed,
+            StochasticPartType& stochasticPart
+            ) const
         {
           // initialize pseudo-random generator
           seed += rank; // different seed for each processor
@@ -347,7 +369,7 @@ namespace Dune {
           }
 
         /**
-         * @brief Perform a forward Fourier tranform of a vector
+         * @brief Perform a forward Fourier transform of a vector
          */
         template<typename V>
           void forwardTransform(V& vector) const
@@ -393,7 +415,11 @@ namespace Dune {
         /**
          * @brief Inner Conjugate Gradients method for multiplication with inverse
          */
-        void innerCG(std::vector<RF>& iter, const std::vector<RF>& solution, bool precondition = true) const
+        void innerCG(
+            std::vector<RF>& iter,
+            const std::vector<RF>& solution,
+            bool precondition = true
+            ) const
         {
           std::vector<RF> tempSolution = solution;
           std::vector<RF> matrixTimesSolution(iter.size());
@@ -538,8 +564,8 @@ namespace Dune {
               std::vector<RF> localCopy(localDomainSize);
               Indices indices;
 
-              unsigned int receiveSize = std::min(embeddingFactor, commSize - rank*embeddingFactor);
-              for (unsigned int i = 0; i < receiveSize; i++)
+              Index receiveSize = std::min(embeddingFactor, commSize - rank*embeddingFactor);
+              for (Index i = 0; i < receiveSize; i++)
               {
                 MPI_Recv(&(localCopy[0]), localDomainSize, MPI_DOUBLE,
                     rank*embeddingFactor + i,   0, (*traits).comm, &status);
@@ -563,7 +589,11 @@ namespace Dune {
         /**
          * @brief Restrict an extended random field to the original domain
          */
-        void extendedFieldToField(std::vector<RF>& field, fftw_complex* extendedField) const
+        void extendedFieldToField(
+            std::vector<RF>& field,
+            fftw_complex* extendedField,
+            unsigned int component = 0
+            ) const
         {
           for (Index i = 0; i < localDomainSize; i++)
             field[i] = 0.;
@@ -576,7 +606,7 @@ namespace Dune {
               Traits::indexToIndices(index,indices,localCells);
               const Index extIndex = Traits::indicesToIndex(indices,localExtendedCells);
 
-              field[index] = extendedField[extIndex][0];
+              field[index] = extendedField[extIndex][component];
             }
           }
           else
@@ -602,7 +632,7 @@ namespace Dune {
                   const Index offset =  i * localExtendedDomainSize/embeddingFactor;
                   const Index extIndex = Traits::indicesToIndex(indices,localExtendedCells);
 
-                  localCopy[i][index] = extendedField[extIndex + offset][0];
+                  localCopy[i][index] = extendedField[extIndex + offset][component];
                 }
 
                 MPI_Isend(&(localCopy[i][0]), localDomainSize, MPI_DOUBLE,
