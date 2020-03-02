@@ -15,7 +15,7 @@
 #include<dune/randomfield/fieldtraits.hh>
 #include<dune/randomfield/trend.hh>
 #include<dune/randomfield/stochastic.hh>
-#include<dune/randomfield/dftmatrix.hh>
+#include<dune/randomfield/matrix.hh>
 #include<dune/randomfield/mutators.hh>
 #include<dune/randomfield/legacyvtk.hh>
 
@@ -23,7 +23,7 @@ namespace Dune {
   namespace RandomField {
 
     /**
-     * @brief Gaussian random field in 1D, 2D or 3D
+     * @brief Gaussian random field in arbitrary dimensions
      */
     template<typename GridTraits, template<typename> class IsoMatrix = DFTMatrix,
       template<typename> class AnisoMatrix = DFTMatrix>
@@ -916,7 +916,7 @@ namespace Dune {
         };
 
     /**
-     * @brief List of Gaussian random fields in 1D, 2D or 3D
+     * @brief List of Gaussian random fields in arbitrary dimensions
      */
     template<typename GridTraits, template<typename> class IsoMatrix = DFTMatrix,
       template<typename> class AnisoMatrix = DFTMatrix,

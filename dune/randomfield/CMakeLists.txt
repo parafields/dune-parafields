@@ -1,7 +1,13 @@
+add_subdirectory(backends)
+
 #install headers
-install(FILES fieldtraits.hh
+install(FILES covariance.hh
+              fieldtraits.hh
               io.hh
+              legacyvtk.hh
               matrix.hh
+              mutators.hh
+              pngreader.hh
               randomfield.hh
               stochastic.hh
               trend.hh

@@ -134,8 +134,16 @@ namespace Dune {
           friend TrendComponent<ThisType>;
           friend ImageComponent<ThisType>;
           friend StochasticPart<ThisType>;
+
           friend IsoMatrix<ThisType>;
           friend AnisoMatrix<ThisType>;
+          friend typename IsoMatrix<ThisType>::MatrixBackendType;
+          friend typename IsoMatrix<ThisType>::FieldBackendType;
+          friend typename IsoMatrix<ThisType>::RNGBackendType;
+          friend typename AnisoMatrix<ThisType>::MatrixBackendType;
+          friend typename AnisoMatrix<ThisType>::FieldBackendType;
+          friend typename AnisoMatrix<ThisType>::RNGBackendType;
+
           friend RandomField<GridTraits,IsoMatrix,AnisoMatrix>;
 
           // MPI constants
