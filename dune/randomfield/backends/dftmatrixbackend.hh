@@ -149,6 +149,9 @@ namespace Dune {
           fftw_plan plan_forward = fftw_mpi_plan_dft(dim,n,matrixData,
               matrixData,(*traits).comm,FFTW_FORWARD,flags);
 
+          if (plan_forward == nullptr)
+            DUNE_THROW(Dune::Exception, "failed to create forward plan");
+
           fftw_execute(plan_forward);
           fftw_destroy_plan(plan_forward);
 
@@ -182,6 +185,9 @@ namespace Dune {
 
           fftw_plan plan_backward = fftw_mpi_plan_dft(dim,n,matrixData,
               matrixData,(*traits).comm,FFTW_BACKWARD,flags);
+
+          if (plan_backward == nullptr)
+            DUNE_THROW(Dune::Exception, "failed to create backward plan");
 
           fftw_execute(plan_backward);
           fftw_destroy_plan(plan_backward);
