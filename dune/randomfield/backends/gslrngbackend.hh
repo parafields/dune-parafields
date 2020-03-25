@@ -29,9 +29,6 @@ namespace Dune {
 
         GSLRNGBackend<Traits>(const std::shared_ptr<Traits>& traits)
         {
-          if ((*traits).rank == 0)
-            std::cout << "GSLRNGBackend" << std::endl;
-
           const std::string& rng
             = (*traits).config.template get<std::string>("random.rng","twister");
           if (rng == "twister")
@@ -40,9 +37,11 @@ namespace Dune {
             generator = gsl_rng_alloc(gsl_rng_ranlxd1);
           else if (rng == "tausworthe")
             generator = gsl_rng_alloc(gsl_rng_taus2);
+          else if (rng == "gfsr4")
+            generator = gsl_rng_alloc(gsl_rng_gfsr4);
           else
             DUNE_THROW(Dune::Exception,
-                "GSLRNGBackend accepts \"twister\", \"ranlux\" and \"tausworthe\" as RNGs");
+                "GSLRNGBackend accepts \"twister\", \"ranlux\", \"tausworthe\" and \"gfsr4\"as RNGs");
 
           const std::string& dist
             = (*traits).config.template get<std::string>("random.distribution","ziggurat");
