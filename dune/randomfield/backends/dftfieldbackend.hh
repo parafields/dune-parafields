@@ -69,13 +69,13 @@ namespace Dune {
           localExtendedDomainSize = (*traits).localExtendedDomainSize;
           transposed              = (*traits).transposed;
 
+          getDFTData();
+
           if (fieldData != nullptr)
           {
             fftw_free(fieldData);
             fieldData = nullptr;
           }
-
-          getDFTData();
         }
 
         /**
@@ -174,10 +174,18 @@ namespace Dune {
           fftw_destroy_plan(plan_backward);
         }
 
-        void set(Index i, RF lambda, RF rand1, RF rand2)
+        /**
+         * @brief Whether this kind of backend produces two fields at once
+         */
+        bool hasSpareField() const
         {
-          fieldData[i][0] = lambda * rand1;
-          fieldData[i][1] = lambda * rand2;
+          return true;
+        }
+
+        void set(Index index, RF lambda, RF rand1, RF rand2)
+        {
+          fieldData[index][0] = lambda * rand1;
+          fieldData[index][1] = lambda * rand2;
         }
 
         void mult(Index i, RF lambda)
@@ -243,11 +251,6 @@ namespace Dune {
           }
         }
 
-        bool hasSpareField() const
-        {
-          return true;
-        }
-
         /**
          * @brief Restrict an extended random field to the original domain
          */
@@ -256,9 +259,6 @@ namespace Dune {
             unsigned int component = 0
             ) const
         {
-          for (Index i = 0; i < localDomainSize; i++)
-            field[i] = 0.;
-
           if (commSize == 1)
           {
             Indices indices;

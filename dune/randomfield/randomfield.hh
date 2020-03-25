@@ -289,7 +289,7 @@ namespace Dune {
                 DUNE_THROW(Dune::Exception,
                     "generation of inconsistent fields prevented, set allowNonWorldComm = true if you really want this");
 
-              if ((*traits).verbose)
+              if ((*traits).verbose && (*traits).rank == 0)
                 std::cout << "generate with seed: " << seed << std::endl;
 
               if (useAnisoMatrix)

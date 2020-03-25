@@ -13,81 +13,6 @@
 namespace Dune {
   namespace RandomField {
 
-    /**
-     * @brief Default load balance strategy, taken from dune-grid to avoid hard dependency
-     */
-    template<long unsigned int dim>
-      class DefaultLoadBalance
-      {
-        public:
-
-          /** @brief Distribute a structured grid across a set of processors
-           *
-           * @param [in] size Number of elements in each coordinate direction, for the entire grid
-           * @param [in] P    Number of processors
-           */
-          void loadbalance(
-              const std::array<int, dim>& size,
-              int P,
-              std::array<int,dim>& dims
-              ) const
-          {
-            double opt = 1e100;
-            std::array<int,dim> trydims;
-
-            optimize_dims(dim-1,size,P,dims,trydims,opt);
-          }
-
-        private:
-
-          void optimize_dims(
-              int i,
-              const std::array<int,dim>& size,
-              int P, std::array<int,dim>& dims,
-              std::array<int,dim>& trydims,
-              double& opt
-              ) const
-          {
-            if (i > 0) // test all subdivisions recursively
-            {
-              for (unsigned int k = 1; k <= (unsigned int)P; k++)
-                // dune-randomfield needs exact divisibility
-                if (P%k == 0 && size[i]%k == 0)
-                {
-                  // P divisible by k
-                  trydims[i] = k;
-                  optimize_dims(i-1,size,P/k,dims,trydims,opt);
-                }
-            }
-            else
-            {
-              // dune-randomfield needs exact divisibility
-              if (size[0]%P == 0)
-              {
-                // found a possible combination
-                trydims[0] = P;
-
-                // check for optimality
-                double m = -1.;
-
-                for (unsigned int k = 0; k < dim; k++)
-                {
-                  double mm = ((double)size[k])/((double)trydims[k]);
-                  if (fmod((double)size[k],(double)trydims[k]) > 0.0001)
-                    mm *= 3;
-                  if ( mm > m )
-                    m = mm;
-                }
-                if (m < opt)
-                {
-                  opt = m;
-                  dims = trydims;
-                }
-              }
-            }
-          }
-      };
-
     // forward declarations
     template<typename Traits> class TrendPart;
     template<typename Traits> class TrendComponent;
@@ -434,6 +359,81 @@ namespace Dune {
           }
 
         };
+
+    /**
+     * @brief Default load balance strategy, taken from dune-grid to avoid hard dependency
+     */
+    template<long unsigned int dim>
+      class DefaultLoadBalance
+      {
+        public:
+
+          /** @brief Distribute a structured grid across a set of processors
+           *
+           * @param [in] size Number of elements in each coordinate direction, for the entire grid
+           * @param [in] P    Number of processors
+           */
+          void loadbalance(
+              const std::array<int, dim>& size,
+              int P,
+              std::array<int,dim>& dims
+              ) const
+          {
+            double opt = 1e100;
+            std::array<int,dim> trydims;
+
+            optimize_dims(dim-1,size,P,dims,trydims,opt);
+          }
+
+        private:
+
+          void optimize_dims(
+              int i,
+              const std::array<int,dim>& size,
+              int P, std::array<int,dim>& dims,
+              std::array<int,dim>& trydims,
+              double& opt
+              ) const
+          {
+            if (i > 0) // test all subdivisions recursively
+            {
+              for (unsigned int k = 1; k <= (unsigned int)P; k++)
+                // dune-randomfield needs exact divisibility
+                if (P%k == 0 && size[i]%k == 0)
+                {
+                  // P divisible by k
+                  trydims[i] = k;
+                  optimize_dims(i-1,size,P/k,dims,trydims,opt);
+                }
+            }
+            else
+            {
+              // dune-randomfield needs exact divisibility
+              if (size[0]%P == 0)
+              {
+                // found a possible combination
+                trydims[0] = P;
+
+                // check for optimality
+                double m = -1.;
+
+                for (unsigned int k = 0; k < dim; k++)
+                {
+                  double mm = ((double)size[k])/((double)trydims[k]);
+                  if (fmod((double)size[k],(double)trydims[k]) > 0.0001)
+                    mm *= 3;
+                  if ( mm > m )
+                    m = mm;
+                }
+                if (m < opt)
+                {
+                  opt = m;
+                  dims = trydims;
+                }
+              }
+            }
+          }
+      };
 
   }
 }

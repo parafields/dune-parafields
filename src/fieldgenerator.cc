@@ -262,7 +262,9 @@ void generateFields(
 
   if (types == "")
   {
-    std::cout << "single field mode" << std::endl;
+    if (helper.rank() == 0)
+      std::cout << "single field mode" << std::endl;
+
     // no types found, config describes single random field
     if (extensions.size() == 1)
       generate<1>(config);
@@ -278,7 +280,9 @@ void generateFields(
   }
   else
   {
-    std::cout << "field list mode" << std::endl;
+    if (helper.rank() == 0)
+      std::cout << "field list mode" << std::endl;
+
     // types declared, config should be for field list
     if (extensions.size() == 1)
       generateList<1>(config);

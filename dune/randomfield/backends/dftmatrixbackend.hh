@@ -24,9 +24,9 @@ namespace Dune {
         ptrdiff_t allocLocal, localN0, local0Start;
 
         Indices extendedCells;
+        Index   extendedDomainSize;
         Indices localExtendedCells;
         Indices localExtendedOffset;
-        Index   extendedDomainSize;
         Index   localExtendedDomainSize;
 
         mutable fftw_complex* matrixData;
@@ -59,9 +59,9 @@ namespace Dune {
           commSize = (*traits).commSize;
 
           extendedCells           = (*traits).extendedCells;
+          extendedDomainSize      = (*traits).extendedDomainSize;
           localExtendedCells      = (*traits).localExtendedCells;
           localExtendedOffset     = (*traits).localExtendedOffset;
-          extendedDomainSize      = (*traits).extendedDomainSize;
           localExtendedDomainSize = (*traits).localExtendedDomainSize;
           transposed              = (*traits).transposed;
 
