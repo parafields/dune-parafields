@@ -42,7 +42,10 @@ namespace Dune {
         ~DFTMatrixBackend<Traits>()
         {
           if (matrixData != nullptr)
+          {
             fftw_free(matrixData);
+            matrixData = nullptr;
+          }
         }
 
         /*
@@ -62,7 +65,10 @@ namespace Dune {
           getDFTData();
 
           if (matrixData != nullptr)
+          {
             fftw_free(matrixData);
+            matrixData = nullptr;
+          }
         }
 
         /**
@@ -70,10 +76,7 @@ namespace Dune {
          */
         bool valid() const
         {
-          if (matrixData != nullptr)
-            return true;
-
-          return false;
+          return (matrixData != nullptr);
         }
 
         /**

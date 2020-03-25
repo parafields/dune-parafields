@@ -45,7 +45,10 @@ namespace Dune {
         ~DFTFieldBackend<Traits>()
         {
           if (fieldData != nullptr)
+          {
             fftw_free(fieldData);
+            fieldData = nullptr;
+          }
         }
 
         /*
@@ -64,7 +67,10 @@ namespace Dune {
           localExtendedDomainSize = (*traits).localExtendedDomainSize;
 
           if (fieldData != nullptr)
+          {
             fftw_free(fieldData);
+            fieldData = nullptr;
+          }
 
           getDFTData();
         }
