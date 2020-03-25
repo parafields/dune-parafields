@@ -166,6 +166,8 @@ namespace Dune {
             {
               RF lambda = 0.;
 
+              fieldBackend.transposeIfNeeded();
+
               for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
               {
                 lambda = std::sqrt(matrixBackend.eval(index));
