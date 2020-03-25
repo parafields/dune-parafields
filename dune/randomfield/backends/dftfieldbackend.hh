@@ -32,6 +32,8 @@ namespace Dune {
 
         mutable fftw_complex* fieldData;
 
+        bool transposed;
+
         enum {toExtended, fromExtended};
 
         public:
@@ -65,6 +67,7 @@ namespace Dune {
           extendedDomainSize      = (*traits).extendedDomainSize;
           localExtendedCells      = (*traits).localExtendedCells;
           localExtendedDomainSize = (*traits).localExtendedDomainSize;
+          transposed              = (*traits).transposed;
 
           if (fieldData != nullptr)
           {
@@ -101,6 +104,19 @@ namespace Dune {
         }
 
         /**
+         * @brief Switch last two dimensions (for transposed transforms)
+         */
+        void transposeIfNeeded()
+        {
+          if (transposed)
+          {
+            std::swap(extendedCells[dim-1],extendedCells[dim-2]);
+            localExtendedCells[dim-1] = extendedCells[dim-1] / commSize;
+            localExtendedCells[dim-2] = extendedCells[dim-2];
+          }
+        }
+
+        /**
          * @brief Transform into Fourier (i.e., frequency) space
          */
         void forwardTransform()
@@ -110,7 +126,7 @@ namespace Dune {
             flags = FFTW_MEASURE;
           else
             flags = FFTW_ESTIMATE;
-          if ((*traits).config.template get<bool>("fftw.noTranspose",true))
+          if (transposed)
             flags |= FFTW_MPI_TRANSPOSED_OUT;
 
           ptrdiff_t n[dim];
@@ -123,11 +139,13 @@ namespace Dune {
           fftw_execute(plan_forward);
           fftw_destroy_plan(plan_forward);
 
-          for (Index i = 0; i < localExtendedDomainSize; i++)
+          for (Index i = 0; i < allocLocal; i++)
           {
             fieldData[i][0] /= extendedDomainSize;
             fieldData[i][1] /= extendedDomainSize;
           }
+
+          transposeIfNeeded();
         }
 
         /**
@@ -135,12 +153,14 @@ namespace Dune {
          */
         void backwardTransform()
         {
+          transposeIfNeeded();
+
           unsigned int flags;
           if ((*traits).config.template get<bool>("fftw.measure",false))
             flags = FFTW_MEASURE;
           else
             flags = FFTW_ESTIMATE;
-          if ((*traits).config.template get<bool>("fftw.noTranspose",true))
+          if (transposed)
             flags |= FFTW_MPI_TRANSPOSED_IN;
 
           ptrdiff_t n[dim];

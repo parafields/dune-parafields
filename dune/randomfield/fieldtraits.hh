@@ -169,6 +169,7 @@ namespace Dune {
           const bool         cacheInvRootMatvec;
 
           ptrdiff_t allocLocal, localN0, local0Start;
+          bool transposed;
 
           // factor used in domain embedding
           unsigned int embeddingFactor;
@@ -246,6 +247,22 @@ namespace Dune {
             if (dim == 1 && cells[0] % (commSize*commSize) != 0)
               DUNE_THROW(Dune::Exception,
                   "in 1D, number of cells has to be multiple of numProc^2");
+
+            transposed = config.template get<bool>("fftw.transposed",dim > 1);
+            if (transposed)
+            {
+              // transposed format requires more than one dimension
+              if (dim == 1)
+                transposed = false;
+              // ensures that FFTW can store data in transposed format
+              else if (cells[dim-2] % commSize != 0)
+              {
+                transposed = false;
+                if (verbose && rank == 0)
+                  std::cout << "for transposed transforms second to last dimension has to be"
+                    << " multiple of numProc, defaulting to non-transposed" << std::endl;
+              }
+            }
 
             for (unsigned int i = 0; i < dim; i++)
             {
