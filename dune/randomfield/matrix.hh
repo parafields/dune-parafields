@@ -12,6 +12,7 @@
 #include "dune/randomfield/covariance.hh"
 
 #include "dune/randomfield/backends/dftmatrixbackend.hh"
+#include "dune/randomfield/backends/dctmatrixbackend.hh"
 #include "dune/randomfield/backends/dftfieldbackend.hh"
 #include "dune/randomfield/backends/cpprngbackend.hh"
 #include "dune/randomfield/backends/gslrngbackend.hh"
@@ -587,8 +588,42 @@ namespace Dune {
 #endif // HAVE_GSL
       };
 
-    template<typename T>
-      using DFTMatrix = Matrix<T,DFTMatrixBackend,DFTFieldBackend>;
+    /**
+     * @brief Default isotropic matrix selector for nD, n > 1: DCTMatrix
+     */
+    template<long unsigned int dim>
+      class DefaultIsoMatrix
+      {
+        public:
+
+          template<typename T>
+            using Type = Matrix<T,DCTMatrixBackend>;
+      };
+
+    /**
+     * @brief Default isotropic matrix selector for 1D: DFTMatrix
+     */
+    template<>
+      class DefaultIsoMatrix<1>
+      {
+        public:
+
+          template<typename T>
+            using Type = Matrix<T,DFTMatrixBackend>;
+      };
+
+    /**
+     * @brief Default anisotropic matrix selector for nD, n >= 1: DFTMatrix
+     */
+    template<long unsigned int dim>
+      class DefaultAnisoMatrix
+      {
+        public:
+
+          template<typename T>
+            using Type = Matrix<T,DFTMatrixBackend>;
+      };
+
   }
 }
 

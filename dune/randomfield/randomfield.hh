@@ -25,8 +25,9 @@ namespace Dune {
     /**
      * @brief Gaussian random field in arbitrary dimensions
      */
-    template<typename GridTraits, template<typename> class IsoMatrix = DFTMatrix,
-      template<typename> class AnisoMatrix = DFTMatrix>
+    template<typename GridTraits,
+      template<typename> class IsoMatrix = DefaultIsoMatrix<GridTraits::dim>::template Type,
+      template<typename> class AnisoMatrix = DefaultAnisoMatrix<GridTraits::dim>::template Type>
         class RandomField
         {
           protected:
@@ -918,8 +919,9 @@ namespace Dune {
     /**
      * @brief List of Gaussian random fields in arbitrary dimensions
      */
-    template<typename GridTraits, template<typename> class IsoMatrix = DFTMatrix,
-      template<typename> class AnisoMatrix = DFTMatrix,
+    template<typename GridTraits,
+      template<typename> class IsoMatrix = DefaultIsoMatrix<GridTraits::dim>::template Type,
+      template<typename> class AnisoMatrix = DefaultAnisoMatrix<GridTraits::dim>::template Type,
       template<typename, template<typename> class, template<typename> class> class RandomField = Dune::RandomField::RandomField>
         class RandomFieldList
         {
