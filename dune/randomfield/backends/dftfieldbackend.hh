@@ -194,10 +194,10 @@ namespace Dune {
           fieldData[index][1] = lambda * rand2;
         }
 
-        void mult(Index i, RF lambda)
+        void mult(Index index, RF lambda)
         {
-          fieldData[i][0] *= lambda;
-          fieldData[i][1] *= lambda;
+          fieldData[index][0] *= lambda;
+          fieldData[index][1] *= lambda;
         }
 
         /**

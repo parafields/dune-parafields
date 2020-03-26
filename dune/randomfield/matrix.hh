@@ -13,6 +13,7 @@
 
 #include "dune/randomfield/backends/dftmatrixbackend.hh"
 #include "dune/randomfield/backends/dctmatrixbackend.hh"
+#include "dune/randomfield/backends/r2cmatrixbackend.hh"
 #include "dune/randomfield/backends/dftfieldbackend.hh"
 #include "dune/randomfield/backends/cpprngbackend.hh"
 #include "dune/randomfield/backends/gslrngbackend.hh"
@@ -34,11 +35,15 @@ namespace Dune {
       template<typename> class RNGBackend = DefaultRNGBackend<Traits::dim>::template Type>
         class Matrix
         {
+          public:
+
           using MatrixBackendType = MatrixBackend<Traits>;
           using FieldBackendType  = FieldBackend<Traits>;
           using RNGBackendType    = RNGBackend<Traits>;
 
           using StochasticPartType = StochasticPart<Traits>;
+
+          private:
 
           using RF      = typename Traits::RF;
           using Index   = typename Traits::Index;
@@ -168,14 +173,32 @@ namespace Dune {
 
               fieldBackend.transposeIfNeeded();
 
-              for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+              if (sameLayout())
               {
-                lambda = std::sqrt(matrixBackend.eval(index));
+                for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+                {
+                  lambda = std::sqrt(matrixBackend.eval(index));
 
-                const RF rand1 = rngBackend.sample();
-                const RF rand2 = rngBackend.sample();
+                  const RF& rand1 = rngBackend.sample();
+                  const RF& rand2 = rngBackend.sample();
 
-                fieldBackend.set(index,lambda,rand1,rand2);
+                  fieldBackend.set(index,lambda,rand1,rand2);
+                }
+              }
+              else
+              {
+                Indices indices;
+                for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+                {
+                  Traits::indexToIndices(index,indices,fieldBackend.localFieldCells());
+
+                  lambda = std::sqrt(matrixBackend.eval(indices));
+
+                  const RF& rand1 = rngBackend.sample();
+                  const RF& rand2 = rngBackend.sample();
+
+                  fieldBackend.set(index,lambda,rand1,rand2);
+                }
               }
 
               fieldBackend.backwardTransform();
@@ -286,6 +309,7 @@ namespace Dune {
               if (value < 0.)
                 matrixBackend.set(index,0.);
             }
+
             int small, negative, smallNegative;
             RF smallest;
             MPI_Allreduce(&mySmall,        &small,        1,MPI_INT,MPI_SUM,(*traits).comm);
@@ -355,6 +379,18 @@ namespace Dune {
                 matrixBackend.set(index,covariance(variance,transCoord));
               }
             }
+
+          /**
+           * @brief Whether matrix backend and field backend have the same local cell layout
+           */
+          bool sameLayout() const
+          {
+            for (unsigned int i = 0; i < dim; i++)
+              if (matrixBackend.localEvalMatrixCells()[i] != fieldBackend.localFieldCells()[i])
+                return false;
+
+            return true;
+          }
 
           /**
            * @brief Inner Conjugate Gradients method for multiplication with inverse
@@ -483,8 +519,21 @@ namespace Dune {
             fieldBackend.fieldToExtendedField(input);
             fieldBackend.forwardTransform();
 
-            for (Index i = 0; i < fieldBackend.localFieldSize(); i++)
-              fieldBackend.mult(i,matrixBackend.eval(i));
+            if (sameLayout())
+            {
+              for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+                fieldBackend.mult(index,matrixBackend.eval(index));
+            }
+            else
+            {
+              Indices indices;
+              for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+              {
+                Traits::indexToIndices(index,indices,fieldBackend.localFieldCells());
+
+                fieldBackend.mult(index,matrixBackend.eval(indices));
+              }
+            }
 
             fieldBackend.backwardTransform();
             fieldBackend.extendedFieldToField(output);
@@ -501,8 +550,21 @@ namespace Dune {
             fieldBackend.fieldToExtendedField(input);
             fieldBackend.forwardTransform();
 
-            for (Index i = 0; i < fieldBackend.localFieldSize(); i++)
-              fieldBackend.mult(i,std::sqrt(matrixBackend.eval(i)));
+            if (sameLayout())
+            {
+              for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+                fieldBackend.mult(index,std::sqrt(matrixBackend.eval(index)));
+            }
+            else
+            {
+              Indices indices;
+              for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+              {
+                Traits::indexToIndices(index,indices,fieldBackend.localFieldCells());
+
+                fieldBackend.mult(index,std::sqrt(matrixBackend.eval(indices)));
+              }
+            }
 
             fieldBackend.backwardTransform();
             fieldBackend.extendedFieldToField(output);
@@ -519,8 +581,21 @@ namespace Dune {
             fieldBackend.fieldToExtendedField(input);
             fieldBackend.forwardTransform();
 
-            for (Index i = 0; i < fieldBackend.localFieldSize(); i++)
-              fieldBackend.mult(i,1./matrixBackend.eval(i));
+            if (sameLayout())
+            {
+              for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+                fieldBackend.mult(index,1./matrixBackend.eval(index));
+            }
+            else
+            {
+              Indices indices;
+              for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+              {
+                Traits::indexToIndices(index,indices,fieldBackend.localFieldCells());
+
+                fieldBackend.mult(index,1./matrixBackend.eval(indices));
+              }
+            }
 
             fieldBackend.backwardTransform();
             fieldBackend.extendedFieldToField(output);
@@ -537,7 +612,7 @@ namespace Dune {
         public:
 
           template<typename T>
-            using Type = DFTMatrixBackend<T>;
+            using Type = R2CMatrixBackend<T>;
       };
 
     /**
@@ -615,7 +690,7 @@ namespace Dune {
       };
 
     /**
-     * @brief Default anisotropic matrix selector for nD, n >= 1: DFTMatrix
+     * @brief Default anisotropic matrix selector for nD, n > 1: R2CMatrix
      */
     template<long unsigned int dim>
       class DefaultAnisoMatrix
@@ -623,9 +698,20 @@ namespace Dune {
         public:
 
           template<typename T>
-            using Type = Matrix<T,DFTMatrixBackend>;
+            using Type = Matrix<T,R2CMatrixBackend>;
       };
 
+    /**
+     * @brief Default anisotropic matrix selector for 1D: DFTMatrix
+     */
+    template<>
+      class DefaultAnisoMatrix<1>
+      {
+        public:
+
+          template<typename T>
+            using Type = Matrix<T,DFTMatrixBackend>;
+      };
   }
 }
 

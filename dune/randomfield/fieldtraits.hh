@@ -21,6 +21,9 @@ namespace Dune {
     template<typename GridTraits, template<typename> class IsoMatrix,
       template<typename> class AnisoMatrix> class RandomField;
 
+    // forward declaration for transposed test
+    template<typename Traits> class R2CMatrixBackend;
+
     /**
      * @brief Traits for the RandomField class
      */
@@ -186,6 +189,29 @@ namespace Dune {
                 if (verbose && rank == 0)
                   std::cout << "for transposed transforms second to last dimension has to be"
                     << " multiple of numProc, defaulting to non-transposed" << std::endl;
+              }
+              // avoid R2C transposed format, since it both cuts and transposes first dim
+              else if (dim == 2 && std::is_same<typename IsoMatrix<ThisType>::MatrixBackendType,R2CMatrixBackend<ThisType>>::value)
+              {
+                const std::string& anisotropy = config.template get<std::string>("stochastic.anisotropy","none");
+                if (anisotropy == "none" || anisotropy == "axiparallel")
+                {
+                  transposed = false;
+                  if (verbose && rank == 0)
+                    std::cout << "R2CFieldBackend needs more than two dimensions for transposed output"
+                      << " to avoid confusing layout, defaulting to non-transposed" << std::endl;
+                }
+              }
+              else if (dim == 2 && std::is_same<typename AnisoMatrix<ThisType>::MatrixBackendType,R2CMatrixBackend<ThisType>>::value)
+              {
+                const std::string& anisotropy = config.template get<std::string>("stochastic.anisotropy","none");
+                if (anisotropy != "none" && anisotropy != "axiparallel")
+                {
+                  transposed = false;
+                  if (verbose && rank == 0)
+                    std::cout << "R2CFieldBackend needs more than two dimensions for transposed output"
+                      << " to avoid confusing layout, defaulting to non-transposed" << std::endl;
+                }
               }
             }
 

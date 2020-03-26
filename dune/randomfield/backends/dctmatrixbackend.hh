@@ -124,6 +124,14 @@ namespace Dune {
         }
 
         /**
+         * @brief Number of logical entries per dim on this processor
+         */
+        const Indices& localEvalMatrixCells() const
+        {
+          return localExtendedCells;
+        }
+
+        /**
          * @brief Reserve memory before storing any matrix entries
          */
         void allocate()
