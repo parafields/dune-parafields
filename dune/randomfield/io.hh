@@ -25,6 +25,12 @@ namespace Dune{
     }
 
 #if HAVE_HDF5 // only define IO methods if HDF5 present
+    // HDF5-internal data type specifiers
+    template<typename> hid_t hdf5Type;
+    template<> const hid_t hdf5Type<float>       = H5T_NATIVE_FLOAT;
+    template<> const hid_t hdf5Type<double>      = H5T_NATIVE_DOUBLE;
+    template<> const hid_t hdf5Type<long double> = H5T_NATIVE_LDOUBLE;
+
     /// @todo take care of missing files
     /**
      * @brief Read data from an HDF5 file (parallel)
@@ -107,7 +113,7 @@ namespace Dune{
         if(local_size != 0)
         {
           status = H5Dread(dataset_id,
-              H5T_NATIVE_DOUBLE,
+              hdf5Type<RF>,
               memspace_id,
               dataspace_id,
               xferPropList,
@@ -208,12 +214,12 @@ namespace Dune{
         // even if nothing should be written H5Dwrite needs to be called!
         if(nAllLocalCells != 0)
         { // -> otherwise HDF5 warning, because of writing nothing!
-          status = H5Dwrite(dset_id,H5T_NATIVE_DOUBLE,memspace_id,filespace,plist_id,&(data[0]));
+          status = H5Dwrite(dset_id,hdf5Type<RF>,memspace_id,filespace,plist_id,&(data[0]));
           assert(status > -1);
         }
         else
         { // IMPORTANT. otherwise the H5Dwrite() blocks!
-          status = H5Dwrite(dset_id,H5T_NATIVE_DOUBLE,0,filespace,plist_id,&(data[0]));
+          status = H5Dwrite(dset_id,hdf5Type<RF>,0,filespace,plist_id,&(data[0]));
           assert(status > -1);
         }
 

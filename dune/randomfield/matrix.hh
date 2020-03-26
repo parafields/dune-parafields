@@ -11,6 +11,7 @@
 
 #include "dune/randomfield/covariance.hh"
 
+#include "dune/randomfield/backends/fftwwrapper.hh"
 #include "dune/randomfield/backends/dftmatrixbackend.hh"
 #include "dune/randomfield/backends/dctmatrixbackend.hh"
 #include "dune/randomfield/backends/r2cmatrixbackend.hh"
@@ -318,7 +319,7 @@ namespace Dune {
             MPI_Allreduce(&mySmall,        &small,        1,MPI_INT,MPI_SUM,(*traits).comm);
             MPI_Allreduce(&myNegative,     &negative,     1,MPI_INT,MPI_SUM,(*traits).comm);
             MPI_Allreduce(&mySmallNegative,&smallNegative,1,MPI_INT,MPI_SUM,(*traits).comm);
-            MPI_Allreduce(&mySmallest,     &smallest,     1,MPI_DOUBLE,MPI_MIN,(*traits).comm);
+            MPI_Allreduce(&mySmallest,     &smallest,     1,mpiType<RF>,MPI_MIN,(*traits).comm);
 
             if ((*traits).verbose && rank == 0)
               std::cout << small << " small, " << smallNegative << " small negative and "
@@ -434,13 +435,13 @@ namespace Dune {
             myScalarProd = 0.;
             for (unsigned int i = 0; i < residual.size(); i++)
               myScalarProd += precResidual[i] * residual[i];
-            MPI_Allreduce(&myScalarProd,&scalarProd,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
+            MPI_Allreduce(&myScalarProd,&scalarProd,1,mpiType<RF>,MPI_SUM,(*traits).comm);
 
             scalarProd2 = 0.;
             myScalarProd = 0.;
             for (unsigned int i = 0; i < residual.size(); i++)
               myScalarProd += residual[i] * residual[i];
-            MPI_Allreduce(&myScalarProd,&scalarProd2,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
+            MPI_Allreduce(&myScalarProd,&scalarProd2,1,mpiType<RF>,MPI_SUM,(*traits).comm);
 
             if (std::sqrt(std::abs(scalarProd2)) < 1e-6)
               converged = true;
@@ -448,7 +449,7 @@ namespace Dune {
             RF firstValue = 0., myFirstVal = 0.;
             for (unsigned int i = 0; i < iter.size(); i++)
               myFirstVal += iter[i]*(0.5*matrixTimesIter[i] - solution[i]);
-            MPI_Allreduce(&myFirstVal,&firstValue,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
+            MPI_Allreduce(&myFirstVal,&firstValue,1,mpiType<RF>,MPI_SUM,(*traits).comm);
 
             unsigned int count = 0;
             while(!converged && count < cgIterations)
@@ -459,13 +460,13 @@ namespace Dune {
               for (unsigned int i = 0; i < direction.size(); i++)
                 myAlphaDenominator += direction[i] * matrixTimesDirection[i];
 
-              MPI_Allreduce(&myAlphaDenominator,&alphaDenominator,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
+              MPI_Allreduce(&myAlphaDenominator,&alphaDenominator,1,mpiType<RF>,MPI_SUM,(*traits).comm);
               alpha = scalarProd / alphaDenominator;
 
               RF oldValue = 0., myOldVal = 0.;
               for (unsigned int i = 0; i < iter.size(); i++)
                 myOldVal += iter[i]*(0.5*matrixTimesIter[i] - solution[i]);
-              MPI_Allreduce(&myOldVal,&oldValue,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
+              MPI_Allreduce(&myOldVal,&oldValue,1,mpiType<RF>,MPI_SUM,(*traits).comm);
 
               for (unsigned int i = 0; i < iter.size(); i++)
               {
@@ -477,7 +478,7 @@ namespace Dune {
               RF value = 0., myVal = 0.;
               for (unsigned int i = 0; i < iter.size(); i++)
                 myVal += iter[i]*(0.5*matrixTimesIter[i] - solution[i]);
-              MPI_Allreduce(&myVal,&value,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
+              MPI_Allreduce(&myVal,&value,1,mpiType<RF>,MPI_SUM,(*traits).comm);
 
               for (unsigned int i = 0; i < residual.size(); i++)
                 residual[i] = solution[i] - matrixTimesIter[i];
@@ -493,7 +494,7 @@ namespace Dune {
               for (unsigned int i = 0; i < residual.size(); i++)
                 myScalarProd += precResidual[i] * residual[i];
 
-              MPI_Allreduce(&myScalarProd,&scalarProd,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
+              MPI_Allreduce(&myScalarProd,&scalarProd,1,mpiType<RF>,MPI_SUM,(*traits).comm);
               beta *= scalarProd;
 
               for (unsigned int i = 0; i < direction.size(); i++)

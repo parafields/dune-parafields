@@ -58,7 +58,7 @@ namespace Dune {
         {
           if (matrixData != nullptr)
           {
-            fftw_free(matrixData);
+            FFTW<RF>::free(matrixData);
             matrixData = nullptr;
           }
         }
@@ -83,7 +83,7 @@ namespace Dune {
 
           if (matrixData != nullptr)
           {
-            fftw_free(matrixData);
+            FFTW<RF>::free(matrixData);
             matrixData = nullptr;
           }
         }
@@ -134,7 +134,7 @@ namespace Dune {
         void allocate()
         {
           if (matrixData == nullptr)
-            matrixData = fftw_alloc_real(allocLocal);
+            matrixData = FFTW<RF>::alloc_real(allocLocal);
         }
 
         /**
@@ -167,21 +167,21 @@ namespace Dune {
             flags |= FFTW_MPI_TRANSPOSED_OUT;
 
           ptrdiff_t n[dim];
-          fftw_r2r_kind k[dim];
+          typename FFTW<RF>::r2r_kind k[dim];
           for (unsigned int i = 0; i < dim; i++)
           {
             n[i] = extendedCells[dim-1-i]/2 + 1;
             k[i] = FFTW_REDFT00;
           }
 
-          fftw_plan plan_forward = fftw_mpi_plan_r2r(dim,n,matrixData,
+          typename FFTW<RF>::plan plan_forward = FFTW<RF>::mpi_plan_r2r(dim,n,matrixData,
               matrixData,(*traits).comm,k,flags);
 
           if (plan_forward == nullptr)
             DUNE_THROW(Dune::Exception, "failed to create forward plan");
 
-          fftw_execute(plan_forward);
-          fftw_destroy_plan(plan_forward);
+          FFTW<RF>::execute(plan_forward);
+          FFTW<RF>::destroy_plan(plan_forward);
 
           for (Index i = 0; i < allocLocal; i++)
             matrixData[i] /= extendedDomainSize;
@@ -209,21 +209,21 @@ namespace Dune {
             flags |= FFTW_MPI_TRANSPOSED_IN;
 
           ptrdiff_t n[dim];
-          fftw_r2r_kind k[dim];
+          typename FFTW<RF>::r2r_kind k[dim];
           for (unsigned int i = 0; i < dim; i++)
           {
             n[i] = extendedCells[dim-1-i]/2 + 1;
             k[i] = FFTW_REDFT00;
           }
 
-          fftw_plan plan_backward = fftw_mpi_plan_r2r(dim,n,matrixData,
+          typename FFTW<RF>::plan plan_backward = FFTW<RF>::mpi_plan_r2r(dim,n,matrixData,
               matrixData,(*traits).comm,k,flags);
 
           if (plan_backward == nullptr)
             DUNE_THROW(Dune::Exception, "failed to create backward plan");
 
-          fftw_execute(plan_backward);
-          fftw_destroy_plan(plan_backward);
+          FFTW<RF>::execute(plan_backward);
+          FFTW<RF>::destroy_plan(plan_backward);
         }
 
         /**
@@ -280,7 +280,7 @@ namespace Dune {
           unsigned int mirrorAllocLocal = localExtendedCells[dim-1];
           for (unsigned int i = 0; i < dim-1; i++)
             mirrorAllocLocal *= localDCTCells[i];
-          matrixData = fftw_alloc_real(mirrorAllocLocal);
+          matrixData = FFTW<RF>::alloc_real(mirrorAllocLocal);
 
           Index strideWidth = localExtendedCells[dim-1];
           Index sliceSize = 1;
@@ -315,7 +315,7 @@ namespace Dune {
             {
               const Index size = sendSize * sliceSize;
 
-              MPI_Isend(&(unmirrored[0]), size, MPI_DOUBLE,
+              MPI_Isend(&(unmirrored[0]), size, mpiType<RF>,
                   sendPartners[0], mirrorForward, (*traits).comm, &(request[0]));
               request[1] = MPI_REQUEST_NULL;
             }
@@ -331,9 +331,9 @@ namespace Dune {
             const Index size1 = (strideWidth - sendSplit)              * sliceSize;
             const Index size2 = (sendSize - (strideWidth - sendSplit)) * sliceSize;
 
-            MPI_Isend(&(unmirrored[0]),     size1, MPI_DOUBLE,
+            MPI_Isend(&(unmirrored[0]),     size1, mpiType<RF>,
                 sendPartners[0], mirrorForward, (*traits).comm, &(request[0]));
-            MPI_Isend(&(unmirrored[size1]), size2, MPI_DOUBLE,
+            MPI_Isend(&(unmirrored[size1]), size2, mpiType<RF>,
                 sendPartners[1], mirrorForward, (*traits).comm, &(request[1]));
           }
 
@@ -363,7 +363,7 @@ namespace Dune {
               const Index size = sendSize * sliceSize;
 
               // skip first slice on way back
-              MPI_Isend(&(unmirrored[(rank==0)?sliceSize:0]), size, MPI_DOUBLE,
+              MPI_Isend(&(unmirrored[(rank==0)?sliceSize:0]), size, mpiType<RF>,
                   sendPartners[0], mirrorBackward, (*traits).comm, &(request[2]));
               request[3] = MPI_REQUEST_NULL;
             }
@@ -379,9 +379,9 @@ namespace Dune {
             const Index size1 = (strideWidth - sendSplit)              * sliceSize;
             const Index size2 = (sendSize - (strideWidth - sendSplit)) * sliceSize;
 
-            MPI_Isend(&(unmirrored[0]), size1, MPI_DOUBLE,
+            MPI_Isend(&(unmirrored[0]), size1, mpiType<RF>,
                 sendPartners[0], mirrorBackward, (*traits).comm, &(request[2]));
-            MPI_Isend(&(unmirrored[size1]), size2, MPI_DOUBLE,
+            MPI_Isend(&(unmirrored[size1]), size2, mpiType<RF>,
                 sendPartners[1], mirrorBackward, (*traits).comm, &(request[3]));
           }
 
@@ -396,7 +396,7 @@ namespace Dune {
 
             const Index size1 = (strideWidth/2+1 - recvSplit) * sliceSize;
 
-            MPI_Recv(&(matrixData[0]), size1, MPI_DOUBLE,
+            MPI_Recv(&(matrixData[0]), size1, mpiType<RF>,
                 recvPartners[0], mirrorForward, (*traits).comm, MPI_STATUS_IGNORE);
 
             if (recvPartners[1] != recvPartners[0] && recvPartners[1] != recvPartners[2])
@@ -404,16 +404,16 @@ namespace Dune {
               const Index size2 = (strideWidth/2+1)                               * sliceSize;
               const Index size3 = (strideWidth - 2*(strideWidth/2+1) + recvSplit) * sliceSize;
 
-              MPI_Recv(&(matrixData[size1]),       size2, MPI_DOUBLE,
+              MPI_Recv(&(matrixData[size1]),       size2, mpiType<RF>,
                   recvPartners[1], mirrorForward, (*traits).comm, MPI_STATUS_IGNORE);
-              MPI_Recv(&(matrixData[size1+size2]), size3, MPI_DOUBLE,
+              MPI_Recv(&(matrixData[size1+size2]), size3, mpiType<RF>,
                   recvPartners[2], mirrorForward, (*traits).comm, MPI_STATUS_IGNORE);
             }
             else if (recvPartners[2] != recvPartners[0])
             {
               const Index size2 = (strideWidth - (strideWidth/2+1) + recvSplit) * sliceSize;
 
-              MPI_Recv(&(matrixData[size1]), size2, MPI_DOUBLE,
+              MPI_Recv(&(matrixData[size1]), size2, mpiType<RF>,
                   recvPartners[2], mirrorForward, (*traits).comm, MPI_STATUS_IGNORE);
             }
           }
@@ -427,7 +427,7 @@ namespace Dune {
             {
               const Index size = (strideWidth/2) * sliceSize;
 
-              MPI_Recv(&(matrixData[0]), size, MPI_DOUBLE,
+              MPI_Recv(&(matrixData[0]), size, mpiType<RF>,
                   recvPartners[0], mirrorForward, (*traits).comm, MPI_STATUS_IGNORE);
             }
             else
@@ -435,9 +435,9 @@ namespace Dune {
               const Index size1 = ((strideWidth/2+1) - recvSplit)                 * sliceSize;
               const Index size2 = (strideWidth/2 - (strideWidth/2+1) + recvSplit) * sliceSize;
 
-              MPI_Recv(&(matrixData[0]), size1, MPI_DOUBLE,
+              MPI_Recv(&(matrixData[0]), size1, mpiType<RF>,
                   recvPartners[0], mirrorForward, (*traits).comm, MPI_STATUS_IGNORE);
-              MPI_Recv(&(matrixData[size1]), size2, MPI_DOUBLE,
+              MPI_Recv(&(matrixData[size1]), size2, mpiType<RF>,
                   recvPartners[1], mirrorForward, (*traits).comm, MPI_STATUS_IGNORE);
             }
 
@@ -449,7 +449,7 @@ namespace Dune {
             {
               const Index size = (strideWidth/2) * sliceSize;
 
-              MPI_Recv(&(matrixData[strideWidth/2*sliceSize]), size, MPI_DOUBLE,
+              MPI_Recv(&(matrixData[strideWidth/2*sliceSize]), size, mpiType<RF>,
                   recvPartners[0], mirrorBackward, (*traits).comm, MPI_STATUS_IGNORE);
             }
             else
@@ -457,9 +457,9 @@ namespace Dune {
               const Index size1 = ((strideWidth/2+1) - recvSplit)                 * sliceSize;
               const Index size2 = (strideWidth/2 - (strideWidth/2+1) + recvSplit) * sliceSize;
 
-              MPI_Recv(&(matrixData[strideWidth/2*sliceSize]),       size1, MPI_DOUBLE,
+              MPI_Recv(&(matrixData[strideWidth/2*sliceSize]),       size1, mpiType<RF>,
                   recvPartners[0], mirrorBackward, (*traits).comm, MPI_STATUS_IGNORE);
-              MPI_Recv(&(matrixData[strideWidth/2*sliceSize+size1]), size2, MPI_DOUBLE,
+              MPI_Recv(&(matrixData[strideWidth/2*sliceSize+size1]), size2, mpiType<RF>,
                   recvPartners[1], mirrorBackward, (*traits).comm, MPI_STATUS_IGNORE);
             }
           }
@@ -472,7 +472,7 @@ namespace Dune {
 
             const Index size1 = ((strideWidth/2+1) - recvSplit) * sliceSize;
 
-            MPI_Recv(&(matrixData[0]), size1, MPI_DOUBLE,
+            MPI_Recv(&(matrixData[0]), size1, mpiType<RF>,
                 recvPartners[0], mirrorBackward, (*traits).comm, MPI_STATUS_IGNORE);
 
             if (recvPartners[1] != recvPartners[0] && recvPartners[1] != recvPartners[2])
@@ -480,16 +480,16 @@ namespace Dune {
               const Index size2 = (strideWidth/2+1)                               * sliceSize;
               const Index size3 = (strideWidth - 2*(strideWidth/2+1) + recvSplit) * sliceSize;
 
-              MPI_Recv(&(matrixData[size1]),       size2, MPI_DOUBLE,
+              MPI_Recv(&(matrixData[size1]),       size2, mpiType<RF>,
                   recvPartners[1], mirrorBackward, (*traits).comm, MPI_STATUS_IGNORE);
-              MPI_Recv(&(matrixData[size1+size2]), size3, MPI_DOUBLE,
+              MPI_Recv(&(matrixData[size1+size2]), size3, mpiType<RF>,
                   recvPartners[2], mirrorBackward, (*traits).comm, MPI_STATUS_IGNORE);
             }
             else if (recvPartners[2] != recvPartners[0])
             {
               const Index size2 = (strideWidth - (strideWidth/2+1) + recvSplit) * sliceSize;
 
-              MPI_Recv(&(matrixData[size1]), size2, MPI_DOUBLE,
+              MPI_Recv(&(matrixData[size1]), size2, mpiType<RF>,
                   recvPartners[2], mirrorBackward, (*traits).comm, MPI_STATUS_IGNORE);
             }
           }
@@ -511,7 +511,7 @@ namespace Dune {
 
           MPI_Waitall(request.size(),&(request[0]),MPI_STATUSES_IGNORE);
 
-          fftw_free(unmirrored);
+          FFTW<RF>::free(unmirrored);
           unmirrored = nullptr;
         }
 
@@ -526,7 +526,7 @@ namespace Dune {
           for (unsigned int i = 0; i < dim; i++)
             n[i] = extendedCells[dim-1-i]/2 + 1;
 
-          allocLocal = fftw_mpi_local_size_transposed(dim,n,(*traits).comm,
+          allocLocal = FFTW<RF>::mpi_local_size_transposed(dim,n,(*traits).comm,
               &localN0,&local0Start,&localN0Trans,&local0StartTrans);
         }
 

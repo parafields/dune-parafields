@@ -38,7 +38,7 @@ namespace Dune {
         Indices localR2CRealCells;
         Index localR2CRealDomainSize;
 
-        mutable fftw_complex* fieldData;
+        mutable typename FFTW<RF>::complex* fieldData;
         mutable Indices indices;
 
         bool transposed;
@@ -59,7 +59,7 @@ namespace Dune {
         {
           if (fieldData != nullptr)
           {
-            fftw_free(fieldData);
+            FFTW<RF>::free(fieldData);
             fieldData = nullptr;
           }
         }
@@ -91,7 +91,7 @@ namespace Dune {
 
           if (fieldData != nullptr)
           {
-            fftw_free(fieldData);
+            FFTW<RF>::free(fieldData);
             fieldData = nullptr;
           }
         }
@@ -118,7 +118,7 @@ namespace Dune {
         void allocate()
         {
           if (fieldData == nullptr)
-            fieldData = fftw_alloc_complex(allocLocal);
+            fieldData = FFTW<RF>::alloc_complex(allocLocal);
         }
 
         /**
@@ -153,14 +153,14 @@ namespace Dune {
           for (unsigned int i = 0; i < dim; i++)
             n[i] = extendedCells[dim-1-i];
 
-          fftw_plan plan_forward = fftw_mpi_plan_dft_r2c(dim,n,(RF*)fieldData,
+          typename FFTW<RF>::plan plan_forward = FFTW<RF>::mpi_plan_dft_r2c(dim,n,(RF*)fieldData,
               fieldData,(*traits).comm,flags);
 
           if (plan_forward == nullptr)
             DUNE_THROW(Dune::Exception, "failed to create forward plan");
 
-          fftw_execute(plan_forward);
-          fftw_destroy_plan(plan_forward);
+          FFTW<RF>::execute(plan_forward);
+          FFTW<RF>::destroy_plan(plan_forward);
 
           for (Index i = 0; i < allocLocal; i++)
           {
@@ -190,14 +190,14 @@ namespace Dune {
           for (unsigned int i = 0; i < dim; i++)
             n[i] = extendedCells[dim-1-i];
 
-          fftw_plan plan_backward = fftw_mpi_plan_dft_c2r(dim,n,fieldData,
+          typename FFTW<RF>::plan plan_backward = FFTW<RF>::mpi_plan_dft_c2r(dim,n,fieldData,
               (RF*)fieldData,(*traits).comm,flags);
 
           if (plan_backward == nullptr)
             DUNE_THROW(Dune::Exception, "failed to create backward plan");
 
-          fftw_execute(plan_backward);
-          fftw_destroy_plan(plan_backward);
+          FFTW<RF>::execute(plan_backward);
+          FFTW<RF>::destroy_plan(plan_backward);
         }
 
         /**
@@ -244,7 +244,7 @@ namespace Dune {
         void fieldToExtendedField(std::vector<RF>& field) const
         {
           if (fieldData == nullptr)
-            fieldData = fftw_alloc_complex(allocLocal);
+            fieldData = FFTW<RF>::alloc_complex(allocLocal);
 
           if (commSize == 1)
           {
@@ -262,7 +262,7 @@ namespace Dune {
             const int embeddingFactor = (*traits).embeddingFactor;
             MPI_Request request;
 
-            MPI_Isend(&(field[0]), localDomainSize, MPI_DOUBLE,
+            MPI_Isend(&(field[0]), localDomainSize, mpiType<RF>,
                 rank/embeddingFactor, toExtended, (*traits).comm, &request);
 
             if (rank*embeddingFactor < commSize)
@@ -273,7 +273,7 @@ namespace Dune {
               Index receiveSize = std::min(embeddingFactor, commSize - rank*embeddingFactor);
               for (Index i = 0; i < receiveSize; i++)
               {
-                MPI_Recv(&(localCopy[0]), localDomainSize, MPI_DOUBLE,
+                MPI_Recv(&(localCopy[0]), localDomainSize, mpiType<RF>,
                     rank*embeddingFactor + i, toExtended, (*traits).comm, MPI_STATUS_IGNORE);
 
                 for (Index index = 0; index < localDomainSize; index++)
@@ -340,18 +340,18 @@ namespace Dune {
                   localCopy[i][index] = ((RF*)fieldData)[extIndex + offset];
                 }
 
-                MPI_Isend(&(localCopy[i][0]), localDomainSize, MPI_DOUBLE,
+                MPI_Isend(&(localCopy[i][0]), localDomainSize, mpiType<RF>,
                     rank*embeddingFactor + i, fromExtended, (*traits).comm, &(request[i]));
               }
 
-              MPI_Recv(&(field[0]), localDomainSize, MPI_DOUBLE,
+              MPI_Recv(&(field[0]), localDomainSize, mpiType<RF>,
                   rank/embeddingFactor, fromExtended, (*traits).comm, MPI_STATUS_IGNORE);
 
               MPI_Waitall(request.size(),&(request[0]),MPI_STATUSES_IGNORE);
             }
             else
             {
-              MPI_Recv(&(field[0]), localDomainSize, MPI_DOUBLE,
+              MPI_Recv(&(field[0]), localDomainSize, mpiType<RF>,
                   rank/embeddingFactor, fromExtended, (*traits).comm, MPI_STATUS_IGNORE);
             }
           }
@@ -369,7 +369,7 @@ namespace Dune {
             n[i] = extendedCells[dim-1-i];
           n[dim-1] = extendedCells[0]/2+1;
 
-          allocLocal = fftw_mpi_local_size(dim, n, (*traits).comm, &localN0, &local0Start);
+          allocLocal = FFTW<RF>::mpi_local_size(dim, n, (*traits).comm, &localN0, &local0Start);
         }
 
         void getR2CCells()

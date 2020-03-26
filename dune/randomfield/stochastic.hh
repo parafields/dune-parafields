@@ -323,7 +323,7 @@ namespace Dune {
           for (Index i = 0; i < localDomainSize; ++i)
             mySum += dataVector[i] * other.dataVector[i];
 
-          MPI_Allreduce(&mySum,&sum,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
+          MPI_Allreduce(&mySum,&sum,1,mpiType<RF>,MPI_SUM,(*traits).comm);
           return sum;
         }
 
@@ -621,7 +621,7 @@ namespace Dune {
           for (Index i = 0; i < localDomainSize; ++i)
             mySum += std::abs(dataVector[i]);
 
-          MPI_Allreduce(&mySum,&sum,1,MPI_DOUBLE,MPI_SUM,(*traits).comm);
+          MPI_Allreduce(&mySum,&sum,1,mpiType<RF>,MPI_SUM,(*traits).comm);
           return sum;
         }
 
@@ -635,7 +635,7 @@ namespace Dune {
           for (Index i = 0; i < localDomainSize; ++i)
             myMax = std::max(myMax, std::abs(dataVector[i]));
 
-          MPI_Allreduce(&myMax,&max,1,MPI_DOUBLE,MPI_MAX,(*traits).comm);
+          MPI_Allreduce(&myMax,&max,1,mpiType<RF>,MPI_MAX,(*traits).comm);
           return max;
         }
 
@@ -733,11 +733,11 @@ namespace Dune {
 
           for (unsigned int i = 0; i < numComms; i++)
             MPI_Isend(&(resorted  [i*localDomainSize/numComms]), localDomainSize/numComms,
-                MPI_DOUBLE, (rank/numComms)*numComms + i, toEval, (*traits).comm, &request[i]);
+                mpiType<RF>, (rank/numComms)*numComms + i, toEval, (*traits).comm, &request[i]);
 
           for (unsigned int i = 0; i < numComms; i++)
             MPI_Recv (&(evalVector[i*localDomainSize/numComms]), localDomainSize/numComms,
-                MPI_DOUBLE, (rank/numComms)*numComms + i, toEval, (*traits).comm, MPI_STATUS_IGNORE);
+                mpiType<RF>, (rank/numComms)*numComms + i, toEval, (*traits).comm, MPI_STATUS_IGNORE);
 
           MPI_Waitall(request.size(),&(request[0]),MPI_STATUSES_IGNORE);
 
@@ -770,11 +770,11 @@ namespace Dune {
 
           for (unsigned int i = 0; i < numComms; i++)
             MPI_Isend(&(evalVector[i*localDomainSize/numComms]), localDomainSize/numComms,
-                MPI_DOUBLE, (rank/numComms)*numComms + i, fromEval, (*traits).comm, &request[i]);
+                mpiType<RF>, (rank/numComms)*numComms + i, fromEval, (*traits).comm, &request[i]);
 
           for (unsigned int i = 0; i < numComms; i++)
             MPI_Recv (&(resorted  [i*localDomainSize/numComms]), localDomainSize/numComms,
-                MPI_DOUBLE, (rank/numComms)*numComms + i, fromEval, (*traits).comm, MPI_STATUS_IGNORE);
+                mpiType<RF>, (rank/numComms)*numComms + i, fromEval, (*traits).comm, MPI_STATUS_IGNORE);
 
           Index numSlices = procPerDim[0]*localDomainSize/localCells[0];
           Index sliceSize = localDomainSize/numSlices;
@@ -893,14 +893,14 @@ namespace Dune {
 
           for (unsigned int i = 0; i < dim; i++)
           {
-            MPI_Isend(&(extract[2*i  ][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE,
+            MPI_Isend(&(extract[2*i  ][0]), localDomainSize/localEvalCells[i], mpiType<RF>,
                 neighbor[2*i  ], toOverlap, (*traits).comm, &request[2*i]);
-            MPI_Recv (&(overlap[2*i+1][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE,
+            MPI_Recv (&(overlap[2*i+1][0]), localDomainSize/localEvalCells[i], mpiType<RF>,
                 neighbor[2*i+1], toOverlap, (*traits).comm, MPI_STATUS_IGNORE);
 
-            MPI_Isend(&(extract[2*i+1][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE,
+            MPI_Isend(&(extract[2*i+1][0]), localDomainSize/localEvalCells[i], mpiType<RF>,
                 neighbor[2*i+1], toOverlap, (*traits).comm, &request[2*i+1]);
-            MPI_Recv (&(overlap[2*i  ][0]), localDomainSize/localEvalCells[i], MPI_DOUBLE,
+            MPI_Recv (&(overlap[2*i  ][0]), localDomainSize/localEvalCells[i], mpiType<RF>,
                 neighbor[2*i  ], toOverlap, (*traits).comm, MPI_STATUS_IGNORE);
           }
 

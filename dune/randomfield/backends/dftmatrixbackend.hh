@@ -29,7 +29,7 @@ namespace Dune {
         Indices localExtendedOffset;
         Index   localExtendedDomainSize;
 
-        mutable fftw_complex* matrixData;
+        mutable typename FFTW<RF>::complex* matrixData;
 
         bool transposed;
 
@@ -45,7 +45,7 @@ namespace Dune {
         {
           if (matrixData != nullptr)
           {
-            fftw_free(matrixData);
+            FFTW<RF>::free(matrixData);
             matrixData = nullptr;
           }
         }
@@ -69,7 +69,7 @@ namespace Dune {
 
           if (matrixData != nullptr)
           {
-            fftw_free(matrixData);
+            FFTW<RF>::free(matrixData);
             matrixData = nullptr;
           }
         }
@@ -120,7 +120,7 @@ namespace Dune {
         void allocate()
         {
           if (matrixData == nullptr)
-            matrixData = fftw_alloc_complex(allocLocal);
+            matrixData = FFTW<RF>::alloc_complex(allocLocal);
         }
 
         /**
@@ -154,14 +154,14 @@ namespace Dune {
           for (unsigned int i = 0; i < dim; i++)
             n[i] = extendedCells[dim-1-i];
 
-          fftw_plan plan_forward = fftw_mpi_plan_dft(dim,n,matrixData,
+          typename FFTW<RF>::plan plan_forward = FFTW<RF>::mpi_plan_dft(dim,n,matrixData,
               matrixData,(*traits).comm,FFTW_FORWARD,flags);
 
           if (plan_forward == nullptr)
             DUNE_THROW(Dune::Exception, "failed to create forward plan");
 
-          fftw_execute(plan_forward);
-          fftw_destroy_plan(plan_forward);
+          FFTW<RF>::execute(plan_forward);
+          FFTW<RF>::destroy_plan(plan_forward);
 
           for (Index i = 0; i < allocLocal; i++)
           {
@@ -191,14 +191,14 @@ namespace Dune {
           for (unsigned int i = 0; i < dim; i++)
             n[i] = extendedCells[dim-1-i];
 
-          fftw_plan plan_backward = fftw_mpi_plan_dft(dim,n,matrixData,
+          typename FFTW<RF>::plan plan_backward = FFTW<RF>::mpi_plan_dft(dim,n,matrixData,
               matrixData,(*traits).comm,FFTW_BACKWARD,flags);
 
           if (plan_backward == nullptr)
             DUNE_THROW(Dune::Exception, "failed to create backward plan");
 
-          fftw_execute(plan_backward);
-          fftw_destroy_plan(plan_backward);
+          FFTW<RF>::execute(plan_backward);
+          FFTW<RF>::destroy_plan(plan_backward);
         }
 
         /**
@@ -258,13 +258,13 @@ namespace Dune {
           if (dim == 1)
           {
             ptrdiff_t localN02, local0Start2;
-            allocLocal = fftw_mpi_local_size_1d(n[0],(*traits).comm,FFTW_FORWARD,FFTW_ESTIMATE,
+            allocLocal = FFTW<RF>::mpi_local_size_1d(n[0],(*traits).comm,FFTW_FORWARD,FFTW_ESTIMATE,
                 &localN0,&local0Start,&localN02,&local0Start2);
             if (localN0 != localN02 || local0Start != local0Start2)
               DUNE_THROW(Dune::Exception,"1d size / offset results don't match");
           }
           else
-            allocLocal = fftw_mpi_local_size(dim,n,(*traits).comm,&localN0,&local0Start);
+            allocLocal = FFTW<RF>::mpi_local_size(dim,n,(*traits).comm,&localN0,&local0Start);
         }
 
       };

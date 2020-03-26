@@ -1,14 +1,21 @@
 # File for module specific CMake tests.
 
-find_package(FFTW3 COMPONENTS double mpi REQUIRED)
-include(AddFFTW3Flags)
+find_package(FFTW3 REQUIRED)
+if (FFTW3_FLOAT_FOUND)
+  add_definitions(-DHAVE_FFTW3_FLOAT)
+endif()
+if (FFTW3_DOUBLE_FOUND)
+  add_definitions(-DHAVE_FFTW3_DOUBLE)
+endif()
+if (FFTW3_LONGDOUBLE_FOUND)
+  add_definitions(-DHAVE_FFTW3_LONGDOUBLE)
+endif()
 
 find_package(HDF5)
 if (HDF5_FOUND AND HDF5_IS_PARALLEL)
   add_definitions(-DHAVE_HDF5=1)
   dune_register_package_flags(LIBRARIES ${HDF5_LIBRARIES}
                               INCLUDE_DIRS ${HDF5_INCLUDE_DIRS})
-  include(AddHDF5Flags)
 else()
   if (HDF5_FOUND)
     message("HDF5 found, but has not been compiled with MPI support.")
