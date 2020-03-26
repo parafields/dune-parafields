@@ -14,7 +14,10 @@
 #include "dune/randomfield/backends/dftmatrixbackend.hh"
 #include "dune/randomfield/backends/dctmatrixbackend.hh"
 #include "dune/randomfield/backends/r2cmatrixbackend.hh"
+
 #include "dune/randomfield/backends/dftfieldbackend.hh"
+#include "dune/randomfield/backends/r2cfieldbackend.hh"
+
 #include "dune/randomfield/backends/cpprngbackend.hh"
 #include "dune/randomfield/backends/gslrngbackend.hh"
 
@@ -636,7 +639,7 @@ namespace Dune {
         public:
 
           template<typename T>
-            using Type = DFTFieldBackend<T>;
+            using Type = R2CFieldBackend<T>;
       };
 
     /**

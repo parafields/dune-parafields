@@ -52,10 +52,7 @@ namespace Dune {
           :
             traits(traits_),
             matrixData(nullptr)
-        {
-          if ((*traits).rank == 0)
-            std::cout << "DCTMatrixBackend" << std::endl;
-        }
+        {}
 
         ~DCTMatrixBackend<Traits>()
         {

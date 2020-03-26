@@ -21,8 +21,9 @@ namespace Dune {
     template<typename GridTraits, template<typename> class IsoMatrix,
       template<typename> class AnisoMatrix> class RandomField;
 
-    // forward declaration for transposed test
+    // forward declarations for transposed test
     template<typename Traits> class R2CMatrixBackend;
+    template<typename Traits> class R2CFieldBackend;
 
     /**
      * @brief Traits for the RandomField class
@@ -191,7 +192,8 @@ namespace Dune {
                     << " multiple of numProc, defaulting to non-transposed" << std::endl;
               }
               // avoid R2C transposed format, since it both cuts and transposes first dim
-              else if (dim == 2 && std::is_same<typename IsoMatrix<ThisType>::MatrixBackendType,R2CMatrixBackend<ThisType>>::value)
+              else if (dim == 2 && (std::is_same<typename IsoMatrix<ThisType>::MatrixBackendType,R2CMatrixBackend<ThisType>>::value
+                  || std::is_same<typename IsoMatrix<ThisType>::FieldBackendType,R2CFieldBackend<ThisType>>::value))
               {
                 const std::string& anisotropy = config.template get<std::string>("stochastic.anisotropy","none");
                 if (anisotropy == "none" || anisotropy == "axiparallel")
@@ -202,7 +204,8 @@ namespace Dune {
                       << " to avoid confusing layout, defaulting to non-transposed" << std::endl;
                 }
               }
-              else if (dim == 2 && std::is_same<typename AnisoMatrix<ThisType>::MatrixBackendType,R2CMatrixBackend<ThisType>>::value)
+              else if (dim == 2 && (std::is_same<typename AnisoMatrix<ThisType>::MatrixBackendType,R2CMatrixBackend<ThisType>>::value
+                  || std::is_same<typename AnisoMatrix<ThisType>::FieldBackendType,R2CFieldBackend<ThisType>>::value))
               {
                 const std::string& anisotropy = config.template get<std::string>("stochastic.anisotropy","none");
                 if (anisotropy != "none" && anisotropy != "axiparallel")
