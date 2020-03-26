@@ -103,6 +103,28 @@ namespace Dune {
           {
             fftwf_destroy_plan(plan);
           }
+
+          // wisdom storage
+
+          static void import_wisdom_from_filename(const char* filename)
+          {
+            fftwf_import_wisdom_from_filename(filename);
+          }
+
+          static void mpi_broadcast_wisdom(MPI_Comm comm)
+          {
+            fftwf_mpi_broadcast_wisdom(comm);
+          }
+
+          static void mpi_gather_wisdom(MPI_Comm comm)
+          {
+            fftwf_mpi_gather_wisdom(comm);
+          }
+
+          static void export_wisdom_to_filename(const char* filename)
+          {
+            fftwf_export_wisdom_to_filename(filename);
+          }
       };
 #endif // HAVE_FFTW3_FLOAT
 
@@ -194,6 +216,28 @@ namespace Dune {
           {
             fftw_destroy_plan(plan);
           }
+
+          // wisdom storage
+
+          static void import_wisdom_from_filename(const char* filename)
+          {
+            fftw_import_wisdom_from_filename(filename);
+          }
+
+          static void mpi_broadcast_wisdom(MPI_Comm comm)
+          {
+            fftw_mpi_broadcast_wisdom(comm);
+          }
+
+          static void mpi_gather_wisdom(MPI_Comm comm)
+          {
+            fftw_mpi_gather_wisdom(comm);
+          }
+
+          static void export_wisdom_to_filename(const char* filename)
+          {
+            fftw_export_wisdom_to_filename(filename);
+          }
       };
 #endif // HAVE_FFTW3_DOUBLE
 
@@ -284,6 +328,28 @@ namespace Dune {
           static void destroy_plan(fftwl_plan& plan)
           {
             fftwl_destroy_plan(plan);
+          }
+
+          // wisdom storage
+
+          static void import_wisdom_from_filename(const char* filename)
+          {
+            fftwl_import_wisdom_from_filename(filename);
+          }
+
+          static void mpi_broadcast_wisdom(MPI_Comm comm)
+          {
+            fftwl_mpi_broadcast_wisdom(comm);
+          }
+
+          static void mpi_gather_wisdom(MPI_Comm comm)
+          {
+            fftwl_mpi_gather_wisdom(comm);
+          }
+
+          static void export_wisdom_to_filename(const char* filename)
+          {
+            fftwl_export_wisdom_to_filename(filename);
           }
       };
 #endif // HAVE_FFTW3_LONGDOUBLE

@@ -39,10 +39,26 @@ namespace Dune {
           :
             traits(traits_),
             matrixData(nullptr)
-        {}
+        {
+          if ((*traits).config.template get<bool>("fftw.useWisdom",false))
+          {
+            if ((*traits).rank == 0)
+              FFTW<RF>::import_wisdom_from_filename("wisdom-DFTMatrix.ini");
+
+            FFTW<RF>::mpi_broadcast_wisdom((*traits).comm);
+          }
+        }
 
         ~DFTMatrixBackend<Traits>()
         {
+          if ((*traits).config.template get<bool>("fftw.useWisdom",false))
+          {
+            FFTW<RF>::mpi_gather_wisdom((*traits).comm);
+
+            if ((*traits).rank == 0)
+              FFTW<RF>::export_wisdom_to_filename("wisdom-DFTMatrix.ini");
+          }
+
           if (matrixData != nullptr)
           {
             FFTW<RF>::free(matrixData);

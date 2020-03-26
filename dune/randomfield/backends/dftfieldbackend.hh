@@ -42,10 +42,26 @@ namespace Dune {
           :
             traits(traits_),
             fieldData(nullptr)
-        {}
+        {
+          if ((*traits).config.template get<bool>("fftw.useWisdom",false))
+          {
+            if ((*traits).rank == 0)
+              FFTW<RF>::import_wisdom_from_filename("wisdom-DFTField.ini");
+
+            FFTW<RF>::mpi_broadcast_wisdom((*traits).comm);
+          }
+        }
 
         ~DFTFieldBackend<Traits>()
         {
+          if ((*traits).config.template get<bool>("fftw.useWisdom",false))
+          {
+            FFTW<RF>::mpi_gather_wisdom((*traits).comm);
+
+            if ((*traits).rank == 0)
+              FFTW<RF>::export_wisdom_to_filename("wisdom-DFTField.ini");
+          }
+
           if (fieldData != nullptr)
           {
             FFTW<RF>::free(fieldData);

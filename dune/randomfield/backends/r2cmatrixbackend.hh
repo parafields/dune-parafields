@@ -48,12 +48,25 @@ namespace Dune {
             traits(traits_),
             matrixData(nullptr)
         {
-          if ((*traits).rank == 0)
-            std::cout << "R2CMatrixBackend" << std::endl;
+          if ((*traits).config.template get<bool>("fftw.useWisdom",false))
+          {
+            if ((*traits).rank == 0)
+              FFTW<RF>::import_wisdom_from_filename("wisdom-R2CMatrix.ini");
+
+            FFTW<RF>::mpi_broadcast_wisdom((*traits).comm);
+          }
         }
 
         ~R2CMatrixBackend<Traits>()
         {
+          if ((*traits).config.template get<bool>("fftw.useWisdom",false))
+          {
+            FFTW<RF>::mpi_gather_wisdom((*traits).comm);
+
+            if ((*traits).rank == 0)
+              FFTW<RF>::export_wisdom_to_filename("wisdom-R2CMatrix.ini");
+          }
+
           if (matrixData != nullptr)
           {
             FFTW<RF>::free(matrixData);
