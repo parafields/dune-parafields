@@ -135,7 +135,7 @@ namespace Dune {
             approximate       (config.get<bool>              ("randomField.approximate",false)),
             verbose           (config.get<bool>              ("randomField.verbose",false)),
             cgIterations      (config.get<unsigned int>      ("randomField.cgIterations",100)),
-            cacheInvMatvec    (config.get<bool>              ("randomField.cacheInvMatvec",true)),
+            cacheInvMatvec    (config.get<bool>              ("randomField.cacheInvMatvec",false)),
             cacheInvRootMatvec(config.get<bool>              ("randomField.cacheInvRootMatvec",false)),
             embeddingFactor   (config.get<unsigned int>      ("randomField.embeddingFactor",2)),
             cells             (config.get<Indices>           ("grid.cells"))
