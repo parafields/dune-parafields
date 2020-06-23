@@ -1,13 +1,16 @@
 Copyright holders:
 ------------------
 
+Ole Klein and contributors.
+
 | Year         | Name                        |
 |--------------|-----------------------------|
-| 2010 -- 2019 | Ole Klein                   |
+| 2010 -- 2020 | Ole Klein                   |
 | 2010         | Adrian Ngo                  |
 | 2019         | Santiago Ospina De Los Rios |
 | 2017         | Lukas Riedel                |
 | 2010         | Ronnie Schwede              |
+| 2020         | Arne Strehlow               |
 
 The module dune-randomfield is free software and documentation.
 
