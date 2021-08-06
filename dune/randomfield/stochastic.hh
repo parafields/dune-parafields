@@ -120,7 +120,7 @@ namespace Dune {
               maxCoords[i] = -std::numeric_limits<DF>::max();
             }
 
-            for (unsigned int j = 0; j < elem.geometry().corners(); j++)
+            for (int j = 0; j < elem.geometry().corners(); j++)
             {
               const DomainType& corner = elem.geometry().corner(j);
 
