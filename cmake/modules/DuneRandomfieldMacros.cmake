@@ -2,21 +2,17 @@
 
 find_package(FFTW3 REQUIRED)
 if (FFTW3_FLOAT_FOUND)
-  #add_definitions(-DHAVE_FFTW3_FLOAT)
   dune_register_package_flags(COMPILE_DEFINITIONS "HAVE_FFTW3_FLOAT")
 endif()
 if (FFTW3_DOUBLE_FOUND)
-  #add_definitions(-DHAVE_FFTW3_DOUBLE)
   dune_register_package_flags(COMPILE_DEFINITIONS "HAVE_FFTW3_DOUBLE")
 endif()
 if (FFTW3_LONGDOUBLE_FOUND)
-  #add_definitions(-DHAVE_FFTW3_LONGDOUBLE)
   dune_register_package_flags(COMPILE_DEFINITIONS "HAVE_FFTW3_LONGDOUBLE")
 endif()
 
 find_package(HDF5)
 if (HDF5_FOUND AND HDF5_IS_PARALLEL)
-  #add_definitions(-DHAVE_HDF5=1)
   dune_register_package_flags(COMPILE_DEFINITIONS "HAVE_HDF5=1"
                               LIBRARIES ${HDF5_LIBRARIES}
                               INCLUDE_DIRS ${HDF5_INCLUDE_DIRS})
@@ -27,7 +23,6 @@ else()
   else()
     message("HDF5 has not been found.")
   endif()
-  #add_definitions(-DHAVE_HDF5=0)
   dune_register_package_flags(COMPILE_DEFINITIONS "HAVE_HDF5=0")
   message("No parallel HDF5, HAVE_HDF5 set to false.")
 endif()
@@ -37,7 +32,6 @@ if (PNG_FOUND)
   dune_register_package_flags(COMPILE_DEFINITIONS "HAVE_PNG" ${PNG_DEFINITIONS}
                               LIBRARIES ${PNG_LIBRARIES}
                               INCLUDE_DIRS ${PNG_INCLUDE_DIRS})
-  #add_definitions(-DHAVE_PNG ${PNG_DEFINITIONS})
 endif()
 
 find_package(GSL)
@@ -45,5 +39,4 @@ if (GSL_FOUND)
   dune_register_package_flags(COMPILE_DEFINITIONS "HAVE_GSL" ${GSL_DEFINITIONS}
                               LIBRARIES ${GSL_LIBRARIES}
                               INCLUDE_DIRS ${GSL_INCLUDE_DIRS})
-  #add_definitions(-DHAVE_GSL ${GSL_DEFINITIONS})
 endif()
