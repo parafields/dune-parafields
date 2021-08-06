@@ -198,27 +198,23 @@ namespace Dune {
                     << " multiple of numProc, defaulting to non-transposed" << std::endl;
               }
               // avoid R2C transposed format, since it both cuts and transposes first dim
-              else if (dim == 2 && (std::is_same<typename IsoMatrix<ThisType>::MatrixBackendType,R2CMatrixBackend<ThisType>>::value
-                  || std::is_same<typename IsoMatrix<ThisType>::FieldBackendType,R2CFieldBackend<ThisType>>::value))
+              else if (dim == 2)
               {
                 const std::string& anisotropy = config.template get<std::string>("stochastic.anisotropy","none");
-                if (anisotropy == "none" || anisotropy == "axiparallel")
+
+                // check if R2C will be used
+                if ((std::is_same<typename IsoMatrix<ThisType>::MatrixBackendType,
+                      R2CMatrixBackend<ThisType>>::value
+                      && (anisotropy == "none" || anisotropy == "axiparallel"))
+                    || (std::is_same<typename AnisoMatrix<ThisType>::MatrixBackendType,
+                      R2CMatrixBackend<ThisType>>::value
+                      && (anisotropy != "none" && anisotropy != "axiparallel"))
+                    || std::is_same<typename IsoMatrix<ThisType>::FieldBackendType,
+                    R2CFieldBackend<ThisType>>::value)
                 {
                   transposed = false;
                   if (verbose && rank == 0)
-                    std::cout << "R2CFieldBackend needs more than two dimensions for transposed output"
-                      << " to avoid confusing layout, defaulting to non-transposed" << std::endl;
-                }
-              }
-              else if (dim == 2 && (std::is_same<typename AnisoMatrix<ThisType>::MatrixBackendType,R2CMatrixBackend<ThisType>>::value
-                  || std::is_same<typename AnisoMatrix<ThisType>::FieldBackendType,R2CFieldBackend<ThisType>>::value))
-              {
-                const std::string& anisotropy = config.template get<std::string>("stochastic.anisotropy","none");
-                if (anisotropy != "none" && anisotropy != "axiparallel")
-                {
-                  transposed = false;
-                  if (verbose && rank == 0)
-                    std::cout << "R2CFieldBackend needs more than two dimensions for transposed output"
+                    std::cout << "R2C backends need more than two dimensions for transposed output"
                       << " to avoid confusing layout, defaulting to non-transposed" << std::endl;
                 }
               }
