@@ -228,13 +228,16 @@ namespace Dune {
         /**
          * @brief Embed a random field in the extended domain
          */
-        void fieldToExtendedField(std::vector<RF>& field) const
+        void fieldToExtendedField(std::vector<RF>& field)
         {
           if (fieldData == nullptr)
             fieldData = FFTW<RF>::alloc_complex(allocLocal);
 
           for(Index i = 0; i < localExtendedDomainSize; i++)
+          {
+            fieldData[i][0] = 0.;
             fieldData[i][1] = 0.;
+          }
 
           if (commSize == 1)
           {
@@ -290,6 +293,8 @@ namespace Dune {
             unsigned int component = 0
             ) const
         {
+          field.resize(localDomainSize);
+
           if (commSize == 1)
           {
             Indices indices;

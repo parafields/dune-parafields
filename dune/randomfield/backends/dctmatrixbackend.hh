@@ -147,7 +147,7 @@ namespace Dune {
          */
         const Indices& localEvalMatrixCells() const
         {
-          return localExtendedCells;
+          return localEvalCells;
         }
 
         /**
@@ -534,6 +534,10 @@ namespace Dune {
 
           MPI_Waitall(request.size(),&(request[0]),MPI_STATUSES_IGNORE);
 
+          evalCells[dim-1]       = extendedCells[dim-1];
+          localEvalCells[dim-1]  = localExtendedCells[dim-1];
+          localEvalOffset[dim-1] = localExtendedOffset[dim-1];
+
           FFTW<RF>::free(unmirrored);
           unmirrored = nullptr;
 
@@ -582,12 +586,6 @@ namespace Dune {
           evalCells       = dctCells;
           localEvalCells  = localDCTCells;
           localEvalOffset = localDCTOffset;
-          if (commSize != 1)
-          {
-            evalCells[dim-1]       = extendedCells[dim-1];
-            localEvalCells[dim-1]  = localExtendedCells[dim-1];
-            localEvalOffset[dim-1] = localExtendedOffset[dim-1];
-          }
         }
 
         /**

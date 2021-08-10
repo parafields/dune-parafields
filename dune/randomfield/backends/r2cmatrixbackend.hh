@@ -39,6 +39,7 @@ namespace Dune {
         mutable typename FFTW<RF>::complex* matrixData;
         mutable Indices indices;
 
+        bool transformed = false;
         bool transposed, finalized;
 
         public:
@@ -123,7 +124,10 @@ namespace Dune {
          */
         Index localMatrixSize() const
         {
-          return localR2CRealDomainSize;
+          if (transformed)
+            return localR2CComplexDomainSize;
+          else
+            return localR2CRealDomainSize;
         }
 
         /**
@@ -209,6 +213,8 @@ namespace Dune {
           }
 
           transposeIfNeeded();
+
+          transformed = true;
         }
 
         /**
@@ -239,6 +245,8 @@ namespace Dune {
 
           FFTW<RF>::execute(plan_backward);
           FFTW<RF>::destroy_plan(plan_backward);
+
+          transformed = false;
         }
 
         /**

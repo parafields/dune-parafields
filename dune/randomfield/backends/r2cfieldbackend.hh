@@ -266,10 +266,13 @@ namespace Dune {
         /**
          * @brief Embed a random field in the extended domain
          */
-        void fieldToExtendedField(std::vector<RF>& field) const
+        void fieldToExtendedField(std::vector<RF>& field)
         {
           if (fieldData == nullptr)
             fieldData = FFTW<RF>::alloc_complex(allocLocal);
+
+          for(Index i = 0; i < localR2CRealDomainSize; i++)
+            ((RF*)fieldData)[i] = 0.;
 
           if (commSize == 1)
           {
@@ -325,6 +328,8 @@ namespace Dune {
             unsigned int component = 0
             ) const
         {
+          field.resize(localDomainSize);
+
           if (component != 0)
             DUNE_THROW(Dune::Exception,"tried to extract more than one field from R2CFieldBackend");
 
