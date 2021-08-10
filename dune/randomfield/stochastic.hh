@@ -43,7 +43,7 @@ namespace Dune {
         Indices             localEvalOffset;
         std::array<int,dim> procPerDim;
 
-        std::vector<RF>                      dataVector;
+        mutable std::vector<RF>              dataVector;
         mutable std::vector<RF>              evalVector;
         mutable std::vector<std::vector<RF>> overlap;
 
@@ -224,15 +224,6 @@ namespace Dune {
             std::cout << "Note: dimension of field has to be 1, 2 or 3"
               << " for data redistribution and overlap" << std::endl;
 
-          dataVector.resize(localDomainSize);
-          evalVector.resize(localDomainSize);
-          overlap.resize((*traits).dim*2);
-          for (unsigned int i = 0; i < dim; i++)
-          {
-            overlap[2*i    ].resize(localDomainSize/localEvalCells[i]);
-            overlap[2*i + 1].resize(localDomainSize/localEvalCells[i]);
-          }
-
           evalValid = false;
         }
 
@@ -272,10 +263,21 @@ namespace Dune {
          */
         StochasticPart& operator+=(const StochasticPart& other)
         {
-          for (Index i = 0; i < localDomainSize; ++i)
-            dataVector[i] += other.dataVector[i];
+          if (!other.dataVector.empty())
+          {
+            if (dataVector.empty())
+            {
+              dataVector.resize(localDomainSize);
 
-          evalValid = false;
+              for (Index i = 0; i < dataVector.size(); ++i)
+                dataVector[i] = other.dataVector[i];
+            }
+            else
+              for (Index i = 0; i < dataVector.size(); ++i)
+                dataVector[i] += other.dataVector[i];
+
+            evalValid = false;
+          }
 
           return *this;
         }
@@ -285,10 +287,21 @@ namespace Dune {
          */
         StochasticPart& operator-=(const StochasticPart& other)
         {
-          for (Index i = 0; i < localDomainSize; ++i)
-            dataVector[i] -= other.dataVector[i];
+          if (!other.dataVector.empty())
+          {
+            if (dataVector.empty())
+            {
+              dataVector.resize(localDomainSize);
 
-          evalValid = false;
+              for (Index i = 0; i < dataVector.size(); ++i)
+                dataVector[i] = - other.dataVector[i];
+            }
+            else
+              for (Index i = 0; i < dataVector.size(); ++i)
+                dataVector[i] -= other.dataVector[i];
+
+            evalValid = false;
+          }
 
           return *this;
         }
@@ -298,10 +311,13 @@ namespace Dune {
          */
         StochasticPart& operator*=(const RF alpha)
         {
-          for (Index i = 0; i < localDomainSize; ++i)
-            dataVector[i] *= alpha;
+          if (!dataVector.empty())
+          {
+            for (Index i = 0; i < dataVector.size(); ++i)
+              dataVector[i] *= alpha;
 
-          evalValid = false;
+            evalValid = false;
+          }
 
           return *this;
         }
@@ -311,10 +327,21 @@ namespace Dune {
          */
         StochasticPart& axpy(const StochasticPart& other, const RF alpha)
         {
-          for (Index i = 0; i < localDomainSize; ++i)
-            dataVector[i] += other.dataVector[i] * alpha;
+          if (!other.dataVector.empty())
+          {
+            if (dataVector.empty())
+            {
+              dataVector.resize(localDomainSize);
 
-          evalValid = false;
+              for (Index i = 0; i < dataVector.size(); ++i)
+                dataVector[i] = other.dataVector[i] * alpha;
+            }
+            else
+              for (Index i = 0; i < dataVector.size(); ++i)
+                dataVector[i] += other.dataVector[i] * alpha;
+
+            evalValid = false;
+          }
 
           return *this;
         }
@@ -326,8 +353,9 @@ namespace Dune {
         {
           RF sum = 0., mySum = 0.;
 
-          for (Index i = 0; i < localDomainSize; ++i)
-            mySum += dataVector[i] * other.dataVector[i];
+          if (dataVector.size() == other.dataVector.size())
+            for (Index i = 0; i < dataVector.size(); ++i)
+              mySum += dataVector[i] * other.dataVector[i];
 
           MPI_Allreduce(&mySum,&sum,1,mpiType<RF>,MPI_SUM,(*traits).comm);
           return sum;
@@ -340,12 +368,15 @@ namespace Dune {
         {
           int same = true, mySame = true;
 
-          for (Index i = 0; i < localDomainSize; ++i)
-            if (dataVector[i] != other.dataVector[i])
-            {
-              mySame = false;
-              break;
-            }
+          if (dataVector.size() != other.dataVector.size())
+            mySame = false;
+          else
+            for (Index i = 0; i < dataVector.size(); ++i)
+              if (dataVector[i] != other.dataVector[i])
+              {
+                mySame = false;
+                break;
+              }
 
           MPI_Allreduce(&mySame,&same,1,MPI_INT,MPI_MIN,(*traits).comm);
           return same;
@@ -469,7 +500,7 @@ namespace Dune {
          */
         void zero()
         {
-          for (Index i = 0; i < localDomainSize; i++)
+          for (Index i = 0; i < dataVector.size(); i++)
             dataVector[i] = 0.;
 
           evalValid = false;
@@ -491,58 +522,61 @@ namespace Dune {
               oldLocalCells[i] = localCells[i]/2;
             }
 
-            dataVector.resize(localDomainSize);
-
-            Indices oldIndices;
-            Indices newIndices;
-            if (dim == 3)
+            if (!dataVector.empty())
             {
-              for (oldIndices[2] = 0; oldIndices[2] < oldLocalCells[2]; oldIndices[2]++)
+              dataVector.resize(localDomainSize);
+
+              Indices oldIndices;
+              Indices newIndices;
+              if (dim == 3)
+              {
+                for (oldIndices[2] = 0; oldIndices[2] < oldLocalCells[2]; oldIndices[2]++)
+                  for (oldIndices[1] = 0; oldIndices[1] < oldLocalCells[1]; oldIndices[1]++)
+                    for (oldIndices[0] = 0; oldIndices[0] < oldLocalCells[0]; oldIndices[0]++)
+                    {
+                      newIndices[0] = 2*oldIndices[0];
+                      newIndices[1] = 2*oldIndices[1];
+                      newIndices[2] = 2*oldIndices[2];
+
+                      const Index oldIndex = Traits::indicesToIndex(oldIndices,oldLocalCells);
+                      const Index newIndex = Traits::indicesToIndex(newIndices,localCells);
+                      const RF oldValue = oldData[oldIndex];
+
+                      dataVector[newIndex                                                  ] = oldValue;
+                      dataVector[newIndex + 1                                              ] = oldValue;
+                      dataVector[newIndex + localCells[0]                                  ] = oldValue;
+                      dataVector[newIndex + localCells[0] + 1                              ] = oldValue;
+                      dataVector[newIndex + localCells[1]*localCells[0]                    ] = oldValue;
+                      dataVector[newIndex + localCells[1]*localCells[0] + 1                ] = oldValue;
+                      dataVector[newIndex + localCells[1]*localCells[0] + localCells[0]    ] = oldValue;
+                      dataVector[newIndex + localCells[1]*localCells[0] + localCells[0] + 1] = oldValue;
+                    }
+              }
+              else if (dim == 2)
+              {
                 for (oldIndices[1] = 0; oldIndices[1] < oldLocalCells[1]; oldIndices[1]++)
                   for (oldIndices[0] = 0; oldIndices[0] < oldLocalCells[0]; oldIndices[0]++)
                   {
                     newIndices[0] = 2*oldIndices[0];
                     newIndices[1] = 2*oldIndices[1];
-                    newIndices[2] = 2*oldIndices[2];
 
                     const Index oldIndex = Traits::indicesToIndex(oldIndices,oldLocalCells);
                     const Index newIndex = Traits::indicesToIndex(newIndices,localCells);
                     const RF oldValue = oldData[oldIndex];
 
-                    dataVector[newIndex                                                  ] = oldValue;
-                    dataVector[newIndex + 1                                              ] = oldValue;
-                    dataVector[newIndex + localCells[0]                                  ] = oldValue;
-                    dataVector[newIndex + localCells[0] + 1                              ] = oldValue;
-                    dataVector[newIndex + localCells[1]*localCells[0]                    ] = oldValue;
-                    dataVector[newIndex + localCells[1]*localCells[0] + 1                ] = oldValue;
-                    dataVector[newIndex + localCells[1]*localCells[0] + localCells[0]    ] = oldValue;
-                    dataVector[newIndex + localCells[1]*localCells[0] + localCells[0] + 1] = oldValue;
+                    dataVector[newIndex                    ] = oldValue;
+                    dataVector[newIndex + 1                ] = oldValue;
+                    dataVector[newIndex + localCells[0]    ] = oldValue;
+                    dataVector[newIndex + localCells[0] + 1] = oldValue;
                   }
+              }
+              else if (dim == 1)
+              {
+                DUNE_THROW(Dune::Exception,"not implemented");
+              }
+              else
+                DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
             }
-            else if (dim == 2)
-            {
-              for (oldIndices[1] = 0; oldIndices[1] < oldLocalCells[1]; oldIndices[1]++)
-                for (oldIndices[0] = 0; oldIndices[0] < oldLocalCells[0]; oldIndices[0]++)
-                {
-                  newIndices[0] = 2*oldIndices[0];
-                  newIndices[1] = 2*oldIndices[1];
-
-                  const Index oldIndex = Traits::indicesToIndex(oldIndices,oldLocalCells);
-                  const Index newIndex = Traits::indicesToIndex(newIndices,localCells);
-                  const RF oldValue = oldData[oldIndex];
-
-                  dataVector[newIndex                    ] = oldValue;
-                  dataVector[newIndex + 1                ] = oldValue;
-                  dataVector[newIndex + localCells[0]    ] = oldValue;
-                  dataVector[newIndex + localCells[0] + 1] = oldValue;
-                }
-            }
-            else if (dim == 1)
-            {
-              DUNE_THROW(Dune::Exception,"not implemented");
-            }
-            else
-              DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
 
             evalValid = false;
           }
@@ -564,60 +598,63 @@ namespace Dune {
               oldLocalCells[i] = localCells[i]*2;
             }
 
-            dataVector.resize(localDomainSize);
-
-            Indices oldIndices;
-            Indices newIndices;
-            if (dim == 3)
+            if (!dataVector.empty())
             {
-              for (newIndices[2] = 0; newIndices[2] < localCells[2]; newIndices[2]++)
+              dataVector.resize(localDomainSize);
+
+              Indices oldIndices;
+              Indices newIndices;
+              if (dim == 3)
+              {
+                for (newIndices[2] = 0; newIndices[2] < localCells[2]; newIndices[2]++)
+                  for (newIndices[1] = 0; newIndices[1] < localCells[1]; newIndices[1]++)
+                    for (newIndices[0] = 0; newIndices[0] < localCells[0]; newIndices[0]++)
+                    {
+                      oldIndices[0] = 2*newIndices[0];
+                      oldIndices[1] = 2*newIndices[1];
+                      oldIndices[2] = 2*newIndices[2];
+
+                      const Index oldIndex = Traits::indicesToIndex(oldIndices,oldLocalCells);
+                      const Index newIndex = Traits::indicesToIndex(newIndices,localCells);
+
+                      RF newValue = 0.;
+                      newValue += oldData[oldIndex                                                           ];
+                      newValue += oldData[oldIndex + 1                                                       ];
+                      newValue += oldData[oldIndex + oldLocalCells[0]                                        ];
+                      newValue += oldData[oldIndex + oldLocalCells[0] + 1                                    ];
+                      newValue += oldData[oldIndex + oldLocalCells[1]*oldLocalCells[0]                       ];
+                      newValue += oldData[oldIndex + oldLocalCells[1]*oldLocalCells[0] + 1                   ];
+                      newValue += oldData[oldIndex + oldLocalCells[1]*oldLocalCells[0] + oldLocalCells[0]    ];
+                      newValue += oldData[oldIndex + oldLocalCells[1]*oldLocalCells[0] + oldLocalCells[0] + 1];
+                      dataVector[newIndex] = newValue / 8;
+                    }
+              }
+              else if (dim == 2)
+              {
                 for (newIndices[1] = 0; newIndices[1] < localCells[1]; newIndices[1]++)
                   for (newIndices[0] = 0; newIndices[0] < localCells[0]; newIndices[0]++)
                   {
                     oldIndices[0] = 2*newIndices[0];
                     oldIndices[1] = 2*newIndices[1];
-                    oldIndices[2] = 2*newIndices[2];
 
                     const Index oldIndex = Traits::indicesToIndex(oldIndices,oldLocalCells);
                     const Index newIndex = Traits::indicesToIndex(newIndices,localCells);
 
                     RF newValue = 0.;
-                    newValue += oldData[oldIndex                                                           ];
-                    newValue += oldData[oldIndex + 1                                                       ];
-                    newValue += oldData[oldIndex + oldLocalCells[0]                                        ];
-                    newValue += oldData[oldIndex + oldLocalCells[0] + 1                                    ];
-                    newValue += oldData[oldIndex + oldLocalCells[1]*oldLocalCells[0]                       ];
-                    newValue += oldData[oldIndex + oldLocalCells[1]*oldLocalCells[0] + 1                   ];
-                    newValue += oldData[oldIndex + oldLocalCells[1]*oldLocalCells[0] + oldLocalCells[0]    ];
-                    newValue += oldData[oldIndex + oldLocalCells[1]*oldLocalCells[0] + oldLocalCells[0] + 1];
-                    dataVector[newIndex] = newValue / 8;
+                    newValue += oldData[oldIndex                       ];
+                    newValue += oldData[oldIndex + 1                   ];
+                    newValue += oldData[oldIndex + oldLocalCells[0]    ];
+                    newValue += oldData[oldIndex + oldLocalCells[0] + 1];
+                    dataVector[newIndex] = newValue / 4;
                   }
+              }
+              else if (dim == 1)
+              {
+                DUNE_THROW(Dune::Exception,"not implemented");
+              }
+              else
+                DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
             }
-            else if (dim == 2)
-            {
-              for (newIndices[1] = 0; newIndices[1] < localCells[1]; newIndices[1]++)
-                for (newIndices[0] = 0; newIndices[0] < localCells[0]; newIndices[0]++)
-                {
-                  oldIndices[0] = 2*newIndices[0];
-                  oldIndices[1] = 2*newIndices[1];
-
-                  const Index oldIndex = Traits::indicesToIndex(oldIndices,oldLocalCells);
-                  const Index newIndex = Traits::indicesToIndex(newIndices,localCells);
-
-                  RF newValue = 0.;
-                  newValue += oldData[oldIndex                       ];
-                  newValue += oldData[oldIndex + 1                   ];
-                  newValue += oldData[oldIndex + oldLocalCells[0]    ];
-                  newValue += oldData[oldIndex + oldLocalCells[0] + 1];
-                  dataVector[newIndex] = newValue / 4;
-                }
-            }
-            else if (dim == 1)
-            {
-              DUNE_THROW(Dune::Exception,"not implemented");
-            }
-            else
-              DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
 
             evalValid = false;
           }
@@ -630,7 +667,7 @@ namespace Dune {
         {
           RF sum = 0., mySum = 0.;
 
-          for (Index i = 0; i < localDomainSize; ++i)
+          for (Index i = 0; i < dataVector.size(); ++i)
             mySum += std::abs(dataVector[i]);
 
           MPI_Allreduce(&mySum,&sum,1,mpiType<RF>,MPI_SUM,(*traits).comm);
@@ -644,7 +681,7 @@ namespace Dune {
         {
           RF max = 0., myMax = 0.;
 
-          for (Index i = 0; i < localDomainSize; ++i)
+          for (Index i = 0; i < dataVector.size(); ++i)
             myMax = std::max(myMax, std::abs(dataVector[i]));
 
           MPI_Allreduce(&myMax,&max,1,mpiType<RF>,MPI_MAX,(*traits).comm);
@@ -660,7 +697,7 @@ namespace Dune {
           const RF factor = std::pow(2.*3.14159,-(dim/2.));
           RF distSquared;
 
-          for (Index i = 0; i < localDomainSize; i++)
+          for (Index i = 0; i < dataVector.size(); i++)
           {
             Traits::indexToIndices(i,cellIndices,localCells);
             Traits::indicesToCoords(cellIndices,localOffset,location);
@@ -682,6 +719,21 @@ namespace Dune {
          */
         void dataToEval() const
         {
+          if (dataVector.empty())
+          {
+            dataVector.resize(localDomainSize);
+            for (Index i = 0; i < dataVector.size(); i++)
+              dataVector[i] = 0.;
+          }
+
+          evalVector.resize(localDomainSize);
+          overlap.resize((*traits).dim*2);
+          for (unsigned int i = 0; i < dim; i++)
+          {
+            overlap[2*i    ].resize(localDomainSize/localEvalCells[i]);
+            overlap[2*i + 1].resize(localDomainSize/localEvalCells[i]);
+          }
+
           std::vector<RF> resorted(dataVector.size(),0.);
           std::vector<RF> temp = dataVector;
 
@@ -766,6 +818,8 @@ namespace Dune {
          */
         void evalToData()
         {
+          dataVector.resize(localDomainSize);
+
           if (commSize == 1 || dim == 1)
           {
             dataVector = evalVector;

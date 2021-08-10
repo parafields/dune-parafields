@@ -61,6 +61,12 @@ namespace Dune {
                 " and \"ziggurat\" as distributions");
         }
 
+        ~GSLRNGBackend<Traits>()
+        {
+          if (generator != nullptr)
+            gsl_rng_free(generator);
+        }
+
         /**
          * @brief (Re-)initialize random number generator
          */
@@ -83,12 +89,6 @@ namespace Dune {
             default: DUNE_THROW(Dune::Exception,
                          "unknown distribution type");
           }
-        }
-
-        ~GSLRNGBackend<Traits>()
-        {
-          if (generator != nullptr)
-            gsl_rng_free(generator);
         }
 
 #else // HAVE_GSL
