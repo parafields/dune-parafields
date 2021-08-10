@@ -12,12 +12,14 @@
 #include "dune/randomfield/covariance.hh"
 
 #include "dune/randomfield/backends/fftwwrapper.hh"
+
 #include "dune/randomfield/backends/dftmatrixbackend.hh"
-#include "dune/randomfield/backends/dctmatrixbackend.hh"
 #include "dune/randomfield/backends/r2cmatrixbackend.hh"
+#include "dune/randomfield/backends/dctmatrixbackend.hh"
 
 #include "dune/randomfield/backends/dftfieldbackend.hh"
 #include "dune/randomfield/backends/r2cfieldbackend.hh"
+#include "dune/randomfield/backends/dctdstfieldbackend.hh"
 
 #include "dune/randomfield/backends/cpprngbackend.hh"
 #include "dune/randomfield/backends/gslrngbackend.hh"
@@ -165,57 +167,93 @@ namespace Dune {
             if (!matrixBackend.valid())
               fillTransformedMatrix();
 
-            fieldBackend.allocate();
-
-            // initialize pseudo-random generator
-            seed += rank; // different seed for each processor
-            rngBackend.seed(seed);
-
             if (!spareField)
             {
+              fieldBackend.allocate();
+
+              // initialize pseudo-random generator
+              seed += rank; // different seed for each processor
+              rngBackend.seed(seed);
+
               RF lambda = 0.;
 
-              fieldBackend.transposeIfNeeded();
-
-              if (sameLayout())
+              // special version for DCT/DST field backend
+              if constexpr(std::is_same<FieldBackend<Traits>,DCTDSTFieldBackend<Traits>>::value)
               {
-                for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+                static_assert(std::is_same<MatrixBackend<Traits>,DCTMatrixBackend<Traits>>::value,
+                    "DCTDSTFieldBackend requires DCTMatrixBackend");
+
+                Indices indices;
+                for (unsigned int type = 0; type < (1 << dim); type++)
                 {
-                  lambda = std::sqrt(matrixBackend.eval(index));
+                  fieldBackend.setType(type);
 
-                  const RF& rand1 = rngBackend.sample();
-                  const RF& rand2 = rngBackend.sample();
+                  fieldBackend.transposeIfNeeded();
 
-                  fieldBackend.set(index,lambda,rand1,rand2);
+                  for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+                  {
+                    Traits::indexToIndices(index,indices,fieldBackend.localFieldCells());
+                    lambda = std::sqrt(matrixBackend.eval(indices));
+
+                    const RF& rand = rngBackend.sample();
+
+                    fieldBackend.set(index,indices,lambda,rand);
+                  }
+
+                  fieldBackend.backwardTransform();
+
+                  fieldBackend.extendedFieldToField(stochasticPart.dataVector,0,type != 0);
                 }
+
+                stochasticPart.evalValid = false;
               }
+              // general version
               else
               {
-                Indices indices;
-                for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+                fieldBackend.transposeIfNeeded();
+
+                // raw (flat) index can be used
+                if (sameLayout())
                 {
-                  Traits::indexToIndices(index,indices,fieldBackend.localFieldCells());
+                  for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+                  {
+                    lambda = std::sqrt(matrixBackend.eval(index));
 
-                  lambda = std::sqrt(matrixBackend.eval(indices));
+                    const RF& rand1 = rngBackend.sample();
+                    const RF& rand2 = rngBackend.sample();
 
-                  const RF& rand1 = rngBackend.sample();
-                  const RF& rand2 = rngBackend.sample();
-
-                  fieldBackend.set(index,lambda,rand1,rand2);
+                    fieldBackend.set(index,lambda,rand1,rand2);
+                  }
                 }
+                // matrix and field layout differ, conversion needed
+                else
+                {
+                  Indices indices;
+                  for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+                  {
+                    Traits::indexToIndices(index,indices,fieldBackend.localFieldCells());
+
+                    lambda = std::sqrt(matrixBackend.eval(indices));
+
+                    const RF& rand1 = rngBackend.sample();
+                    const RF& rand2 = rngBackend.sample();
+
+                    fieldBackend.set(index,lambda,rand1,rand2);
+                  }
+                }
+
+                fieldBackend.backwardTransform();
+
+                fieldBackend.extendedFieldToField(stochasticPart.dataVector,0);
+                stochasticPart.evalValid = false;
+
+                if (fieldBackend.hasSpareField())
+                {
+                  spareField = new std::vector<RF>(stochasticPart.dataVector.size());
+                  fieldBackend.extendedFieldToField(*spareField,1);
+                }
+
               }
-
-              fieldBackend.backwardTransform();
-
-              fieldBackend.extendedFieldToField(stochasticPart.dataVector,0);
-              stochasticPart.evalValid = false;
-
-              if (fieldBackend.hasSpareField())
-              {
-                spareField = new std::vector<RF>(stochasticPart.dataVector.size());
-                fieldBackend.extendedFieldToField(*spareField,1);
-              }
-
             }
             else
             {
@@ -527,26 +565,60 @@ namespace Dune {
               fillTransformedMatrix();
 
             fieldBackend.fieldToExtendedField(input);
-            fieldBackend.forwardTransform();
 
-            if (sameLayout())
+            // special version for DCT/DST field backend
+            if constexpr(std::is_same<FieldBackend<Traits>,DCTDSTFieldBackend<Traits>>::value)
             {
-              for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
-                fieldBackend.mult(index,matrixBackend.eval(index));
-            }
-            else
-            {
-              Indices indices;
-              for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+              static_assert(std::is_same<MatrixBackend<Traits>,DCTMatrixBackend<Traits>>::value,
+                  "DCTDSTFieldBackend requires DCTMatrixBackend");
+
+              FieldBackend<Traits> component(traits);
+              component.allocate();
+
+              for (unsigned int type = 0; type < (1 << dim); type++)
               {
-                Traits::indexToIndices(index,indices,fieldBackend.localFieldCells());
+                component.setType(type);
 
-                fieldBackend.mult(index,matrixBackend.eval(indices));
+                for (Index index = 0; index < component.localFieldSize(); index++)
+                  component.setComponent(index,fieldBackend.get(index));
+
+                component.forwardTransform();
+
+                for (Index index = 0; index < component.localFieldSize(); index++)
+                  component.mult(index,matrixBackend.get(index));
+
+                component.backwardTransform();
+
+                component.extendedFieldToField(output,0,type != 0);
               }
             }
+            // general version
+            else
+            {
+              fieldBackend.forwardTransform();
 
-            fieldBackend.backwardTransform();
-            fieldBackend.extendedFieldToField(output);
+              // raw (flat) index can be used
+              if (sameLayout())
+              {
+                for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+                  fieldBackend.mult(index,matrixBackend.eval(index));
+              }
+              // matrix and field layout differ, conversion needed
+              else
+              {
+                Indices indices;
+                for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+                {
+                  Traits::indexToIndices(index,indices,fieldBackend.localFieldCells());
+
+                  fieldBackend.mult(index,matrixBackend.eval(indices));
+                }
+              }
+
+              fieldBackend.backwardTransform();
+
+              fieldBackend.extendedFieldToField(output);
+            }
           }
 
           /**
@@ -558,26 +630,60 @@ namespace Dune {
               fillTransformedMatrix();
 
             fieldBackend.fieldToExtendedField(input);
-            fieldBackend.forwardTransform();
 
-            if (sameLayout())
+            // special version for DCT/DST field backend
+            if constexpr(std::is_same<FieldBackend<Traits>,DCTDSTFieldBackend<Traits>>::value)
             {
-              for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
-                fieldBackend.mult(index,std::sqrt(matrixBackend.eval(index)));
-            }
-            else
-            {
-              Indices indices;
-              for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+              static_assert(std::is_same<MatrixBackend<Traits>,DCTMatrixBackend<Traits>>::value,
+                  "DCTDSTFieldBackend requires DCTMatrixBackend");
+
+              FieldBackend<Traits> component(traits);
+              component.allocate();
+
+              for (unsigned int type = 0; type < (1 << dim); type++)
               {
-                Traits::indexToIndices(index,indices,fieldBackend.localFieldCells());
+                component.setType(type);
 
-                fieldBackend.mult(index,std::sqrt(matrixBackend.eval(indices)));
+                for (Index index = 0; index < component.localFieldSize(); index++)
+                  component.setComponent(index,fieldBackend.get(index));
+
+                component.forwardTransform();
+
+                for (Index index = 0; index < component.localFieldSize(); index++)
+                  component.mult(index,std::sqrt(matrixBackend.get(index)));
+
+                component.backwardTransform();
+
+                component.extendedFieldToField(output,0,type != 0);
               }
             }
+            // general version
+            else
+            {
+              fieldBackend.forwardTransform();
 
-            fieldBackend.backwardTransform();
-            fieldBackend.extendedFieldToField(output);
+              // raw (flat) index can be used
+              if (sameLayout())
+              {
+                for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+                  fieldBackend.mult(index,std::sqrt(matrixBackend.eval(index)));
+              }
+              // matrix and field layout differ, conversion needed
+              else
+              {
+                Indices indices;
+                for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+                {
+                  Traits::indexToIndices(index,indices,fieldBackend.localFieldCells());
+
+                  fieldBackend.mult(index,std::sqrt(matrixBackend.eval(indices)));
+                }
+              }
+
+              fieldBackend.backwardTransform();
+
+              fieldBackend.extendedFieldToField(output);
+            }
           }
 
           /**
@@ -589,26 +695,60 @@ namespace Dune {
               fillTransformedMatrix();
 
             fieldBackend.fieldToExtendedField(input);
-            fieldBackend.forwardTransform();
 
-            if (sameLayout())
+            // special version for DCT/DST field backend
+            if constexpr(std::is_same<FieldBackend<Traits>,DCTDSTFieldBackend<Traits>>::value)
             {
-              for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
-                fieldBackend.mult(index,1./matrixBackend.eval(index));
-            }
-            else
-            {
-              Indices indices;
-              for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+              static_assert(std::is_same<MatrixBackend<Traits>,DCTMatrixBackend<Traits>>::value,
+                  "DCTDSTFieldBackend requires DCTMatrixBackend");
+
+              FieldBackend<Traits> component(traits);
+              component.allocate();
+
+              for (unsigned int type = 0; type < (1 << dim); type++)
               {
-                Traits::indexToIndices(index,indices,fieldBackend.localFieldCells());
+                component.setType(type);
 
-                fieldBackend.mult(index,1./matrixBackend.eval(indices));
+                for (Index index = 0; index < component.localFieldSize(); index++)
+                  component.setComponent(index,fieldBackend.get(index));
+
+                component.forwardTransform();
+
+                for (Index index = 0; index < component.localFieldSize(); index++)
+                  component.mult(index,1./matrixBackend.get(index));
+
+                component.backwardTransform();
+
+                component.extendedFieldToField(output,0,type != 0);
               }
             }
+            // general version
+            else
+            {
+              fieldBackend.forwardTransform();
 
-            fieldBackend.backwardTransform();
-            fieldBackend.extendedFieldToField(output);
+              // raw (flat) index can be used
+              if (sameLayout())
+              {
+                for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+                  fieldBackend.mult(index,1./matrixBackend.eval(index));
+              }
+              // matrix and field layout differ, conversion needed
+              else
+              {
+                Indices indices;
+                for (Index index = 0; index < fieldBackend.localFieldSize(); index++)
+                {
+                  Traits::indexToIndices(index,indices,fieldBackend.localFieldCells());
+
+                  fieldBackend.mult(index,1./matrixBackend.eval(indices));
+                }
+              }
+
+              fieldBackend.backwardTransform();
+
+              fieldBackend.extendedFieldToField(output);
+            }
           }
 
         };
@@ -687,7 +827,7 @@ namespace Dune {
         public:
 
           template<typename T>
-            using Type = Matrix<T,DCTMatrixBackend>;
+            using Type = Matrix<T,DCTMatrixBackend,DCTDSTFieldBackend>;
       };
 
     /**

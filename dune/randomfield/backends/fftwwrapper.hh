@@ -66,6 +66,14 @@ namespace Dune {
             return fftwf_mpi_local_size_transposed(dim,n,comm,localN0,local0Start,localN0Trans,local0StartTrans);
           }
 
+          static ptrdiff_t mpi_local_size_many_transposed(unsigned int dim, const ptrdiff_t* n, ptrdiff_t howmany,
+              ptrdiff_t block0, ptrdiff_t block1, MPI_Comm comm, ptrdiff_t* localN0, ptrdiff_t* local0Start,
+              ptrdiff_t* localN0Trans, ptrdiff_t* local0StartTrans)
+          {
+            return fftwf_mpi_local_size_many_transposed(dim,n,howmany,block0,block1,comm,
+                localN0,local0Start,localN0Trans,local0StartTrans);
+          }
+
           // plan creation
 
           static fftwf_plan mpi_plan_dft(unsigned int dim, const ptrdiff_t* n, fftwf_complex* data1, fftwf_complex* data2,
@@ -90,6 +98,12 @@ namespace Dune {
               MPI_Comm comm, r2r_kind* kinds, unsigned int flags)
           {
             return fftwf_mpi_plan_r2r(dim,n,data1,data2,comm,kinds,flags);
+          }
+
+          static fftwf_plan mpi_plan_many_r2r(unsigned int dim, const ptrdiff_t* n, ptrdiff_t howmany, ptrdiff_t block0,
+              ptrdiff_t block1, float* data1, float* data2, MPI_Comm comm, r2r_kind* kinds, unsigned int flags)
+          {
+            return fftwf_mpi_plan_many_r2r(dim,n,howmany,block0,block1,data1,data2,comm,kinds,flags);
           }
 
           // plan execution and destruction
@@ -179,6 +193,14 @@ namespace Dune {
             return fftw_mpi_local_size_transposed(dim,n,comm,localN0,local0Start,localN0Trans,local0StartTrans);
           }
 
+          static ptrdiff_t mpi_local_size_many_transposed(unsigned int dim, const ptrdiff_t* n, ptrdiff_t howmany,
+              ptrdiff_t block0, ptrdiff_t block1, MPI_Comm comm, ptrdiff_t* localN0, ptrdiff_t* local0Start,
+              ptrdiff_t* localN0Trans, ptrdiff_t* local0StartTrans)
+          {
+            return fftw_mpi_local_size_many_transposed(dim,n,howmany,block0,block1,comm,
+                localN0,local0Start,localN0Trans,local0StartTrans);
+          }
+
           // plan creation
 
           static fftw_plan mpi_plan_dft(unsigned int dim, const ptrdiff_t* n, fftw_complex* data1, fftw_complex* data2,
@@ -203,6 +225,12 @@ namespace Dune {
               MPI_Comm comm, r2r_kind* kinds, unsigned int flags)
           {
             return fftw_mpi_plan_r2r(dim,n,data1,data2,comm,kinds,flags);
+          }
+
+          static fftw_plan mpi_plan_many_r2r(unsigned int dim, const ptrdiff_t* n, ptrdiff_t howmany, ptrdiff_t block0,
+              ptrdiff_t block1, double* data1, double* data2, MPI_Comm comm, r2r_kind* kinds, unsigned int flags)
+          {
+            return fftw_mpi_plan_many_r2r(dim,n,howmany,block0,block1,data1,data2,comm,kinds,flags);
           }
 
           // plan execution and destruction
@@ -292,6 +320,14 @@ namespace Dune {
             return fftwl_mpi_local_size_transposed(dim,n,comm,localN0,local0Start,localN0Trans,local0StartTrans);
           }
 
+          static ptrdiff_t mpi_local_size_many_transposed(unsigned int dim, const ptrdiff_t* n, ptrdiff_t howmany,
+              ptrdiff_t block0, ptrdiff_t block1, MPI_Comm comm, ptrdiff_t* localN0, ptrdiff_t* local0Start,
+              ptrdiff_t* localN0Trans, ptrdiff_t* local0StartTrans)
+          {
+            return fftwl_mpi_local_size_many_transposed(dim,n,howmany,block0,block1,comm,
+                localN0,local0Start,localN0Trans,local0StartTrans);
+          }
+
           // plan creation
 
           static fftwl_plan mpi_plan_dft(unsigned int dim, const ptrdiff_t* n, fftwl_complex* data1, fftwl_complex* data2,
@@ -316,6 +352,12 @@ namespace Dune {
               MPI_Comm comm, r2r_kind* kinds, unsigned int flags)
           {
             return fftwl_mpi_plan_r2r(dim,n,data1,data2,comm,kinds,flags);
+          }
+
+          static fftwl_plan mpi_plan_many_r2r(unsigned int dim, const ptrdiff_t* n, ptrdiff_t howmany, ptrdiff_t block0,
+              ptrdiff_t block1, long double* data1, long double* data2, MPI_Comm comm, r2r_kind* kinds, unsigned int flags)
+          {
+            return fftwl_mpi_plan_many_r2r(dim,n,howmany,block0,block1,data1,data2,comm,kinds,flags);
           }
 
           // plan execution and destruction
