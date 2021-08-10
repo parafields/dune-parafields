@@ -338,6 +338,9 @@ namespace Dune {
             matrixBackend.finalize();
           }
 
+          /**
+           * @brief Compute entries of covariance matrix
+           */
           template<typename Covariance>
             void fillCovarianceMatrix() const
             {
@@ -355,6 +358,9 @@ namespace Dune {
                     "stochastic.anisotropy must be \"none\", \"axiparallel\" or \"geometric\"");
             }
 
+          /**
+           * @brief Evaluate isotropic covariance matrix in (potentially) transformed space
+           */
           template<typename Covariance, typename GeometryMatrix>
             void computeCovarianceMatrixEntries() const
             {
@@ -655,6 +661,9 @@ namespace Dune {
             using Type = DFTFieldBackend<T>;
       };
 
+    /**
+     * @brief Default RNG backend: GSL when available, std::random as fallback
+     */
     template<long unsigned int dim>
       class DefaultRNGBackend
       {

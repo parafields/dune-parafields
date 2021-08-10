@@ -418,6 +418,9 @@ namespace Dune {
             return output;
           }
 
+          /**
+           * @brief Equality operator
+           */
           bool operator==(const TrendComponent<Traits>& other) const
           {
             bool same = true;
@@ -432,6 +435,9 @@ namespace Dune {
             return same;
           }
 
+          /**
+           * @brief Inequality operator
+           */
           bool operator!=(const TrendComponent<Traits>& other) const
           {
             return !operator==(other);
@@ -554,7 +560,7 @@ namespace Dune {
         public:
 
         /**
-         * @brief Constructor
+         * @brief Constructor reading image file
          */
         ImageComponent<Traits>(
             const std::shared_ptr<Traits>& traits,
@@ -688,7 +694,7 @@ namespace Dune {
         public:
 
         /**
-         * @brief Constructor
+         * @brief Constructor reading from file or creating homogeneous field
          */
         TrendPart<Traits>(
             const Dune::ParameterTree& config,
@@ -1096,6 +1102,9 @@ namespace Dune {
           return output;
         }
 
+        /**
+         * @brief Equality operator
+         */
         bool operator==(const TrendPart<Traits>& other) const
         {
           bool same = true;
@@ -1113,13 +1122,16 @@ namespace Dune {
           return same;
         }
 
+        /**
+         * @brief Inequality operator
+         */
         bool operator!=(const TrendPart<Traits>& other) const
         {
           return !operator==(other);
         }
 
         /**
-         * @brief Infinity norm
+         * @brief One norm
          */
         RF oneNorm() const
         {

@@ -307,8 +307,8 @@ namespace Dune {
         }
 
         /**
-         * @brief Calculate R2C cells from extended domain cells
-         * */
+         * @brief Get the extent of the real and complex R2C fields
+         */
         void getR2CCells()
         {
           localR2CComplexCells = localExtendedCells;

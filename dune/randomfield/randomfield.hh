@@ -879,31 +879,49 @@ namespace Dune {
               trendPart.timesInvMatRoot();
             }
 
+            /**
+             * @brief One-norm (sum of absolute values)
+             */
             RF oneNorm() const
             {
               return trendPart.oneNorm() + stochasticPart.oneNorm();
             }
 
+            /**
+             * @brief Euclidean norm
+             */
             RF twoNorm() const
             {
               return std::sqrt( *this * *this);
             }
 
+            /**
+             * @brief Maximum norm
+             */
             RF infNorm() const
             {
               return std::max(trendPart.infNorm(), stochasticPart.infNorm());
             }
 
+            /**
+             * @brief Equality operator
+             */
             bool operator==(const RandomField& other) const
             {
               return (trendPart == other.trendPart && stochasticPart == other.stochasticPart);
             }
 
+            /**
+             * @brief Inequality operator
+             */
             bool operator!=(const RandomField& other) const
             {
               return !operator==(other);
             }
 
+            /**
+             * @brief Multiply field with Gaussian with given center and radius
+             */
             void localize(const typename Traits::DomainType& center, const RF radius)
             {
               stochasticPart.localize(center,radius);
@@ -1422,6 +1440,9 @@ namespace Dune {
                 list.find(type)->second->timesInvMatRoot();
             }
 
+            /**
+             * @brief One-norm (sum of absolute values)
+             */
             RF oneNorm() const
             {
               RF sum = 0.;
@@ -1431,6 +1452,9 @@ namespace Dune {
               return sum;
             }
 
+            /**
+             * @brief Euclidean norm
+             */
             RF twoNorm() const
             {
               RF sum = 0.;
@@ -1440,6 +1464,9 @@ namespace Dune {
               return std::sqrt(sum);
             }
 
+            /**
+             * @brief Maximum norm
+             */
             RF infNorm() const
             {
               RF max = 0;
@@ -1449,6 +1476,9 @@ namespace Dune {
               return max;
             }
 
+            /**
+             * @brief Equality operator
+             */
             bool operator==(const RandomFieldList& other) const
             {
               bool same = true;
@@ -1467,11 +1497,17 @@ namespace Dune {
               return same;
             }
 
+            /**
+             * @brief Inequality operator
+             */
             bool operator!=(const RandomFieldList& other) const
             {
               return !operator==(other);
             }
 
+            /**
+             * @brief Multiply fields with Gaussian with given center and radius
+             */
             void localize(const typename GridTraits::Domain& center, const RF radius)
             {
               for(const std::string& type : activeTypes)

@@ -57,7 +57,7 @@ namespace Dune {
         public:
 
         /**
-         * @brief Constructor
+         * @brief Constructor reading from file or creating homogeneous field
          */
         StochasticPart(
             const std::shared_ptr<Traits>& traits_,
@@ -95,6 +95,9 @@ namespace Dune {
         }
 
 #if HAVE_DUNE_PDELAB
+        /**
+         * @brief Constructor converting from DiscreteGridFunction
+         */
         template<typename DGF>
           StochasticPart(const StochasticPart& other, const DGF& dgf)
           :
@@ -171,6 +174,9 @@ namespace Dune {
           evalValid  = true;
         }
 
+        /**
+         * @brief Constructor converting from GridFunctionSpace and GridVector
+         */
         template<typename GFS, typename Field>
           StochasticPart(const StochasticPart& other, const GFS& gfs, const Field& field)
           :
@@ -327,6 +333,9 @@ namespace Dune {
           return sum;
         }
 
+        /**
+         * @brief Equality operator
+         */
         bool operator==(const StochasticPart& other) const
         {
           int same = true, mySame = true;
@@ -342,6 +351,9 @@ namespace Dune {
           return same;
         }
 
+        /**
+         * @brief Inequality operator
+         */
         bool operator!=(const StochasticPart& other) const
         {
           return !operator==(other);
@@ -639,6 +651,9 @@ namespace Dune {
           return max;
         }
 
+        /**
+         * @brief Multiply field with Gaussian with given center and radius
+         */
         void localize(const typename Traits::DomainType& center, const RF radius)
         {
           typename Traits::DomainType location;
