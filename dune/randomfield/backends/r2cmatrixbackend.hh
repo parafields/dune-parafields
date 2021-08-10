@@ -39,14 +39,15 @@ namespace Dune {
         mutable typename FFTW<RF>::complex* matrixData;
         mutable Indices indices;
 
-        bool transposed;
+        bool transposed, finalized;
 
         public:
 
         R2CMatrixBackend<Traits>(const std::shared_ptr<Traits>& traits_)
           :
             traits(traits_),
-            matrixData(nullptr)
+            matrixData(nullptr),
+            finalized(false)
         {
           if ((*traits).config.template get<bool>("fftw.useWisdom",false))
           {
@@ -79,6 +80,8 @@ namespace Dune {
          */
         void update()
         {
+          checkFinalized();
+
           rank     = (*traits).rank;
           commSize = (*traits).commSize;
 
@@ -173,6 +176,8 @@ namespace Dune {
          */
         void forwardTransform()
         {
+          checkFinalized();
+
           unsigned int flags;
           if ((*traits).config.template get<bool>("fftw.measure",false))
             flags = FFTW_MEASURE;
@@ -208,6 +213,7 @@ namespace Dune {
          */
         void backwardTransform()
         {
+          checkFinalized();
           transposeIfNeeded();
 
           unsigned int flags;
@@ -237,7 +243,7 @@ namespace Dune {
          */
         const RF& eval(Index index) const
         {
-          return matrixData[index][0];
+          return ((RF*)matrixData)[index];
         }
 
         /**
@@ -258,6 +264,7 @@ namespace Dune {
          */
         const RF& get(Index index) const
         {
+          checkFinalized();
           return ((RF*)matrixData)[index];
         }
 
@@ -266,15 +273,22 @@ namespace Dune {
          */
         void set(Index index, RF value)
         {
+          checkFinalized();
           ((RF*)matrixData)[index] = value;
         }
 
         /**
-         * @brief Dummy function, nothing to do after Fourier transform
+         * @brief Remove zero imaginary part of transformed matrix
          */
         void finalize()
         {
-          // nothing to do
+          typename FFTW<RF>::complex* uncut = matrixData;
+          matrixData = (typename FFTW<RF>::complex*)FFTW<RF>::alloc_real(allocLocal);
+          for (Index i = 0; i < allocLocal; i++)
+            ((RF*)matrixData)[i] = uncut[i][0];
+          FFTW<RF>::free(uncut);
+
+          finalized = true;
         }
 
         private:
@@ -292,6 +306,9 @@ namespace Dune {
           allocLocal = FFTW<RF>::mpi_local_size(dim, n, (*traits).comm, &localN0, &local0Start);
         }
 
+        /**
+         * @brief Get the extent of the real and complex R2C fields
+         */
         void getR2CCells()
         {
           localR2CComplexCells = localExtendedCells;
@@ -304,6 +321,15 @@ namespace Dune {
           localR2CRealDomainSize = localExtendedDomainSize / localExtendedCells[0] * localR2CRealCells[0];
         }
 
+        /**
+         * @brief Raise an exception if the field can no longer be modified
+         */
+        void checkFinalized() const
+        {
+          if (finalized)
+            DUNE_THROW(Dune::Exception,
+                "matrix is finalized, use DFTMatrixBackend if you need to modify the matrix");
+        }
       };
 
   }
