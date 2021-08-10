@@ -42,7 +42,7 @@ namespace Dune {
         mutable RF* matrixData;
         mutable Indices indices;
 
-        bool transposed;
+        bool transposed, finalized;
 
         enum {mirrorForward, mirrorBackward};
 
@@ -51,7 +51,8 @@ namespace Dune {
         DCTMatrixBackend<Traits>(const std::shared_ptr<Traits>& traits_)
           :
             traits(traits_),
-            matrixData(nullptr)
+            matrixData(nullptr),
+            finalized(false)
         {
           if ((*traits).config.template get<bool>("fftw.useWisdom",false))
           {
@@ -84,6 +85,8 @@ namespace Dune {
          */
         void update()
         {
+          checkFinalized();
+
           rank     = (*traits).rank;
           commSize = (*traits).commSize;
 
@@ -174,6 +177,8 @@ namespace Dune {
          */
         void forwardTransform()
         {
+          checkFinalized();
+
           unsigned int flags;
           if ((*traits).config.template get<bool>("fftw.measure",false))
             flags = FFTW_MEASURE;
@@ -210,10 +215,7 @@ namespace Dune {
          */
         void backwardTransform()
         {
-          if (commSize > 1)
-            DUNE_THROW(Dune::Exception,"DCT backward transforms are not implemented in the parallel case"
-                " because the matrix has been redistributed");
-
+          checkFinalized();
           transposeIfNeeded(localN0,local0Start);
 
           unsigned int flags;
@@ -270,6 +272,7 @@ namespace Dune {
          */
         const RF& get(Index index) const
         {
+          checkFinalized();
           return matrixData[index];
         }
 
@@ -278,13 +281,14 @@ namespace Dune {
          */
         void set(Index index, RF value)
         {
+          checkFinalized();
           matrixData[index] = value;
         }
 
         /**
          * @brief Mirror matrix on domain boundary in parallel case
          */
-        void finalize() const
+        void finalize()
         {
           // nothing to do in sequential case
           if (commSize == 1)
@@ -529,6 +533,8 @@ namespace Dune {
 
           FFTW<RF>::free(unmirrored);
           unmirrored = nullptr;
+
+          finalized = true;
         }
 
         private:
@@ -581,6 +587,15 @@ namespace Dune {
           }
         }
 
+        /**
+         * @brief Raise an exception if the field can no longer be modified
+         */
+        void checkFinalized() const
+        {
+          if (finalized)
+            DUNE_THROW(Dune::Exception,
+                "matrix is finalized, use DFTMatrixBackend if you need to modify the matrix");
+        }
       };
 
   }
