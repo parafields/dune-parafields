@@ -43,6 +43,9 @@ namespace Dune {
             traits(traits_),
             fieldData(nullptr)
         {
+          if ((*traits).verbose && (*traits).rank == 0)
+            std::cout << "using DFTFieldBackend" << std::endl;
+
           if ((*traits).config.template get<bool>("fftw.useWisdom",false))
           {
             if ((*traits).rank == 0)
@@ -204,12 +207,18 @@ namespace Dune {
           return true;
         }
 
+        /**
+         * @brief Set entry based on pair of random numbers
+         */
         void set(Index index, RF lambda, RF rand1, RF rand2)
         {
           fieldData[index][0] = lambda * rand1;
           fieldData[index][1] = lambda * rand2;
         }
 
+        /**
+         * @brief Multiply entry with given number
+         */
         void mult(Index index, RF lambda)
         {
           fieldData[index][0] *= lambda;

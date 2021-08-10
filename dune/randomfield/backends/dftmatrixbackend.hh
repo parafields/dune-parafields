@@ -40,6 +40,9 @@ namespace Dune {
             traits(traits_),
             matrixData(nullptr)
         {
+          if ((*traits).verbose && (*traits).rank == 0)
+            std::cout << "using DFTMatrixBackend" << std::endl;
+
           if ((*traits).config.template get<bool>("fftw.useWisdom",false))
           {
             if ((*traits).rank == 0)

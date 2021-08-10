@@ -29,6 +29,9 @@ namespace Dune {
 
         GSLRNGBackend<Traits>(const std::shared_ptr<Traits>& traits)
         {
+          if ((*traits).verbose && (*traits).rank == 0)
+            std::cout << "using GSLRNGBackend" << std::endl;
+
           const std::string& rng
             = (*traits).config.template get<std::string>("random.rng","twister");
           if (rng == "twister")

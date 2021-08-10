@@ -43,8 +43,6 @@ namespace Dune {
 
         bool transposed;
 
-        const RF sqrtTwo = std::sqrt(2.);
-
         enum {toExtended, fromExtended};
 
         public:
@@ -54,6 +52,9 @@ namespace Dune {
             traits(traits_),
             fieldData(nullptr)
         {
+          if ((*traits).verbose && (*traits).rank == 0)
+            std::cout << "using R2CFieldBackend" << std::endl;
+
           if ((*traits).config.template get<bool>("fftw.useWisdom",false))
           {
             if ((*traits).rank == 0)
@@ -224,8 +225,13 @@ namespace Dune {
           return false;
         }
 
+        /**
+         * @brief Set entry based on pair of random numbers
+         */
         void set(Index index, RF lambda, RF rand1, RF rand2)
         {
+          static const RF sqrtTwo = std::sqrt(2.);
+
           Traits::indexToIndices(index,indices,localR2CComplexCells);
 
           bool allMultiple = true;
@@ -248,6 +254,9 @@ namespace Dune {
           }
         }
 
+        /**
+         * @brief Multiply entry with given number
+         */
         void mult(Index index, RF lambda)
         {
           fieldData[index][0] *= lambda;

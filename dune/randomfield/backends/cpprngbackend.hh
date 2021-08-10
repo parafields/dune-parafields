@@ -23,7 +23,10 @@ namespace Dune {
         CppRNGBackend<Traits>(const std::shared_ptr<Traits>& traits)
           :
             normalDist(0.,1.)
-        {}
+        {
+          if ((*traits).verbose && (*traits).rank == 0)
+            std::cout << "using CppRNGBackend" << std::endl;
+        }
 
         /**
          * @brief (Re-)initialize random number generator

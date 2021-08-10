@@ -49,6 +49,9 @@ namespace Dune {
             matrixData(nullptr),
             finalized(false)
         {
+          if ((*traits).verbose && (*traits).rank == 0)
+            std::cout << "using R2CMatrixBackend" << std::endl;
+
           if ((*traits).config.template get<bool>("fftw.useWisdom",false))
           {
             if ((*traits).rank == 0)
@@ -307,8 +310,8 @@ namespace Dune {
         }
 
         /**
-         * @brief Get the extent of the real and complex R2C fields
-         */
+         * @brief Calculate R2C cells from extended domain cells
+         * */
         void getR2CCells()
         {
           localR2CComplexCells = localExtendedCells;
