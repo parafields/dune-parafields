@@ -313,7 +313,7 @@ namespace Dune {
               // different seeds for different fields
               seed += static_cast<int>(reinterpret_cast<uintptr_t>(&stochasticPart));
 
-              generate(seed,allowNonWorldComm);
+              generateUncorrelated(seed,allowNonWorldComm);
             }
 
             /**
