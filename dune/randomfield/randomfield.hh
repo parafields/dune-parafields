@@ -98,7 +98,9 @@ namespace Dune {
 
             const std::string& anisotropy
               = (*traits).config.template get<std::string>("stochastic.anisotropy","none");
-            if (anisotropy == "none" || anisotropy == "axiparallel")
+            const std::string& covariance
+              = (*traits).config.template get<std::string>("stochastic.covariance");
+            if (covariance != "custom-aniso" && (anisotropy == "none" || anisotropy == "axiparallel"))
             {
               isoMatrix = IsoMatrixPtr(new IsoMatrix<Traits>(traits));
               useAnisoMatrix = false;
@@ -128,7 +130,9 @@ namespace Dune {
           {
             const std::string& anisotropy
               = (*traits).config.template get<std::string>("stochastic.anisotropy","none");
-            if (anisotropy == "none" || anisotropy == "axiparallel")
+            const std::string& covariance
+              = (*traits).config.template get<std::string>("stochastic.covariance");
+            if (covariance != "custom-aniso" && (anisotropy == "none" || anisotropy == "axiparallel"))
             {
               isoMatrix = IsoMatrixPtr(new IsoMatrix<Traits>(traits));
               useAnisoMatrix = false;
@@ -266,6 +270,18 @@ namespace Dune {
             unsigned int dofs() const
             {
               return stochasticPart.dofs() + trendPart.dofs();
+            }
+
+            /**
+             * @brief Explicit matrix setup for custom covariance classes
+             */
+            template<typename Covariance>
+            void fillMatrix()
+            {
+              if (useAnisoMatrix)
+                (*anisoMatrix).template fillTransformedMatrix<Covariance>();
+              else
+                (*isoMatrix).template fillTransformedMatrix<Covariance>();
             }
 
             /**

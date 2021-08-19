@@ -160,6 +160,103 @@ namespace Dune {
           }
 
           /**
+           * @brief Compute entries of Fourier-transformed covariance matrix
+           */
+          template<typename Covariance = void>
+          void fillTransformedMatrix() const
+          {
+            if constexpr (std::is_same<Covariance,void>::value)
+            {
+              if (covariance == "custom-iso" || covariance == "custom-aniso")
+                DUNE_THROW(Dune::Exception,
+                    "you need to call fillMatrix with your covariance class as parameter");
+
+              if (covariance == "exponential")
+                fillCovarianceMatrix<ExponentialCovariance>();
+              else if (covariance == "gaussian")
+                fillCovarianceMatrix<GaussianCovariance>();
+              else if (covariance == "spherical")
+                fillCovarianceMatrix<SphericalCovariance>();
+              else if (covariance == "separableExponential")
+                fillCovarianceMatrix<SeparableExponentialCovariance>();
+              else if (covariance == "matern32")
+                fillCovarianceMatrix<Matern32Covariance>();
+              else if (covariance == "matern52")
+                fillCovarianceMatrix<Matern52Covariance>();
+              else if (covariance == "dampedOscillation")
+                fillCovarianceMatrix<DampedOscillationCovariance>();
+              else if (covariance == "cauchy")
+                fillCovarianceMatrix<CauchyCovariance>();
+              else if (covariance == "cubic")
+                fillCovarianceMatrix<CubicCovariance>();
+              else if (covariance == "whiteNoise")
+                fillCovarianceMatrix<WhiteNoiseCovariance>();
+              else
+                DUNE_THROW(Dune::Exception,"covariance structure " + covariance + " not known");
+            }
+            else
+            {
+              if (covariance != "custom-iso" && covariance != "custom-aniso")
+                DUNE_THROW(Dune::Exception,
+                    "you can't fill the matrix explicitly if a default covariance was chosen");
+
+              computeCovarianceMatrixEntries<Covariance,ScaledIdentityMatrix<RF,dim>>();
+            }
+
+            matrixBackend.forwardTransform();
+
+            unsigned int mySmall = 0;
+            unsigned int myNegative = 0;
+            unsigned int myZero = 0;
+            RF mySmallest = std::numeric_limits<RF>::max();
+            for (Index index = 0; index < matrixBackend.localMatrixSize(); index++)
+            {
+              const RF value = matrixBackend.get(index);
+              if (value < mySmallest)
+                mySmallest = value;
+
+              if (value < 1e-6)
+              {
+                if (value < 1e-10)
+                {
+                  if (value > -1e-10)
+                    myZero++;
+                  else
+                    myNegative++;
+                }
+                else
+                  mySmall++;
+              }
+
+              if (value < 0.)
+                matrixBackend.set(index,0.);
+            }
+
+            int small, negative, zero;
+            RF smallest;
+            MPI_Allreduce(&mySmall,   &small,   1,MPI_INT,MPI_SUM,(*traits).comm);
+            MPI_Allreduce(&myNegative,&negative,1,MPI_INT,MPI_SUM,(*traits).comm);
+            MPI_Allreduce(&myZero,    &zero,    1,MPI_INT,MPI_SUM,(*traits).comm);
+            MPI_Allreduce(&mySmallest,&smallest,1,mpiType<RF>,MPI_MIN,(*traits).comm);
+
+            if ((*traits).verbose && rank == 0)
+              std::cout << small << " small, " << zero << " approx. zero and "
+                << negative << " large negative eigenvalues in covariance matrix, smallest "
+                << smallest << std::endl;
+
+            if (negative > 0 && !(*traits).approximate)
+            {
+              if (rank == 0)
+                std::cerr << "negative eigenvalues in covariance matrix, "
+                  << "consider increasing embeddingFactor, or alternatively "
+                  << "allow generation of approximate samples" << std::endl;
+              DUNE_THROW(Dune::Exception,"negative eigenvalues in covariance matrix");
+            }
+
+            matrixBackend.finalize();
+          }
+
+          /**
            * @brief Generate random field based on covariance matrix
            */
           void generateField(unsigned int seed, StochasticPartType& stochasticPart) const
@@ -294,87 +391,6 @@ namespace Dune {
           }
 
           private:
-
-          /**
-           * @brief Compute entries of Fourier-transformed covariance matrix
-           */
-          void fillTransformedMatrix() const
-          {
-            if (covariance == "exponential")
-              fillCovarianceMatrix<ExponentialCovariance>();
-            else if (covariance == "gaussian")
-              fillCovarianceMatrix<GaussianCovariance>();
-            else if (covariance == "spherical")
-              fillCovarianceMatrix<SphericalCovariance>();
-            else if (covariance == "separableExponential")
-              fillCovarianceMatrix<SeparableExponentialCovariance>();
-            else if (covariance == "matern32")
-              fillCovarianceMatrix<Matern32Covariance>();
-            else if (covariance == "matern52")
-              fillCovarianceMatrix<Matern52Covariance>();
-            else if (covariance == "dampedOscillation")
-              fillCovarianceMatrix<DampedOscillationCovariance>();
-            else if (covariance == "cauchy")
-              fillCovarianceMatrix<CauchyCovariance>();
-            else if (covariance == "cubic")
-              fillCovarianceMatrix<CubicCovariance>();
-            else if (covariance == "whiteNoise")
-              fillCovarianceMatrix<WhiteNoiseCovariance>();
-            else
-              DUNE_THROW(Dune::Exception,"covariance structure " + covariance + " not known");
-
-            matrixBackend.forwardTransform();
-
-            unsigned int mySmall = 0;
-            unsigned int myNegative = 0;
-            unsigned int mySmallNegative = 0;
-            RF mySmallest = std::numeric_limits<RF>::max();
-            for (Index index = 0; index < matrixBackend.localMatrixSize(); index++)
-            {
-              const RF value = matrixBackend.get(index);
-              if (value < mySmallest)
-                mySmallest = value;
-
-              if (value < 1e-6)
-              {
-                if (value < 1e-10)
-                {
-                  if (value > -1e-10)
-                    mySmallNegative++;
-                  else
-                    myNegative++;
-                }
-                else
-                  mySmall++;
-              }
-
-              if (value < 0.)
-                matrixBackend.set(index,0.);
-            }
-
-            int small, negative, smallNegative;
-            RF smallest;
-            MPI_Allreduce(&mySmall,        &small,        1,MPI_INT,MPI_SUM,(*traits).comm);
-            MPI_Allreduce(&myNegative,     &negative,     1,MPI_INT,MPI_SUM,(*traits).comm);
-            MPI_Allreduce(&mySmallNegative,&smallNegative,1,MPI_INT,MPI_SUM,(*traits).comm);
-            MPI_Allreduce(&mySmallest,     &smallest,     1,mpiType<RF>,MPI_MIN,(*traits).comm);
-
-            if ((*traits).verbose && rank == 0)
-              std::cout << small << " small, " << smallNegative << " small negative and "
-                << negative << " large negative eigenvalues in covariance matrix, smallest "
-                << smallest << std::endl;
-
-            if (negative > 0 && !(*traits).approximate)
-            {
-              if (rank == 0)
-                std::cerr << "negative eigenvalues in covariance matrix, "
-                  << "consider increasing embeddingFactor, or alternatively "
-                  << "allow generation of approximate samples" << std::endl;
-              DUNE_THROW(Dune::Exception,"negative eigenvalues in covariance matrix");
-            }
-
-            matrixBackend.finalize();
-          }
 
           /**
            * @brief Compute entries of covariance matrix
