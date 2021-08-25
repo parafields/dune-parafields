@@ -1,6 +1,5 @@
-// -*- tab-width: 2; indent-tabs-mode: nil -*-
 #ifndef DUNE_RANDOMFIELD_IO_HH
-#define	DUNE_RANDOMFIELD_IO_HH
+#define DUNE_RANDOMFIELD_IO_HH
 
 #include<fstream>
 

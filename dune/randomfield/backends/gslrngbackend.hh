@@ -1,6 +1,5 @@
-// -*- tab-width: 2; indent-tabs-mode: nil -*-
 #ifndef DUNE_RANDOMFIELD_GSLRNGBACKEND_HH
-#define	DUNE_RANDOMFIELD_GSLRNGBACKEND_HH
+#define DUNE_RANDOMFIELD_GSLRNGBACKEND_HH
 
 #ifdef HAVE_GSL
 #include <gsl/gsl_rng.h>

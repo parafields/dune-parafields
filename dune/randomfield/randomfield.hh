@@ -1,6 +1,5 @@
-// -*- tab-width: 2; indent-tabs-mode: nil -*-
 #ifndef DUNE_RANDOMFIELD_RANDOMFIELD_HH
-#define	DUNE_RANDOMFIELD_RANDOMFIELD_HH
+#define DUNE_RANDOMFIELD_RANDOMFIELD_HH
 
 #include<dune/common/parametertree.hh>
 

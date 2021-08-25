@@ -1,6 +1,5 @@
-// -*- tab-width: 2; indent-tabs-mode: nil -*-
 #ifndef DUNE_RANDOMFIELD_DFTMATRIXBACKEND_HH
-#define	DUNE_RANDOMFIELD_DFTMATRIXBACKEND_HH
+#define DUNE_RANDOMFIELD_DFTMATRIXBACKEND_HH
 
 namespace Dune {
   namespace RandomField {

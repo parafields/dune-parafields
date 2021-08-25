@@ -1,4 +1,3 @@
-// -*- tab-width: 2; indent-tabs-mode: nil -*-
 #ifndef DUNE_RANDOMFIELD_FFTWWRAPPER_HH
 #define DUNE_RANDOMFIELD_FFTWWRAPPER_HH
 
