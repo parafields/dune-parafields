@@ -126,6 +126,10 @@ namespace Dune {
         {
           update();
 
+          evalVector.resize(localDomainSize);
+          for (Index index = 0; index < localDomainSize; index++)
+            evalVector[index] = 0.;
+
           using DF         = typename Traits::DomainField;
           using DomainType = typename Traits::DomainType;
 
