@@ -15,6 +15,14 @@ namespace Dune {
 
     /*
      * @brief Part of random field that consists of cell values
+     *
+     * This class represents the random field proper, i.e., the
+     * generalization of zero-mean stochastic processes to higher
+     * dimensions. Trend components, like an uncertain mean value,
+     * uncertain linear slope, etc., can be used to complement this
+     * class.
+     *
+     * @tparam Traits traits class with types, definitions and parameters
      */
     template<typename Traits>
       class StochasticPart
@@ -57,6 +65,12 @@ namespace Dune {
 
         /**
          * @brief Constructor reading from file or creating homogeneous field
+         *
+         * This constructor reads the random field values from file, or creates
+         * a constant zero field if the file name is an empty string.
+         *
+         * @param traits_  instance of Traits class with configuration
+         * @param fileName base file name, or empty string for homogeneous field
          */
         StochasticPart(
             const std::shared_ptr<Traits>& traits_,
@@ -96,6 +110,14 @@ namespace Dune {
 #if HAVE_DUNE_PDELAB
         /**
          * @brief Constructor converting from DiscreteGridFunction
+         *
+         * This constructor extracts the random field values from a
+         * PDELab DiscreteGridFunction.
+         *
+         * @tparam DGF  type of DiscreteGridFunction
+         *
+         * @param other other stochastic part to copy configuration from
+         * @param dgf   DiscreteGridFunction to copy values from
          */
         template<typename DGF>
           StochasticPart(const StochasticPart& other, const DGF& dgf)
@@ -175,6 +197,16 @@ namespace Dune {
 
         /**
          * @brief Constructor converting from GridFunctionSpace and GridVector
+         *
+         * This constructor extracts the random field values from a PDELab
+         * GridFunctionSpace and associated coefficient vector.
+         *
+         * @tparam GFS   type of GridFunctionSpace
+         * @tparam Field type of coefficient vector
+         *
+         * @param other other stochastic part to copy configuration from
+         * @param gfs   instance of GridFunctionSpace
+         * @param field coefficient vector for extraction
          */
         template<typename GFS, typename Field>
           StochasticPart(const StochasticPart& other, const GFS& gfs, const Field& field)
@@ -228,6 +260,11 @@ namespace Dune {
 
         /**
          * @brief Write stochastic part of field to hard disk
+         *
+         * This function creates an HDF5 file containing the random
+         * field values.
+         *
+         * @param fileName desired base file name
          */
         void writeToFile(const std::string& fileName) const
         {
@@ -248,6 +285,11 @@ namespace Dune {
 
         /**
          * @brief Number of degrees of freedom
+         *
+         * The number of degrees of freedom, i.e., the number of cells of
+         * the structured grid the random field lives on
+         *
+         * @return number of cells
          */
         unsigned int dofs() const
         {
@@ -259,6 +301,10 @@ namespace Dune {
 
         /**
          * @brief Addition assignment operator
+         *
+         * @param other other stochastic part to add
+         *
+         * @return reference to updated stochastic part
          */
         StochasticPart& operator+=(const StochasticPart& other)
         {
@@ -283,6 +329,10 @@ namespace Dune {
 
         /**
          * @brief Subtraction assignment operator
+         *
+         * @param other other stochastic part to subtract
+         *
+         * @return reference to updated stochastic part
          */
         StochasticPart& operator-=(const StochasticPart& other)
         {
@@ -307,6 +357,10 @@ namespace Dune {
 
         /**
          * @brief Multiplication with scalar
+         *
+         * @param alpha scale factor
+         *
+         * @return reference to updated stochastic part
          */
         StochasticPart& operator*=(const RF alpha)
         {
@@ -323,6 +377,13 @@ namespace Dune {
 
         /**
          * @brief AXPY scaled addition
+         *
+         * Adds a multiple of another stochastic part.
+         *
+         * @param other other stochastic part to scale and add
+         * @param alpha scale factor
+         *
+         * @return reference to updated stochastic part
          */
         StochasticPart& axpy(const StochasticPart& other, const RF alpha)
         {
@@ -347,6 +408,12 @@ namespace Dune {
 
         /**
          * @brief Scalar product
+         *
+         * Sum of the products of each pair of cell values.
+         *
+         * @param other other stochastic part to multiply with
+         *
+         * @return resulting scalar value
          */
         RF operator*(const StochasticPart& other) const
         {
@@ -362,6 +429,10 @@ namespace Dune {
 
         /**
          * @brief Equality operator
+         *
+         * @param other stochastic part to compare with
+         *
+         * @return true if all random field values are the same, else false
          */
         bool operator==(const StochasticPart& other) const
         {
@@ -383,6 +454,12 @@ namespace Dune {
 
         /**
          * @brief Inequality operator
+         *
+         * @param other other stochastic part to compare with
+         *
+         * @return true if operator== would return false, else false
+         *
+         * @see operator==
          */
         bool operator!=(const StochasticPart& other) const
         {
@@ -391,6 +468,14 @@ namespace Dune {
 
         /**
          * @brief Evaluate stochastic part at given location
+         *
+         * This function evaluates the stochastic part, returning the
+         * value associated with the cell containing the specified
+         * location. In 1D, 2D and 3D, an overlap of one cell is
+         * provided in the parallel case.
+         *
+         * @param      location coordinates where field should be evaluated
+         * @param[out] output   resulting random field value
          */
         void evaluate(
             const typename Traits::DomainType& location,
@@ -412,7 +497,7 @@ namespace Dune {
               countIndices[i] = 2*dim;
           }
 
-          if (dim == 3)
+          if constexpr (dim == 3)
           {
             if (countIndices[0] == 2*dim && countIndices[1] == 2*dim
                 && countIndices[2] != 2*dim)
@@ -446,7 +531,7 @@ namespace Dune {
               output[0] = evalVector[index];
             }
           }
-          else if (dim == 2)
+          else if constexpr (dim == 2)
           {
             if (countIndices[0] == 2*dim && countIndices[1] != 2*dim)
             {
@@ -470,7 +555,7 @@ namespace Dune {
               output[0] = evalVector[index];
             }
           }
-          else if (dim == 1)
+          else if constexpr (dim == 1)
           {
             if (countIndices[0] != 2*dim)
             {
@@ -491,11 +576,28 @@ namespace Dune {
             }
           }
           else
-            DUNE_THROW(Dune::Exception,"dimension of field has to be 1, 2 or 3");
+          {
+            for (unsigned int i = 0; i < dim; i++)
+              if (countIndices[i] != 2*dim)
+                DUNE_THROW(Dune::Exception, "overlap only available for dimensions 1, 2 and 3");
+
+            for (unsigned int i = 0; i < dim; i++)
+            {
+              if (evalIndices[i] > localEvalCells[i])
+                evalIndices[i]++;
+              else if (evalIndices[i] == localEvalCells[i])
+                evalIndices[i]--;
+            }
+
+            const Index& index = Traits::indicesToIndex(evalIndices,localEvalCells);
+            output[0] = evalVector[index];
+          }
         }
 
         /**
          * @brief Set stochastic part to zero
+         *
+         * Sets each random field value to zero.
          */
         void zero()
         {
@@ -507,6 +609,11 @@ namespace Dune {
 
         /**
          * @brief Double spatial resolution and transfer field values
+         *
+         * This function creates a new array of field values that is
+         * twice the size in each dimension, and transfers the old
+         * values. Each original cell is turned into a set of cells
+         * that all have the same value.
          */
         void refine()
         {
@@ -583,6 +690,10 @@ namespace Dune {
 
         /**
          * @brief Reduce spatial resolution and transfer field values
+         *
+         * Inverse operation to refine, merging several cells into a larger one
+         * and halving the number of cells per dimension in the process. The
+         * average of the previous cell values is assigned to the new larger cell.
          */
         void coarsen()
         {
@@ -661,6 +772,8 @@ namespace Dune {
 
         /**
          * @brief One norm
+         *
+         * @return sum of absolute values
          */
         RF oneNorm() const
         {
@@ -675,6 +788,8 @@ namespace Dune {
 
         /**
          * @brief Infinity norm
+         *
+         * @return maximum of absolute values
          */
         RF infNorm() const
         {
@@ -689,6 +804,12 @@ namespace Dune {
 
         /**
          * @brief Multiply field with Gaussian with given center and radius
+         *
+         * Multiplies the random field values with a Gaussian with given
+         * center coordinates and radius (i.e., standard deviation).
+         *
+         * @param center coordinates of midpoint of Gaussian
+         * @param radius scale factor
          */
         void localize(const typename Traits::DomainType& center, const RF radius)
         {
@@ -715,6 +836,12 @@ namespace Dune {
 
         /**
          * @brief Convert data in striped (FFT compatible) format to setup using blocks
+         *
+         * The FFTW backends require a parallel data distribution along one dimension
+         * only, but this is suboptimal when the random field should be used as
+         * parameterization for, e.g., some PDE-based model. This function exchanges
+         * data using MPI, making it possible to use different data layouts than
+         * mandated by FFTW.
          */
         void dataToEval() const
         {
@@ -814,6 +941,11 @@ namespace Dune {
 
         /**
          * @brief Convert data in blocks to setup using stripes (FFT compatible)
+         *
+         * This function is the inverse operation to dataToEval, exchanging data
+         * using MPI to bring it into a format that is suitable for FFTW.
+         *
+         * @see dataToEval
          */
         void evalToData()
         {
@@ -886,13 +1018,18 @@ namespace Dune {
 
         /**
          * @brief Communicate the overlap regions at the block boundaries
+         *
+         * This function exchanges a single row of data across processor
+         * boundaries in 1D, 2D and 3D. This additional row of parameters
+         * is then available for overlapping PDE solvers that need information
+         * about the neighbors of their finite elements, etc.
          */
         void exchangeOverlap() const
         {
           std::array<unsigned int,2*dim> neighbor;
           std::vector<std::vector<RF>> extract = overlap;
 
-          if (dim == 3)
+          if constexpr (dim == 3)
           {
             for (unsigned int i = 0; i < dim; i++)
             {
@@ -926,7 +1063,7 @@ namespace Dune {
             neighbor[5] = (rank+(procPerDim[0]*procPerDim[1])           )%commSize;
 
           }
-          else if (dim == 2)
+          else if constexpr (dim == 2)
           {
             for (unsigned int i = 0; i < dim; i++)
             {
@@ -949,7 +1086,7 @@ namespace Dune {
             neighbor[3] = (rank+procPerDim[0]           )%commSize;
 
           }
-          else if (dim == 1)
+          else if constexpr (dim == 1)
           {
             neighbor[0] = (rank+(commSize-1))%commSize;
             neighbor[1] = (rank+1           )%commSize;

@@ -11,6 +11,12 @@ namespace Dune {
 
     /**
      * @brief Standard normal distribtion based on choice of GSL RNGs
+     *
+     * This class provides a generator for Gaussian random numbers, based
+     * on the generators of the GNU Scientific Library (GSL). This is the
+     * default RNG if the GSL library was found.
+     *
+     * @tparam Traits traits class providing data types and definitions
      */
     template<typename Traits>
       class GSLRNGBackend
@@ -26,7 +32,16 @@ namespace Dune {
 
         public:
 
-        GSLRNGBackend<Traits>(const std::shared_ptr<Traits>& traits)
+        /**
+         * @brief Constructor
+         *
+         * This constructor can extract configuration obtions from the
+         * traits argument, which can be used to select between different
+         * generators provided by the GSL.
+         *
+         * @param traits object containing parameters and configuration
+         */
+        GSLRNGBackend(const std::shared_ptr<Traits>& traits)
         {
           if ((*traits).verbose && (*traits).rank == 0)
             std::cout << "using GSLRNGBackend" << std::endl;
@@ -60,7 +75,12 @@ namespace Dune {
                 " and \"ziggurat\" as distributions");
         }
 
-        ~GSLRNGBackend<Traits>()
+        /**
+         * @brief Destructor
+         *
+         * Cleans up the GSL generator instance.
+         */
+        ~GSLRNGBackend()
         {
           if (generator != nullptr)
             gsl_rng_free(generator);
@@ -68,6 +88,15 @@ namespace Dune {
 
         /**
          * @brief (Re-)initialize random number generator
+         *
+         * This function puts the random number generator into a
+         * known state, which makes it possible to create the same
+         * sequence of numbers. Note that this may still lead to
+         * different fields if the code is run on a different
+         * platform or with a different parallel data distribution
+         * (if any).
+         *
+         * @param seed seed value for the random number generator
          */
         void seed(unsigned int seed)
         {
@@ -76,6 +105,10 @@ namespace Dune {
 
         /**
          * @brief Produce sample from normally distributed random variable
+         *
+         * Draw a sample from the standard normal distribution.
+         *
+         * @return generated sample
          */
         RF sample()
         {

@@ -18,6 +18,15 @@ namespace Dune {
 
         public:
 
+        /**
+         * @brief Constructor reading correlation lengths from config
+         *
+         * This constructor expects exactly one parameter for the
+         * correlation length (because it is isotropic and has the
+         * same value in each direction).
+         *
+         * @param config parameter tree containing correlation lengths
+         */
         ScaledIdentityMatrix(const Dune::ParameterTree& config)
           :
             value(config.get<RF>("stochastic.corrLength"))
@@ -42,6 +51,13 @@ namespace Dune {
 
         public:
 
+        /**
+         * @brief Constructor reading correlation lengths from config
+         *
+         * This constructor expects one correlation length per dimension.
+         *
+         * @param config parameter tree containing correlation lengths
+         */
         DiagonalMatrix(const Dune::ParameterTree& config)
           :
             diagonalValues(config.get<std::array<RF,dim>>("stochastic.corrLength"))
@@ -67,6 +83,15 @@ namespace Dune {
 
         public:
 
+        /**
+         * @brief Constructor reading correlation lengths from config
+         *
+         * This parameter expects a regular \f$ d \times d \f$ matrix as
+         * "correlation length", specified row after row and interpreted as a
+         * general space transformation.
+         *
+         * @param config parameter tree containing correlation lengths
+         */
         GeneralMatrix(const Dune::ParameterTree& config)
           :
             matrixValues(config.get<std::array<RF,dim*dim>>("stochastic.corrLength"))
@@ -122,11 +147,26 @@ namespace Dune {
 
     /**
      * @brief Spherical covariance function
+     *
+     * The spherical covariance function represents the interaction
+     * between two spheres in a certain distance, in terms of overlapping
+     * volume of the two spheres. It has compact support.
      */
     class SphericalCovariance
     {
       public:
 
+        /*
+         * @brief Evaluate the covariance function
+         *
+         * @tparam RF      type of values and coordinates
+         * @tparam dim     dimension of domain
+         *
+         * @param variance covariance for lag zero
+         * @param x        location, after scaling / trafo with correlation length
+         *
+         * @return resulting value
+         */
         template<typename RF, long unsigned int dim>
           RF operator()(const RF variance, const std::array<RF,dim>& x) const
           {
@@ -165,11 +205,26 @@ namespace Dune {
 
     /**
      * @brief Exponential covariance function
+     *
+     * The exponential covariance function is \f$ C(h) = \sigma^2 \exp(-h) \f$,
+     * and produces comparatively rough sample paths. This is the Matérn
+     * covariance function for \f$ \nu = 1/2 \f$.
      */
     class ExponentialCovariance
     {
       public:
 
+        /*
+         * @brief Evaluate the covariance function
+         *
+         * @tparam RF      type of values and coordinates
+         * @tparam dim     dimension of domain
+         *
+         * @param variance covariance for lag zero
+         * @param x        location, after scaling / trafo with correlation length
+         *
+         * @return resulting value
+         */
         template<typename RF, long unsigned int dim>
           RF operator()(const RF variance, const std::array<RF,dim>& x) const
           {
@@ -184,11 +239,26 @@ namespace Dune {
 
     /**
      * @brief Gaussian covariance function
+     *
+     * The Gaussian, or square-exponential, covariance function is
+     * \f$ C(h) = \sigma^2 \exp(-h^2) \$f, producing smooth sample paths.
+     * This is the Matérn covariance function for \f$ \nu \to \infty \f$.
      */
     class GaussianCovariance
     {
       public:
 
+        /*
+         * @brief Evaluate the covariance function
+         *
+         * @tparam RF      type of values and coordinates
+         * @tparam dim     dimension of domain
+         *
+         * @param variance covariance for lag zero
+         * @param x        location, after scaling / trafo with correlation length
+         *
+         * @return resulting value
+         */
         template<typename RF, long unsigned int dim>
           RF operator()(const RF variance, const std::array<RF,dim>& x) const
           {
@@ -203,11 +273,25 @@ namespace Dune {
 
     /**
      * @brief Separable exponential covariance function
+     *
+     * The separable exponential covariance function is simply the
+     * product of one-dimensional exponential covariance functions.
      */
     class SeparableExponentialCovariance
     {
       public:
 
+        /*
+         * @brief Evaluate the covariance function
+         *
+         * @tparam RF      type of values and coordinates
+         * @tparam dim     dimension of domain
+         *
+         * @param variance covariance for lag zero
+         * @param x        location, after scaling / trafo with correlation length
+         *
+         * @return resulting value
+         */
         template<typename RF, long unsigned int dim>
           RF operator()(const RF variance, const std::array<RF,dim>& x) const
           {
@@ -222,6 +306,10 @@ namespace Dune {
 
     /**
      * @brief Matern covariance function with nu = 3/2
+     *
+     * This is a special case of the Matérn covariance function for
+     * \f$ \nu = 3/2 \f$, where the function simplifies to
+     * \f$ C(h) = \sigma^2 (1 + \sqrt(3) h) \exp(-\sqrt(3) h) \f$.
      */
     class Matern32Covariance
     {
@@ -242,11 +330,26 @@ namespace Dune {
 
     /**
      * @brief Matern covariance function with nu = 5/2
+     *
+     * This is a special case of the Matérn covariance function for
+     * \f$ \nu = 5/2 \f$, where the function simplifies to
+     * \f$ C(h) = \sigma^2 (1 + \sqrt(5) h + \frac{5}{3} h^2) \exp(-\sqrt(5) h) \f$.
      */
     class Matern52Covariance
     {
       public:
 
+        /*
+         * @brief Evaluate the covariance function
+         *
+         * @tparam RF      type of values and coordinates
+         * @tparam dim     dimension of domain
+         *
+         * @param variance covariance for lag zero
+         * @param x        location, after scaling / trafo with correlation length
+         *
+         * @return resulting value
+         */
         template<typename RF, long unsigned int dim>
           RF operator()(const RF variance, const std::array<RF,dim>& x) const
           {
@@ -262,11 +365,25 @@ namespace Dune {
 
     /**
      * @brief Damped oscillation covariance function
+     *
+     * This is a damped cosine that decays fast enough so that
+     * it remains positive definite.
      */
     class DampedOscillationCovariance
     {
       public:
 
+        /*
+         * @brief Evaluate the covariance function
+         *
+         * @tparam RF      type of values and coordinates
+         * @tparam dim     dimension of domain
+         *
+         * @param variance covariance for lag zero
+         * @param x        location, after scaling / trafo with correlation length
+         *
+         * @return resulting value
+         */
         template<typename RF, long unsigned int dim>
           RF operator()(const RF variance, const std::array<RF,dim>& x) const
           {
@@ -284,11 +401,24 @@ namespace Dune {
 
     /**
      * @brief Cauchy covariance function
+     *
+     * The Cauchy covariance function is \$f C(h) = {(1 + h^2)}^{-3} \f$.
      */
     class CauchyCovariance
     {
       public:
 
+        /*
+         * @brief Evaluate the covariance function
+         *
+         * @tparam RF      type of values and coordinates
+         * @tparam dim     dimension of domain
+         *
+         * @param variance covariance for lag zero
+         * @param x        location, after scaling / trafo with correlation length
+         *
+         * @return resulting value
+         */
         template<typename RF, long unsigned int dim>
           RF operator()(const RF variance, const std::array<RF,dim>& x) const
           {
@@ -303,11 +433,26 @@ namespace Dune {
 
     /**
      * @brief Cubic covariance function
+     *
+     * The cubic covariance function is the restriction of
+     * \f$ C(h) = 1 - 7 h^2 + 8.75 h^3 - 3.5 h^5 + 0.75 h^7 \f$
+     * to the interval $\f [0,1] \f$. It has compact support.
      */
     class CubicCovariance
     {
       public:
 
+        /*
+         * @brief Evaluate the covariance function
+         *
+         * @tparam RF      type of values and coordinates
+         * @tparam dim     dimension of domain
+         *
+         * @param variance covariance for lag zero
+         * @param x        location, after scaling / trafo with correlation length
+         *
+         * @return resulting value
+         */
         template<typename RF, long unsigned int dim>
           RF operator()(const RF variance, const std::array<RF,dim>& x) const
           {
@@ -332,11 +477,29 @@ namespace Dune {
 
     /**
      * @brief White noise covariance function
+     *
+     * This is the covariance for Gaussian white noise, i.e.,
+     * no correlation at all between different locations. This
+     * function is also known as "nugget" component in other
+     * covariance functions. Consider using the specialized
+     * generateUncorrelated methods instead if you simply want
+     * white noise, since they are much cheaper if applicable.
      */
     class WhiteNoiseCovariance
     {
       public:
 
+        /*
+         * @brief Evaluate the covariance function
+         *
+         * @tparam RF      type of values and coordinates
+         * @tparam dim     dimension of domain
+         *
+         * @param variance covariance for lag zero
+         * @param x        location, after scaling / trafo with correlation length
+         *
+         * @return resulting value
+         */
         template<typename RF, long unsigned int dim>
           RF operator()(const RF variance, const std::array<RF,dim>& x) const
           {

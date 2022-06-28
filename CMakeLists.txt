@@ -21,6 +21,7 @@ dune_enable_all_packages()
 
 add_subdirectory(dune)
 add_subdirectory(cmake/modules)
+add_subdirectory(doc)
 add_subdirectory(test)
 add_subdirectory(src)
 

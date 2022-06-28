@@ -33,6 +33,19 @@ namespace Dune {
 
     /**
      * @brief Covariance matrix for stationary Gaussian random fields
+     *
+     * This class represents the covariance matrix of a stationary Gaussian
+     * random field on a structured grid of arbitrary dimension. Internally,
+     * the matrix is stored as the Fourier transform of the covariance matrix
+     * belonging to an extended domain, which is a diagonal matrix that can
+     * be stored as a vector. Different backends are available for the way
+     * the matrix is stored, the way extended fields are represented, and the
+     * way random numbers are generated. Custom backends can be used by
+     * providing new template template parameters.
+     *
+     * @tparam MatrixBackend representation of extended covariance matrix
+     * @tparam FieldBackend  representation of extended random field
+     * @tparam RNGBackend    class that produces normally distributed random numbers
      */
     template<typename Traits,
       template<typename> class MatrixBackend = DefaultMatrixBackend<Traits::dim>::template Type,
@@ -73,7 +86,12 @@ namespace Dune {
 
           public:
 
-          Matrix<Traits,MatrixBackend,FieldBackend,RNGBackend>(const std::shared_ptr<Traits>& traits_)
+          /**
+           * @brief Constructor
+           *
+           * @param traits_ shared pointer to traits class containing parameters
+           */
+          Matrix(const std::shared_ptr<Traits>& traits_)
             :
               traits(traits_),
               matrixBackend(traits),
@@ -84,7 +102,10 @@ namespace Dune {
             update();
           }
 
-          ~Matrix<Traits,MatrixBackend,FieldBackend,RNGBackend>()
+          /**
+           * @brief Destructor
+           */
+          ~Matrix()
           {
             if (spareField != nullptr)
               delete spareField;
@@ -92,6 +113,8 @@ namespace Dune {
 
           /*
            * @brief Update internal data after creation or refinement
+           *
+           * This function forwards the update call to the backends.
            */
           void update()
           {
@@ -109,6 +132,10 @@ namespace Dune {
 
           /**
            * @brief Multiply random field with covariance matrix
+           *
+           * @param input field that should be used as multiplicand
+           *
+           * @return matrix-vector product with argument
            */
           StochasticPartType operator*(const StochasticPartType& input) const
           {
@@ -123,6 +150,16 @@ namespace Dune {
 
           /**
            * @brief Multiply random field with root of covariance matrix (up to boundary effects)
+           *
+           * This function extends the fields with zeros to embed it in the extended
+           * domain, multiplies with the square root of the extended covariance matrix,
+           * and restricts the result to the original domain. Note that this does
+           * produce a multiplication with the square root of the original matrix, only
+           * an approximation.
+           *
+           * @param input field that should be used as multiplicand
+           *
+           * @return approximate matrix-vector product with matrix root
            */
           StochasticPartType multiplyRoot(const StochasticPartType& input) const
           {
@@ -137,6 +174,14 @@ namespace Dune {
 
           /**
            * @brief Multiply random field with inverse of covariance matrix
+           *
+           * This function multiplies a given vector with the inverse of the
+           * covariance matrix. This is done via an internal CG method that
+           * iteratively solves the corresponding linear system.
+           *
+           * @param input field that should be used as multiplicand
+           *
+           * @return matrix-vector product with inverse matrix
            */
           StochasticPartType multiplyInverse(const StochasticPartType& input) const
           {
@@ -160,6 +205,18 @@ namespace Dune {
 
           /**
            * @brief Compute entries of Fourier-transformed covariance matrix
+           *
+           * This function fills the extended covariance matrix and then
+           * transforms it into Fourier space. If the optional template parameter
+           * is not supplied, then the covariance function is selected from an
+           * internal list based on the given configuration. A non-void template
+           * parameter is used as covariance function, as long as the desired
+           * type of covariance has been set as "custom-iso" or "custom-aniso"
+           * in the configuration. The user has to ensure that the covariance
+           * function is truly symmetrical in each dimension if "custom-iso" is
+           * chosen.
+           *
+           * @tparam Covariance type of custom covariance class, if desired
            */
           template<typename Covariance = void>
           void fillTransformedMatrix() const
@@ -257,6 +314,13 @@ namespace Dune {
 
           /**
            * @brief Generate random field based on covariance matrix
+           *
+           * This function creates a random field from noise, using the circulant
+           * embedding technique. The extended covariance matrix is created automatically
+           * if this is the first time the function is called.
+           *
+           * @param      seed           seed value for random number generation
+           * @param[out] stochasticPart resulting random field
            */
           void generateField(unsigned int seed, StochasticPartType& stochasticPart) const
           {
@@ -360,7 +424,14 @@ namespace Dune {
           }
 
           /**
-           * @brief Generate uncorrelated random field (i.e. noise)
+           * @brief Generate uncorrelated random field (i.e., noise)
+           *
+           * This is a convenience function that generates white noise,
+           * i.e., uncorrelated normal random variables distributed
+           * across the grid.
+           *
+           * @param seed           seed value for random number generation
+           * @param stochasticPart resulting white noise
            */
           void generateUncorrelatedField(
               unsigned int seed,
@@ -380,6 +451,12 @@ namespace Dune {
 
           /**
            * @brief Create field that represents the local variance
+           *
+           * This is a convenience function that returns a constant field,
+           * with each entry being the variance. This is helpful, e.g., when
+           * computing the posterior variance after Bayesian inversion.
+           *
+           * @param stochasticPart vector for constant field
            */
           void setVarianceAsField(StochasticPartType& stochasticPart) const
           {
@@ -393,6 +470,12 @@ namespace Dune {
 
           /**
            * @brief Compute entries of covariance matrix
+           *
+           * This function fills the extended covarance matrix, scaling the
+           * covariance function with the correlation length if the field is
+           * isotropic, applying a diagonal scaling matrix to the coordinates if
+           * it is axiparallel anisotropic, or applying a general linear coordinate
+           * transformation if it is geometrically anisotropic.
            */
           template<typename Covariance>
             void fillCovarianceMatrix() const
@@ -413,6 +496,10 @@ namespace Dune {
 
           /**
            * @brief Evaluate isotropic covariance matrix in (potentially) transformed space
+           *
+           * This function evaluates one of the built-in isotropic covariance functions,
+           * using the transformed coordinates, and stores the result in the multidimensional
+           * array.
            */
           template<typename Covariance, typename GeometryMatrix>
             void computeCovarianceMatrixEntries() const
@@ -445,6 +532,12 @@ namespace Dune {
 
           /**
            * @brief Whether matrix backend and field backend have the same local cell layout
+           *
+           * This function returns true if the two backends have the same data distribution,
+           * i.e., number of cells per dimension, else false. A flat index can be used if the
+           * backends have the same layout, avoiding costly index transformations.
+           *
+           * @return Boolean value, true if layout is the same, else false
            */
           bool sameLayout() const
           {
@@ -457,6 +550,13 @@ namespace Dune {
 
           /**
            * @brief Inner Conjugate Gradients method for multiplication with inverse
+           *
+           * This is a helper function used by multiplyInverse to provide matrix-vector
+           * products with the inverse of the covariance matrix.
+           *
+           * @param[in,out] iter         initial guess, and result of product
+           * @param         solution     input vector, righthand side of linear system
+           * @param         precondition if true, use inverse of extended matrix as preconditioner
            */
           void innerCG(
               std::vector<RF>& iter,
@@ -573,6 +673,12 @@ namespace Dune {
 
           /**
            * @brief Multiply an extended random field with covariance matrix
+           *
+           * Helper function that provides matrix-vector multiplication for extended
+           * random fields and the extended covariance matrix.
+           *
+           * @param      input  vector that should be multiplied
+           * @param[out] output resulting matrix-vector product
            */
           void multiplyExtended(std::vector<RF>& input, std::vector<RF>& output) const
           {
@@ -638,6 +744,14 @@ namespace Dune {
 
           /**
            * @brief Multiply an extended random field with root of covariance matrix
+           *
+           * Helper function that provides matrix-vector multiplication for extended
+           * random fields and the square root of the extended covariance matrix. In
+           * contrast to the multiplication on the original domain, this one is exact,
+           * since the root of the extended covariance matrix is explicitly known.
+           *
+           * @param      input  vector that should be multiplied
+           * @param[out] output resulting matrix-vector product
            */
           void multiplyRootExtended(std::vector<RF>& input, std::vector<RF>& output) const
           {
@@ -703,6 +817,15 @@ namespace Dune {
 
           /**
            * @brief Multiply an extended random field with inverse of covariance matrix
+           *
+           * Helper function that provides matrix-vector multiplication for extended
+           * random fields and the inverse of the extended covariance matrix.  In
+           * contrast to the multiplication on the original domain, this one is exact
+           * and does not need any iterative solver, since the inverse of the extended
+           * covariance matrix is explicitly known.
+           *
+           * @param      input  vector that should be multiplied
+           * @param[out] output resulting matrix-vector product
            */
           void multiplyInverseExtended(std::vector<RF>& input, std::vector<RF>& output) const
           {

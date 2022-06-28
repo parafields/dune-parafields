@@ -3,6 +3,13 @@
 
 /**
  * @brief Simple legacy format VTK writer class
+ *
+ * This class can write simple ASCII-based VTK files,
+ * and makes it possible to generate VTK output from
+ * dune-randomfield without dune-grid / PDELab, at
+ * least for sequential runs.
+ *
+ * @tparam Traits traits class defining data types
  */
 template<typename Traits>
 class LegacyVTKWriter
@@ -20,6 +27,10 @@ class LegacyVTKWriter
 
   /**
    * @brief Constructor
+   *
+   * @param config   ParameterTree object containing configuration
+   * @param fileName file name the VTK is written to
+   * @param comm     MPI communicator, used to abort if field is distributed in parallel 
    */
   LegacyVTKWriter(
       const Dune::ParameterTree& config,
@@ -59,6 +70,13 @@ class LegacyVTKWriter
 
   /**
    * @brief Add scalar data set to VTK file
+   *
+   * This function adds a scalar field to the VTK file.
+   *
+   * @tparam Field data type of scalar field
+   *
+   * @param dataName name the field should have within VTK file
+   * @param field    field that should be written to file
    */
   template<typename Field>
     void writeScalarData(const std::string& dataName, const Field& field) const
@@ -99,7 +117,7 @@ class LegacyVTKWriter
   private:
 
   /**
-   * @brief Write preamble (header of file)
+   * @brief Write preamble (header of VTK file)
    */
   void writePreamble() const
   {

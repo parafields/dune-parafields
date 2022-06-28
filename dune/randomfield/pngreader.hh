@@ -8,6 +8,9 @@
 namespace Dune{
   namespace RandomField{
 
+    /**
+     * @brief A class to read in PNG files as trend components
+     */
     class PNGReader
     {
       unsigned int offset;
@@ -27,6 +30,9 @@ namespace Dune{
 
       /**
        * @brief Constructor
+       *
+       * @param filename      name of PNG file to read in
+       * @param channelOffset offset to pick one of the PNG channels
        */
       PNGReader(const std::string& filename, unsigned int channelOffset = 0)
         : offset(channelOffset)
@@ -84,6 +90,11 @@ namespace Dune{
 
       /**
        * @brief Extract first pixel byte (gray or red) as value at coordinate
+       *
+       * @param coord  coordinate where value should be read
+       * @param extent width and height assigned to PNG dimensions
+       *
+       * @return value at given coordinates
        */
       template<typename Coord1, typename Coord2>
         double evaluate(const Coord1& coord, const Coord2& extent) const

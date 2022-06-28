@@ -23,25 +23,58 @@ namespace Dune {
 
     /**
      * @brief Gaussian random field in arbitrary dimensions
+     *
+     * The central class, representing stationary Gaussian random fields on a
+     * structured grid in arbitrary dimension. The underlying data types can be
+     * controlled using the GridTraits template parameter, one of several
+     * implementations of the circulant embedding technique can be chosen using
+     * the IsoMatrix and AnisoMatrix template template parameters, and options
+     * like the covariance function, correlation length, domain size, etc., can
+     * be controlled through the ParameterTree constructor argument. The
+     * constructor itself doesn't generate a field, you have to call the generate
+     * method to do that.
+     *
+     * @tparam GridTraits  class defining dimension and data type of entries, etc.
+     * @tparam IsoMatrix   covariance matrix implementation using underlying symmetries
+     * @tparam AnisoMatrix covariance matrix implementation for general covariance functions
      */
     template<typename GridTraits,
       template<typename> class IsoMatrix = DefaultIsoMatrix<GridTraits::dim>::template Type,
       template<typename> class AnisoMatrix = DefaultAnisoMatrix<GridTraits::dim>::template Type>
         class RandomField
         {
-          protected:
+          public:
 
             using Traits             = RandomFieldTraits<GridTraits,IsoMatrix,AnisoMatrix>;
+
+          protected:
+
             using StochasticPartType = StochasticPart<Traits>;
             using RF                 = typename Traits::RF;
 
-            // to allow reading in constructor
+            /**
+             * @brief Internal class for ParameterTree value extraction
+             *
+             * The field constructor needs to construct the ParameterTree
+             * config object by reading in a file, but that is not possible
+             * while in the initialization list. This helper class parses the
+             * file in its constructor, so that the needed object is available
+             * for all subsequent entries in the list.
+             */
             class ParamTreeHelper
             {
               Dune::ParameterTree config;
 
               public:
 
+              /**
+               * @brief Constructor
+               *
+               * Reads config from given file, or creates an empty config if
+               * file name was empty.
+               *
+               * @param fileName name of config file, or empty string
+               */
               ParamTreeHelper(const std::string& fileName = "")
               {
                 if (fileName != "")
@@ -51,6 +84,11 @@ namespace Dune {
                 }
               }
 
+              /**
+               * @brief Access to the generated config object
+               *
+               * @return reference to the config object
+               */
               const Dune::ParameterTree& get() const
               {
                 return config;
@@ -81,9 +119,25 @@ namespace Dune {
 
             /**
              * @brief Constructor reading from file or creating homogeneous field
+             *
+             * This constructor creates a homogeneous (i.e., constant) field if an
+             * empty string is passed as file name argument, and else tries to read
+             * a field from file. After successful construction you can call the
+             * generate method to generate a random field using circulant embedding,
+             * and repeat this process whenever you need a new random field.
+             *
+             * @tparam LoadBalance class used for parallel data distribution with MPI
+             *
+             * @param config_     ParameterTree object containing configuration
+             * @param fileName    name of file to read, empty string to not read anything
+             * @param loadBalance instance of the load balancer, if needed
+             * @param comm        MPI communicator for parallel field generation
+             *
+             * @see generate
              */
             template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim>>
-              explicit RandomField(const Dune::ParameterTree& config_, const std::string& fileName = "", const LoadBalance& loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
+              explicit RandomField(const Dune::ParameterTree& config_, const std::string& fileName = "",
+                  const LoadBalance& loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
               : config(config_), valueTransform(config), traits(new Traits(config,loadBalance,comm)),
               trendPart(config,traits,fileName), stochasticPart(traits,fileName),
               cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
@@ -119,10 +173,25 @@ namespace Dune {
 
             /**
              * @brief Constructor reading field and config from file
+             *
+             * This constructor reads not only the field, but also its underlying parameters
+             * (i.e., the ParameterTree config object) from a file. This can be used to read
+             * in a field that was generated by another program run or another program
+             * altogether, and still have the correct parameterization available.
+             *
+             * @tparam LoadBalance class used for parallel data distribution with MPI
+             *
+             * @param fileName    name of file to read (base name only)
+             * @param loadBalance instance of the load balancer, if needed
+             * @param comm        MPI communicator for parallel field generation
+             *
+             * @see generate
              */
             template<typename LoadBalance = DefaultLoadBalance<GridTraits::dim>>
-              RandomField(const std::string& fileName, const LoadBalance& loadBalance = LoadBalance(), const MPI_Comm comm = MPI_COMM_WORLD)
-              : treeHelper(fileName), config(treeHelper.get()), valueTransform(config), traits(new Traits(config,loadBalance,comm)),
+              RandomField(const std::string& fileName, const LoadBalance& loadBalance = LoadBalance(),
+                  const MPI_Comm comm = MPI_COMM_WORLD)
+              : treeHelper(fileName), config(treeHelper.get()),
+              valueTransform(config), traits(new Traits(config,loadBalance,comm)),
               trendPart(config,traits,fileName), stochasticPart(traits,fileName),
               cacheInvMatvec((*traits).cacheInvMatvec), cacheInvRootMatvec((*traits).cacheInvRootMatvec),
               invMatvecValid(false), invRootMatvecValid(false)
@@ -151,6 +220,16 @@ namespace Dune {
 
             /**
              * @brief Constructor copying traits and covariance matrix
+             *
+             * This constructor also reads a field from file, but reuses the configuration
+             * and covariance matrix from another field that has already been constructed.
+             * This avoids generating the same covariance matrix several times, saving memory
+             * when multiple fields have to be read in and subsequently modified.
+             *
+             * @param other    other random field to copy most members from
+             * @param fileName name of file to read in (base name only)
+             *
+             * @see generate
              */
             RandomField(const RandomField& other, const std::string& fileName)
               : config(other.config), valueTransform(other.valueTransform), traits(other.traits),
@@ -169,6 +248,18 @@ namespace Dune {
 #if HAVE_DUNE_PDELAB
             /**
              * @brief Constructor converting from GridFunctionSpace and GridVector
+             *
+             * This constructor uses a PDELab GridFunctionSpace (representation of the
+             * discrete function space on a finite element mesh) and GridVector
+             * (representation of the coefficient vector) to initialize the values of
+             * a random field. Useful to convert sensitivities during Bayesian inversion.
+             *
+             * @tparam GFS   type of GridFunctionSpace
+             * @tparam Field type of coefficient vector
+             *
+             * @param other other random field to copy most members from
+             * @param gfs   instance of GridFunctionSpace
+             * @param field coefficient vector to copy data from
              */
             template<typename GFS, typename Field>
               RandomField(const RandomField& other, const GFS& gfs, const Field& field)
@@ -187,6 +278,15 @@ namespace Dune {
 
             /**
              * @brief Constructor converting from DiscreteGridFunction
+             *
+             * This constructor uses a PDELab DiscreteGridFunction (representation of the
+             * of a function living on a finite element mesh) to initialize the values of
+             * a random field. Useful to convert sensitivities during Bayesian inversion.
+             *
+             * @tparam DGF   type of DiscreteGridFunction
+             *
+             * @param other other random field to copy most members from
+             * @param dgf   DiscreteGridFunction to copy data from
              */
             template<typename DGF>
               RandomField(const RandomField& other, const DGF& dgf)
@@ -206,6 +306,11 @@ namespace Dune {
 
             /**
              * @brief Copy constructor
+             *
+             * Standard copy constructor, creating a copy of a given random field,
+             * sharing the covariance matrix between all instances.
+             *
+             * @param other other random field that should be copied
              */
             RandomField(const RandomField& other)
               : config(other.config), valueTransform(other.valueTransform), traits(other.traits),
@@ -223,6 +328,11 @@ namespace Dune {
 
             /**
              * @brief Assignment operator
+             *
+             * Standard assignment operator, sharing the covariance matrix
+             * between all instances.
+             *
+             * @param other other random field that should be copied
              */
             RandomField& operator=(const RandomField& other)
             {
@@ -257,6 +367,8 @@ namespace Dune {
 
             /**
              * @brief Cell volume of the random field discretization
+             *
+             * @return volume of one of the grid cells the values are assigned to
              */
             RF cellVolume() const
             {
@@ -265,6 +377,12 @@ namespace Dune {
 
             /**
              * @brief Number of degrees of freedom
+             *
+             * This function returns the total number of degrees of freedom, i.e.,
+             * summed across different processors, if applicable, and counting
+             * trend components.
+             *
+             * @return total degrees of freedom
              */
             unsigned int dofs() const
             {
@@ -273,6 +391,15 @@ namespace Dune {
 
             /**
              * @brief Explicit matrix setup for custom covariance classes
+             *
+             * This function can be called if a custom user-supplied covariance
+             * function should be used. The function is passed as a template
+             * parameter, and has to fulfill the interface of the built-in
+             * covariance functions. In the configuration, "custom-iso" or
+             * "custom-aniso" has to be chosen as the desired covariance type.
+             * The former assumes that the covariance function is symmetric in
+             * each dimension, leading to significant memory savings, and will
+             * not work if that is not the case.
              */
             template<typename Covariance>
             void fillMatrix()
@@ -285,6 +412,17 @@ namespace Dune {
 
             /**
              * @brief Generate a field with the desired correlation structure
+             *
+             * Generate a random field sample based on the configured
+             * variance, covariance function, etc. By default, this function
+             * does not proceed if a non-World MPI communicator has been
+             * configured, because it would, e.g., silently generate different
+             * random fields on each of the equivalence classes defined by separate
+             * communicators. If you are sure that you want to do that (e.g.,
+             * because you are running separate MCMC chains on different processors),
+             * you can pass true as an argument to disable the check.
+             *
+             * @param allowNonWorldComm prevent inconsistent field generation by default
              */
             void generate(bool allowNonWorldComm = false)
             {
@@ -298,6 +436,14 @@ namespace Dune {
 
             /**
              * @brief Generate a field with desired correlation structure using seed
+             *
+             * Generate a random field sample, using a specific seed value for field
+             * generation. Note that you may still end up with different fields if
+             * you rerun with the same seed on different machines, or if you generate
+             * a field in parallel and the data distribution changes.
+             *
+             * @param seed              seed value for random number generation
+             * @param allowNonWorldComm prevent inconsistent field generation by default
              */
             void generate(unsigned int seed, bool allowNonWorldComm = false)
             {
@@ -320,6 +466,13 @@ namespace Dune {
 
             /**
              * @brief Generate a field without correlation structure (i.e. noise)
+             *
+             * This is a convenience function that generates white noise on the grid.
+             * Some applications require such white noise, and with this function it
+             * can be generated without defining a second type of random field, or
+             * applying circulant embedding for a case where it isn't actually needed.
+             *
+             * @param allowNonWorldComm prevent inconsistent field generation by default
              */
             void generateUncorrelated(bool allowNonWorldComm = false)
             {
@@ -333,6 +486,12 @@ namespace Dune {
 
             /**
              * @brief Generate a field containing noise using seed
+             *
+             * This is a convenience function that generates white noise, based on a
+             * given seed value.
+             *
+             * @param seed              seed value for random number generation
+             * @param allowNonWorldComm prevent inconsistent field generation by default
              */
             void generateUncorrelated(unsigned int seed, bool allowNonWorldComm = false)
             {
@@ -353,6 +512,16 @@ namespace Dune {
 #if HAVE_DUNE_GRID
             /**
              * @brief Evaluate the random field in the coordinates of an element
+             *
+             * This function evaluates the random field in the local coordinate of
+             * a given finite element. This is needed during local assembly, e.g.,
+             * in PDELab. Note that the finite element does not necessarily 
+             * coincide with a cell of the random field grid, i.e., depending on
+             * your discretization the random field is not constant on the element.
+             *
+             * @param      elem   finite element the field should be evaluated on
+             * @param      xElem  local coordinates on the element
+             * @param[out] output field value at given position
              */
             template<typename Element>
               void evaluate(
@@ -368,6 +537,13 @@ namespace Dune {
 
             /**
              * @brief Evaluate the random field at given coordinates
+             *
+             * This function evaluates the random field at the given coordinates, i.e.,
+             * sums up the spatially distributed component and possible contributions
+             * from trend components.
+             *
+             * @param      location coordinates where field should be evaluated
+             * @param[out] output   field value at given position
              */
             void evaluate(const typename Traits::DomainType& location, typename Traits::RangeType& output) const
             {
@@ -382,6 +558,12 @@ namespace Dune {
 
             /**
              * @brief Export random field to files on disk
+             *
+             * This function writes the random field, its trend components, and its
+             * configuration into files on disk, so that they can be made persistent
+             * and possibly read in again using the corresponding constructor.
+             *
+             * @param fileName base file name that should be used
              */
             void writeToFile(const std::string& fileName) const
             {
@@ -394,6 +576,13 @@ namespace Dune {
 
             /**
              * @brief Export random field as flat unstructured VTK file, requires dune-grid and dune-functions
+             *
+             * This function writes the whole random field to a VTK file, i.e., the
+             * sum of the spatially distributed part and all present trend components.
+             * These are the same values as returned by evaluate.
+             *
+             * @param fileName file name for VTK output
+             * @param gv       Dune GridView defining the grid used in the VTK file
              */
             template<typename GridView>
               void writeToVTK(const std::string& fileName, const GridView& gv) const
@@ -411,6 +600,13 @@ namespace Dune {
 
             /**
              * @brief Export random field as unstructured VTK file, requires dune-grid and dune-functions
+             *
+             * This function writes the individual components of the random field to a
+             * VTK file, i.e., the spatially distributed part and all present trend
+             * components each as a separate data set.
+             *
+             * @param fileName file name for VTK output
+             * @param gv       Dune GridView defining the grid used in the VTK file
              */
             template<typename GridView>
               void writeToVTKSeparate(const std::string& fileName, const GridView& gv) const
@@ -437,6 +633,14 @@ namespace Dune {
 
             /**
              * @brief Export random field as flat Legacy VTK file
+             *
+             * Same as writeToVTK, but writes a simple legacy VTK format and doesn't depend
+             * on dune-grid and dune-functions. Unfortunately, this function doesn't work
+             * for parallel runs, only for sequential field creation.
+             *
+             * @param fileName file name for VTK output
+             *
+             * @see writeToVTK
              */
             void writeToLegacyVTK(const std::string& fileName) const
             {
@@ -449,6 +653,14 @@ namespace Dune {
 
             /**
              * @brief Export random field as separate Legacy VTK entries
+             *
+             * Same as writeToVTKSeparate, but writes a simple legacy VTK format and
+             * doesn't depend on dune-grid and dune-functions. Unfortunately, this function
+             * doesn't work for parallel runs, only for sequential field creation.
+             *
+             * @param fileName file name for VTK output
+             *
+             * @see writeToVTK
              */
             void writeToLegacyVTKSeparate(const std::string& fileName) const
             {
@@ -466,6 +678,10 @@ namespace Dune {
 
             /**
              * @brief Make random field homogeneous
+             *
+             * This function sets both the field values and the trend coefficients
+             * to zero, creating a field that represents a constant function with
+             * value zero.
              */
             void zero()
             {
@@ -487,6 +703,12 @@ namespace Dune {
 
             /**
              * @brief Double spatial resolution of covariance matrix
+             *
+             * This function instructs the covariance matrix to subdivide each cell
+             * in each dimension and recompute itself. It is not a part of the refine
+             * method for design reasons, since several random fields can share a
+             * covariance matrix, i.e., this method should only be called once, and
+             * then refine should be called on all fields sharing the matrix instance.
              */
             void refineMatrix()
             {
@@ -499,6 +721,11 @@ namespace Dune {
 
             /**
              * @brief Double spatial resolution of random field
+             *
+             * This function subdivides each cell in each dimension and interpolates
+             * the random field. If available, it uses the cached matrix-vector
+             * product, refines that instead, and multiplies with the new refined
+             * covariance matrix, which yields a smoother interpolation.
              */
             void refine()
             {
@@ -557,7 +784,12 @@ namespace Dune {
             }
 
             /**
-             * @brief Double spatial resolution of covariance matrix
+             * @brief Reduce spatial resolution of covariance matrix
+             *
+             * Inverse operation to refineMatrix, merging cells to build larger
+             * cells out of them, and then recomputing the covariance matrix.
+             *
+             * @see refineMatrix
              */
             void coarsenMatrix()
             {
@@ -570,6 +802,12 @@ namespace Dune {
 
             /**
              * @brief Reduce spatial resolution of random field
+             *
+             * Inverser operation to refine, merges cells by averaging their
+             * values. Just like refine, makes use of cached matrix-vector
+             * products if they are available.
+             *
+             * @see refine
              */
             void coarsen()
             {
@@ -628,6 +866,10 @@ namespace Dune {
 
             /**
              * @brief Addition assignment operator
+             *
+             * @param other other random field that should be added
+             *
+             * @return reference to updated random field
              */
             RandomField& operator+=(const RandomField& other)
             {
@@ -661,6 +903,10 @@ namespace Dune {
 
             /**
              * @brief Subtraction assignment operator
+             *
+             * @param other other random field that should be subtracted
+             *
+             * @return reference to updated random field
              */
             RandomField& operator-=(const RandomField& other)
             {
@@ -694,6 +940,10 @@ namespace Dune {
 
             /**
              * @brief Multiplication with scalar
+             *
+             * @param alpha scale factor
+             *
+             * @return reference to updated random field
              */
             RandomField& operator*=(const RF alpha)
             {
@@ -711,6 +961,13 @@ namespace Dune {
 
             /**
              * @brief AXPY scaled addition
+             *
+             * Adds a multiple of another random field.
+             *
+             * @param other other random field to add
+             * @param alpha scale factor for other field
+             *
+             * @return reference to updated random field
              */
             RandomField& axpy(const RandomField& other, const RF alpha)
             {
@@ -744,6 +1001,13 @@ namespace Dune {
 
             /**
              * @brief AXPY scaled addition (swapped arguments)
+             *
+             * Second version of scaled addition, with swapped arguments.
+             *
+             * @param other other random field to add
+             * @param alpha scale factor for other field
+             *
+             * @return reference to updated random field
              */
             RandomField& axpy(const RF alpha, const RandomField& other)
             {
@@ -752,6 +1016,13 @@ namespace Dune {
 
             /**
              * @brief Scalar product
+             *
+             * Scalar product of spatially distributed coefficients plus
+             * scalar product of trend coefficients.
+             *
+             * @param other other random field to multiply with
+             *
+             * @return resulting scalar value
              */
             RF operator*(const RandomField& other) const
             {
@@ -765,6 +1036,12 @@ namespace Dune {
 
             /**
              * @brief Multiply random field with covariance matrix
+             *
+             * Multiplies the random field with the covariance matrix, useful
+             * for Bayesian inversion. Caches the original field as the
+             * matrix-vector product of the resulting field with the inverse
+             * of the covariance matrix if configured to do so. This makes
+             * evaluating corresponding objective functions very cheap.
              */
             void timesMatrix()
             {
@@ -793,6 +1070,10 @@ namespace Dune {
 
             /**
              * @brief Multiply random field with inverse of covariance matrix
+             *
+             * Multiplies the random field with the inverse of the covariance matrix,
+             * as is necessary in Bayesian inversion. Makes use of cached matrix-vector
+             * products if configured to do so and they are available.
              */
             void timesInverseMatrix()
             {
@@ -829,6 +1110,13 @@ namespace Dune {
 
             /**
              * @brief Multiply random field with approximate root of cov. matrix
+             *
+             * Multiplies the random field with an approximation of the root of
+             * the covariance matrix. The field is embedded in the extended
+             * circulant embedding domain, multiplied with the root of the
+             * extended covariance matrix (which is known exactly), and then
+             * restricted to the original domain. This introduces boundary effects,
+             * and therefore this matrix-vector product is not exact.
              */
             void timesMatrixRoot()
             {
@@ -854,6 +1142,11 @@ namespace Dune {
 
             /**
              * @brief Multiply random field with approximate inverse root of cov. matrix
+             *
+             * Same as timesMatrixRoot, but with the inverse of the root, instead of
+             * the root itself. Introduces the same kind of boundary effects.
+             *
+             * @see timesMatrixRoot
              */
             void timesInvMatRoot()
             {
@@ -896,6 +1189,11 @@ namespace Dune {
 
             /**
              * @brief One-norm (sum of absolute values)
+             *
+             * Sums the absolute values of spatially distributed cell values
+             * and trend coefficients.
+             *
+             * @return resulting sum
              */
             RF oneNorm() const
             {
@@ -904,6 +1202,11 @@ namespace Dune {
 
             /**
              * @brief Euclidean norm
+             *
+             * Sums the squares of spatially distributed cell values and trend
+             * components, and returns the square root of the sum.
+             *
+             * @return resulting value
              */
             RF twoNorm() const
             {
@@ -912,6 +1215,11 @@ namespace Dune {
 
             /**
              * @brief Maximum norm
+             *
+             * Returns the maximum value across both the spatially distributed
+             * values and the trend coefficients.
+             *
+             * @return resulting value
              */
             RF infNorm() const
             {
@@ -920,6 +1228,10 @@ namespace Dune {
 
             /**
              * @brief Equality operator
+             *
+             * @param other other random field to compare with
+             *
+             * @return true if all field values are the same, else false
              */
             bool operator==(const RandomField& other) const
             {
@@ -928,6 +1240,12 @@ namespace Dune {
 
             /**
              * @brief Inequality operator
+             *
+             * @param other other random field to compare with
+             *
+             * @return true if operator== would return false, else false
+             *
+             * @see operator==
              */
             bool operator!=(const RandomField& other) const
             {
@@ -936,6 +1254,13 @@ namespace Dune {
 
             /**
              * @brief Multiply field with Gaussian with given center and radius
+             *
+             * This is a helper function that dampens the random field except for a
+             * spherical region around a given location. The field is multiplied
+             * with a Gaussian with height one.
+             *
+             * @param center location of maximum of Gaussian
+             * @param radius scale parameter (standard deviation of Gaussian)
              */
             void localize(const typename Traits::DomainType& center, const RF radius)
             {
@@ -951,11 +1276,24 @@ namespace Dune {
 
     /**
      * @brief List of Gaussian random fields in arbitrary dimensions
+     *
+     * This class represents a list of uncorrelated stationary Gaussian random fields.
+     * Each such field has its own variance, covariance function, etc. Fields can be
+     * added to the list one by one, and the field list supports most operations the
+     * individual fields do, so this class can be used as a drop-in when multiple fields
+     * have to be managed at the same time, i.e., in joint Bayesian inversion of multiple
+     * parameterizations.
+     *
+     * @tparam GridTraits  class defining dimension and data type of entries, etc.
+     * @tparam IsoMatrix   covariance matrix implementation using underlying symmetries
+     * @tparam AnisoMatrix covariance matrix implementation for general covariance functions
+     * @tparam RandomField type of the field entries, can be a subtype of RandomField
      */
     template<typename GridTraits,
       template<typename> class IsoMatrix = DefaultIsoMatrix<GridTraits::dim>::template Type,
       template<typename> class AnisoMatrix = DefaultAnisoMatrix<GridTraits::dim>::template Type,
-      template<typename, template<typename> class, template<typename> class> class RandomField = Dune::RandomField::RandomField>
+      template<typename, template<typename> class, template<typename> class>
+        class RandomField = Dune::RandomField::RandomField>
         class RandomFieldList
         {
           public:
@@ -964,13 +1302,29 @@ namespace Dune {
 
           protected:
 
-            // to allow reading in constructor
+            /**
+             * @brief Internal class for ParameterTree value extraction
+             *
+             * The field list constructor needs to construct the ParameterTree
+             * config object by reading in a file, but that is not possible
+             * while in the initialization list. This helper class parses the
+             * file in its constructor, so that the needed object is available
+             * for all subsequent entries in the list.
+             */
             class ParamTreeHelper
             {
               Dune::ParameterTree config;
 
               public:
 
+              /**
+               * @brief Constructor
+               *
+               * Reads config from given file, or creates an empty config if
+               * file name was empty.
+               *
+               * @param fileName name of config file, or empty string
+               */
               ParamTreeHelper(const std::string& fileName = "")
               {
                 if (fileName != "")
@@ -980,6 +1334,11 @@ namespace Dune {
                 }
               }
 
+              /**
+               * @brief Access to the generated config object
+               *
+               * @return reference to the config object
+               */
               const Dune::ParameterTree& get() const
               {
                 return config;
@@ -1001,6 +1360,21 @@ namespace Dune {
 
             /**
              * @brief Constructor reading random fields from file
+             *
+             * This constructor creates a list of homogeneous (i.e., constant) fields
+             * if an empty string is passed as file name argument, and else tries to read
+             * the fields from file. After successful construction you can call the
+             * generate method to generate a list of random fields using circulant
+             * embedding, and repeat this process whenever you need a new list of fields.
+             *
+             * @tparam LoadBalance class used for parallel data distribution with MPI
+             *
+             * @param config_     ParameterTree object containing configuration
+             * @param fileName    name of file to read, empty string to not read anything
+             * @param loadBalance instance of the load balancer, if needed
+             * @param comm        MPI communicator for parallel field generation
+             *
+             * @see generate
              */
             template<typename LoadBalance = DefaultLoadBalance<Traits::dim>>
               RandomFieldList(
@@ -1046,6 +1420,20 @@ namespace Dune {
 
             /**
              * @brief Constructor reading random fields and config from file
+             *
+             * This constructor reads not only the fields, but also their underlying
+             * parameters (i.e., the ParameterTree config object) from a file. This can
+             * be used to read in a field list that was generated by another program run
+             * or another program altogether, and still have the correct parameterization
+             * available.
+             *
+             * @tparam LoadBalance class used for parallel data distribution with MPI
+             *
+             * @param fileName    name of file to read (base name only)
+             * @param loadBalance instance of the load balancer, if needed
+             * @param comm        MPI communicator for parallel field generation
+             *
+             * @see generate
              */
             template<typename LoadBalance = DefaultLoadBalance<Traits::dim>>
               RandomFieldList(
@@ -1074,6 +1462,16 @@ namespace Dune {
 
             /**
              * @brief Constructor reading random fields from file, but reusing covariance matrices
+             *
+             * This constructor also reads the fiels from file, but reuses the configuration
+             * and covariance matrices from another field list that has already been constructed.
+             * This avoids generating the same covariance matrices several times, saving memory
+             * when multiple fields have to be read in and subsequently modified.
+             *
+             * @param other    other random field list to copy most members from
+             * @param fileName name of file to read in (base name only)
+             *
+             * @see generate
              */
             RandomFieldList(const RandomFieldList& other, const std::string& fileName)
               : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
@@ -1086,6 +1484,18 @@ namespace Dune {
 #if HAVE_DUNE_PDELAB
             /**
              * @brief Constructor converting from GridFunctionSpace and GridVector
+             *
+             * This constructor uses a PDELab GridFunctionSpace (representation of the
+             * discrete function space on a finite element mesh) and a map of GridVectors
+             * (representations of coefficient vectors) to initialize the values of
+             * the random fields. Useful to convert sensitivities during Bayesian inversion.
+             *
+             * @tparam GFS   type of GridFunctionSpace
+             * @tparam Field type of coefficient vector
+             *
+             * @param other other random field list to copy most members from
+             * @param gfs   instance of GridFunctionSpace
+             * @param field map of coefficient vectors to copy data from
              */
             template<typename GFS, typename FieldList>
               RandomFieldList(const RandomFieldList& other, const GFS& gfs, const FieldList& fieldList)
@@ -1109,6 +1519,15 @@ namespace Dune {
 
             /**
              * @brief Constructor converting from DiscreteGridFunction map
+             *
+             * This constructor uses a map of PDELab DiscreteGridFunctions (representations
+             * of functions living on a finite element mesh) to initialize the values of
+             * a random field list. Useful to convert sensitivities during Bayesian inversion.
+             *
+             * @tparam DGF   type of DiscreteGridFunction
+             *
+             * @param other other random field list to copy most members from
+             * @param dgf   map of DiscreteGridFunctions to copy data from
              */
             template<typename DGFList>
               RandomFieldList(const RandomFieldList& other, const DGFList& dgfList)
@@ -1133,6 +1552,11 @@ namespace Dune {
 
             /**
              * @brief Copy constructor
+             *
+             * Standard copy constructor, creating a copy of a given random field list,
+             * sharing the covariance matrices between all instances.
+             *
+             * @param other other random field list that should be copied
              */
             RandomFieldList(const RandomFieldList& other)
               : fieldNames(other.fieldNames), activeTypes(other.activeTypes)
@@ -1143,6 +1567,11 @@ namespace Dune {
 
             /**
              * @brief Assignment operator
+             *
+             * Standard assignment operator, sharing the covariance matrices
+             * between all instances.
+             *
+             * @param other other random field that should be copied
              */
             RandomFieldList& operator=(const RandomFieldList& other)
             {
@@ -1161,6 +1590,15 @@ namespace Dune {
 
             /**
              * @brief Insert additional random field into list
+             *
+             * This adds a random field to the list, assigning a name with which it
+             * can be referenced. By default, this field is modified when the field list
+             * is used in mathematical operations. Pass false as the third argument to
+             * ensure that the random field is kept constant.
+             *
+             * @param type     name of the new random field
+             * @param field    new random field for the list
+             * @param activate true if field should participate in mathematical operations
              */
             void insert(const std::string& type, const SubRandomField& field, bool activate = true)
             {
@@ -1172,7 +1610,15 @@ namespace Dune {
             }
 
             /**
-             * @brief Define subset of fields kept constant (i.e. not changed by calculus operators)
+             * @brief Define subset of fields kept constant (i.e., not changed by mathematical operators)
+             *
+             * Activate the given number of fields, in the order they were added to the list.
+             * Activated fields participate in mathematical operations and are changed when
+             * another field list is added, subtracted, etc. If this number is smaller than
+             * the number of fields that are stored, the remaining fiels are kept constant and
+             * will not be modified by such operations.
+             *
+             * @param number number of fields to activate
              */
             void activateFields(const unsigned int number)
             {
@@ -1186,6 +1632,13 @@ namespace Dune {
 
             /**
              * @brief Number of degrees of freedom (for active types)
+             *
+             * This counts the total number of degrees of freedom across all active types.
+             * In an optimization problem based on random field lists, this is the dimension
+             * of the parameter space, since the coefficients of the inactive fields cannot
+             * be modified.
+             *
+             * @return sum of dofs of constituent fields
              */
             unsigned int dofs() const
             {
@@ -1199,6 +1652,17 @@ namespace Dune {
 
             /**
              * @brief Generate fields with the desired correlation structure
+             *
+             * Generate a list of random field samples based on the configured
+             * variances, covariance functions, etc. By default, this function
+             * does not proceed if a non-World MPI communicator has been
+             * configured, because it would, e.g., silently generate different
+             * random fields on each of the equivalence classes defined by separate
+             * communicators. If you are sure that you want to do that (e.g.,
+             * because you are running separate MCMC chains on different processors),
+             * you can pass true as an argument to disable the check.
+             *
+             * @param allowNonWorldComm prevent inconsistent field generation by default
              */
             void generate(bool allowNonWorldComm = false)
             {
@@ -1208,6 +1672,13 @@ namespace Dune {
 
             /**
              * @brief Generate fields without correlation structure (i.e. noise)
+             *
+             * This is a convenience function that generates white noise on the grid.
+             * Some applications require such white noise, and with this function it
+             * can be generated without defining a second type of random field, or
+             * applying circulant embedding for a case where it isn't actually needed.
+             *
+             * @param allowNonWorldComm prevent inconsistent field generation by default
              */
             void generateUncorrelated(bool allowNonWorldComm = false)
             {
@@ -1217,6 +1688,13 @@ namespace Dune {
 
             /**
              * @brief Vector of random field types currently active
+             *
+             * This returns a list of currently active random fields, which can then
+             * be accessed using the get method.
+             *
+             * @return vector of strings containing active types
+             *
+             * @see get
              */
             const std::vector<std::string> types() const
             {
@@ -1225,6 +1703,10 @@ namespace Dune {
 
             /**
              * @brief Access to individual random field
+             *
+             * @param type name of random field to access
+             *
+             * @return shared pointer to desired field, empty pointer if not found
              */
             const std::shared_ptr<SubRandomField>& get(const std::string& type) const
             {
@@ -1236,6 +1718,12 @@ namespace Dune {
 
             /**
              * @brief Export random fields to files on disk
+             *
+             * This function writes the random fields, their trend components, and their
+             * configuration into files on disk, so that they can be made persistent
+             * and possibly read in again using the corresponding constructor.
+             *
+             * @param fileName base file name that should be used
              */
             void writeToFile(const std::string& fileName) const
             {
@@ -1248,6 +1736,13 @@ namespace Dune {
 
             /**
              * @brief Export random fields as flat unstructured VTK files, requires dune-grid and dune-functions
+             *
+             * This function writes the random fields to a VTK file, i.e., for each field
+             * the sum of the spatially distributed part and all present trend components.
+             * These are the same values as returned by evaluate.
+             *
+             * @param fileName file name for VTK output
+             * @param gv       Dune GridView defining the grid used in the VTK file
              */
             template<typename GridView>
               void writeToVTK(const std::string& fileName, const GridView& gv) const
@@ -1262,6 +1757,13 @@ namespace Dune {
 
             /**
              * @brief Export random fields as unstructured VTK files, requires dune-grid and dune-functions
+             *
+             * This function writes the individual components of each random field to a
+             * VTK file, i.e., the spatially distributed part and all present trend
+             * components each as a separate data set.
+             *
+             * @param fileName file name for VTK output
+             * @param gv       Dune GridView defining the grid used in the VTK file
              */
             template<typename GridView>
               void writeToVTKSeparate(const std::string& fileName, const GridView& gv) const
@@ -1276,6 +1778,14 @@ namespace Dune {
 
             /**
              * @brief Export random fields as flat Legacy VTK files
+             *
+             * Same as writeToVTK, but writes a simple legacy VTK format and doesn't depend
+             * on dune-grid and dune-functions. Unfortunately, this function doesn't work
+             * for parallel runs, only for sequential field creation.
+             *
+             * @param fileName file name for VTK output
+             *
+             * @see writeToVTK
              */
             void writeToLegacyVTK(const std::string& fileName) const
             {
@@ -1285,6 +1795,14 @@ namespace Dune {
 
             /**
              * @brief Export random fields as separate Legacy VTK entries
+             *
+             * Same as writeToVTKSeparate, but writes a simple legacy VTK format and
+             * doesn't depend on dune-grid and dune-functions. Unfortunately, this function
+             * doesn't work for parallel runs, only for sequential field creation.
+             *
+             * @param fileName file name for VTK output
+             *
+             * @see writeToVTK
              */
             void writeToLegacyVTKSeparate(const std::string& fileName) const
             {
@@ -1294,6 +1812,10 @@ namespace Dune {
 
             /**
              * @brief Set the random fields to zero
+             *
+             * This function sets both the field values and the trend coefficients
+             * of the random fields to zero, creating a list of fields that represent
+             * a constant function with value zero.
              */
             void zero()
             {
@@ -1302,7 +1824,13 @@ namespace Dune {
             }
 
             /**
-             * @brief Double spatial resolution of covariance matrix
+             * @brief Double spatial resolution of covariance matrices
+             *
+             * This function instructs the covariance matrices to subdivide each cell
+             * in each dimension and recompute themselves. It is not a part of the refine
+             * method for design reasons, since several random fields can share a
+             * covariance matrix, i.e., this method should only be called once, and
+             * then refine should be called on all fields sharing the matrix instance.
              */
             void refineMatrix()
             {
@@ -1312,6 +1840,11 @@ namespace Dune {
 
             /**
              * @brief Double spatial resolution of random fields
+             *
+             * This function subdivides each cell in each dimension and interpolates
+             * the random fields. If available, it uses the cached matrix-vector
+             * products, refines those instead, and multiplies with the new refined
+             * covariance matrices, which yields a smoother interpolation.
              */
             void refine()
             {
@@ -1321,6 +1854,11 @@ namespace Dune {
 
             /**
              * @brief Reduce spatial resolution of covariance matrix
+             *
+             * Inverse operation to refineMatrix, merging cells to build larger
+             * cells out of them, and then recomputing the covariance matrices.
+             *
+             * @see refineMatrix
              */
             void coarsenMatrix()
             {
@@ -1330,6 +1868,12 @@ namespace Dune {
 
             /**
              * @brief Reduce spatial resolution of random fields
+             *
+             * Inverser operation to refine, merges cells by averaging their
+             * values. Just like refine, makes use of cached matrix-vector
+             * products if they are available.
+             *
+             * @see refine
              */
             void coarsen()
             {
@@ -1339,6 +1883,10 @@ namespace Dune {
 
             /**
              * @brief Addition assignment operator
+             *
+             * @param other other random field list that should be added
+             *
+             * @return reference to updated random field list
              */
             RandomFieldList& operator+=(const RandomFieldList& other)
             {
@@ -1355,6 +1903,10 @@ namespace Dune {
 
             /**
              * @brief Subtraction assignment operator
+             *
+             * @param other other random field list that should be subtracted
+             *
+             * @return reference to updated random field list
              */
             RandomFieldList& operator-=(const RandomFieldList& other)
             {
@@ -1371,6 +1923,10 @@ namespace Dune {
 
             /**
              * @brief Multiplication with scalar
+             *
+             * @param alpha scale factor
+             *
+             * @return reference to updated random field list
              */
             RandomFieldList& operator*=(const RF alpha)
             {
@@ -1382,6 +1938,13 @@ namespace Dune {
 
             /**
              * @brief AXPY scaled addition
+             *
+             * Adds a multiple of another random field list.
+             *
+             * @param other other random field list to add
+             * @param alpha scale factor for other field list
+             *
+             * @return reference to updated random field list
              */
             RandomFieldList& axpy(const RandomFieldList& other, const RF alpha)
             {
@@ -1396,6 +1959,16 @@ namespace Dune {
               return *this;
             }
 
+            /**
+             * @brief AXPY scaled addition
+             *
+             * Second version of scaled addition, with swapped arguments.
+             *
+             * @param other other random field list to add
+             * @param alpha scale factor for other field list
+             *
+             * @return reference to updated random field list
+             */
             RandomFieldList& axpy(const RF alpha, const RandomFieldList& other)
             {
               return axpy(other,alpha);
@@ -1403,6 +1976,12 @@ namespace Dune {
 
             /**
              * @brief Scalar product
+             *
+             * Sum of scalar product of constituent random fields.
+             *
+             * @param other other random field list to multiply with
+             *
+             * @return resulting scalar value
              */
             RF operator*(const RandomFieldList& other) const
             {
@@ -1421,6 +2000,12 @@ namespace Dune {
 
             /**
              * @brief Multiply random fields with covariance matrix
+             *
+             * Multiplies the random fields with their covariance matrix, useful
+             * for Bayesian inversion. Caches the original fields as the
+             * matrix-vector product of the resulting field with the inverse
+             * of the covariance matrix if configured to do so. This makes
+             * evaluating corresponding objective functions very cheap.
              */
             void timesMatrix()
             {
@@ -1430,6 +2015,10 @@ namespace Dune {
 
             /**
              * @brief Multiply random fields with inverse of covariance matrix
+             *
+             * Multiplies the random fields with the inverse of their covariance matrix,
+             * as is necessary in Bayesian inversion. Makes use of cached matrix-vector
+             * products if configured to do so and they are available.
              */
             void timesInverseMatrix()
             {
@@ -1439,6 +2028,13 @@ namespace Dune {
 
             /**
              * @brief Multiply random fields with approximate root of cov. matrix
+             *
+             * Multiplies the random fields with an approximation of the root of
+             * their covariance matrix. The field is embedded in the extended
+             * circulant embedding domain, multiplied with the root of the
+             * extended covariance matrix (which is known exactly), and then
+             * restricted to the original domain. This introduces boundary effects,
+             * and therefore this matrix-vector products are not exact.
              */
             void timesMatrixRoot()
             {
@@ -1448,6 +2044,11 @@ namespace Dune {
 
             /**
              * @brief Multiply random fields with approximate inverse root of cov. matrix
+             *
+             * Same as timesMatrixRoot, but with the inverse of the root, instead of
+             * the root itself. Introduces the same kind of boundary effects.
+             *
+             * @see timesMatrixRoot
              */
             void timesInvMatRoot()
             {
@@ -1457,6 +2058,10 @@ namespace Dune {
 
             /**
              * @brief One-norm (sum of absolute values)
+             *
+             * Sum of the one-norms of the constituent fields.
+             *
+             * @return resulting scalar value
              */
             RF oneNorm() const
             {
@@ -1469,6 +2074,12 @@ namespace Dune {
 
             /**
              * @brief Euclidean norm
+             *
+             * Euclidean norm of the field list, i.e., the square root of
+             * the sum of squares of the Euclidean norms of the individual
+             * fields.
+             *
+             * @return resulting scalar value
              */
             RF twoNorm() const
             {
@@ -1481,6 +2092,11 @@ namespace Dune {
 
             /**
              * @brief Maximum norm
+             *
+             * Maximum norm of the field list, i.e., maximum of the maximum
+             * norms of the individual fields.
+             *
+             * @return resulting scalar value
              */
             RF infNorm() const
             {
@@ -1493,6 +2109,10 @@ namespace Dune {
 
             /**
              * @brief Equality operator
+             *
+             * @param other other random field lst to compare with
+             *
+             * @return true if all field values are the same, else false
              */
             bool operator==(const RandomFieldList& other) const
             {
@@ -1514,6 +2134,12 @@ namespace Dune {
 
             /**
              * @brief Inequality operator
+             *
+             * @param other other random field list to compare with
+             *
+             * @return true if operator== would return false, else false
+             *
+             * @see operator==
              */
             bool operator!=(const RandomFieldList& other) const
             {
@@ -1522,6 +2148,13 @@ namespace Dune {
 
             /**
              * @brief Multiply fields with Gaussian with given center and radius
+             *
+             * This is a helper function that dampens the random fields except for a
+             * spherical region around a given location. Each field is multiplied
+             * with a Gaussian with height one.
+             *
+             * @param center location of maximum of Gaussian
+             * @param radius scale parameter (standard deviation of Gaussian)
              */
             void localize(const typename GridTraits::Domain& center, const RF radius)
             {

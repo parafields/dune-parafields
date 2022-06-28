@@ -51,7 +51,14 @@ namespace Dune {
 
         public:
 
-        DCTDSTFieldBackend<Traits>(const std::shared_ptr<Traits>& traits_)
+        /**
+         * @brief Constructor
+         *
+         * Imports FFTW wisdom if configured to do so.
+         *
+         * @param traits_ traits object with parameters and communication
+         */
+        DCTDSTFieldBackend(const std::shared_ptr<Traits>& traits_)
           :
             traits(traits_),
             fieldData(nullptr)
@@ -66,11 +73,15 @@ namespace Dune {
 
             FFTW<RF>::mpi_broadcast_wisdom((*traits).comm);
           }
-
-          update();
         }
 
-        ~DCTDSTFieldBackend<Traits>()
+        /**
+         * @brief Destructor
+         *
+         * Cleans up allocated arrays and FFTW plans. Exports FFTW
+         * wisdom if configured to do so.
+         */
+        ~DCTDSTFieldBackend()
         {
           if ((*traits).config.template get<bool>("fftw.useWisdom",false))
           {
@@ -89,6 +100,10 @@ namespace Dune {
 
         /*
          * @brief Update internal data after creation or refinement
+         *
+         * This function is has to be called after the creation of
+         * the random field object or its refinement. It updates
+         * parameters like the number of cells per dimension.
          */
         void update()
         {
@@ -119,6 +134,15 @@ namespace Dune {
 
         /**
          * @brief Define even (DCT) and odd (DST) dimensions
+         *
+         * This function configures the backend to represent extended
+         * random fields of a given symmetry in each dimension, either
+         * even or odd. It configures the correct FFTW flags, and
+         * computes the correct array size for FFTW, since the package
+         * handles the zeros in odd dimensions implicitly, which means
+         * the data has to be shifted and padding added / removed.
+         *
+         * @param type number that encodes evenness / oddness in binary
          */
         void setType(unsigned int type)
         {
@@ -144,6 +168,15 @@ namespace Dune {
 
         /**
          * @brief Number of extended field entries stored on this processor
+         *
+         * This is the number of extended field entries that are stored.
+         * The backend treats each combination of even and odd symmetry
+         * separately, and only ever stores the part that actually needs
+         * to be stored. This function returns the number of entries that
+         * are needed for this, which is the number of entries when all
+         * the domain boundaries have even symmetry.
+         *
+         * @return number of local degrees of freedom
          */
         Index localFieldSize() const
         {
@@ -152,6 +185,18 @@ namespace Dune {
 
         /**
          * @brief Number of entries per dim on this processor
+         *
+         * This is the number of cells per dimension of the
+         * extended domain, or the number of cells per dimension
+         * for the local part of the extended domain in the case of
+         * parallel data distribution. Only half the array per
+         * dimension is stored, since the other half contains
+         * the same values in reversed order, with the same sign in
+         * the case of even symmetry, else with the opposite sign.
+         * One additional entry per dimension is needed for the symmetry
+         * axis.
+         *
+         * @return tuple of local cells per dimension
          */
         const Indices& localFieldCells() const
         {
@@ -160,6 +205,10 @@ namespace Dune {
 
         /**
          * @brief Reserve memory before storing any field entries
+         *
+         * Explicitly request the field backend to reserve storage for the
+         * multidimensional array. This ensures that the backend doesn't
+         * waste memory when it won't be used.
          */
         void allocate()
         {
@@ -169,6 +218,16 @@ namespace Dune {
 
         /**
          * @brief Switch last two dimensions (for transposed transforms)
+         *
+         * This function switches the last two dimensions, which is needed
+         * for FFTW transposed transforms, where the Fourier transform of
+         * the matrix is stored transposed to eliminate the final transpose
+         * step. Is automatically called by the transform methods, but may
+         * be needed when a newly created backend should be constructed
+         * directly in frequency space.
+         *
+         * @param localN0     current number of cells in distributed dimension
+         * @param local0Start current offset in distributed dimension
          */
         void transposeIfNeeded()
         {
@@ -177,6 +236,10 @@ namespace Dune {
 
         /**
          * @brief Transform into Fourier (i.e., frequency) space
+         *
+         * Perform a forward Fourier transform, mapping from the original
+         * domain to the frequency domain. Uses a single FFTW real-to-real
+         * DFT transform corresponding to the configured type of symmetry.
          */
         void forwardTransform()
         {
@@ -258,6 +321,10 @@ namespace Dune {
 
         /**
          * @brief Transform from Fourier (i.e., frequency) space
+         *
+         * Perform a backward Fourier transform, mapping from the frequency
+         * domain back to the original domain. Uses a single FFTW real-to-real
+         * DFT transform corresponding to the configured type of symmetry.
          */
         void backwardTransform()
         {
@@ -336,6 +403,10 @@ namespace Dune {
 
         /**
          * @brief Whether this kind of backend produces two fields at once
+         *
+         * This backend produces a single real-valued field.
+         *
+         * @return false
          */
         bool hasSpareField() const
         {
@@ -403,6 +474,13 @@ namespace Dune {
 
         /**
          * @brief Multiply entry with given number
+         *
+         * This function multiplies a complex entry of the array with
+         * a scalar. This is used when a random field should be multiplied
+         * with the covariance matrix, or its inverse, etc.
+         *
+         * @param index  index of extended field cell to scale
+         * @param lambda scalar factor
          */
         void mult(Index index, RF lambda)
         {
@@ -411,6 +489,12 @@ namespace Dune {
 
         /**
          * @brief Embed a random field in the extended domain
+         *
+         * This function maps a random field onto the extended domain,
+         * filling any cells that are not part of the original domain
+         * with zero values.
+         *
+         * @param field random field to embed in larger domain
          */
         void fieldToExtendedField(std::vector<RF>& field)
         {
@@ -519,6 +603,15 @@ namespace Dune {
 
         /**
          * @brief Restrict an extended random field to the original domain
+         *
+         * This function restricts an extended random field and cuts out the
+         * part that lies on the original domain. The optional argument can
+         * be used to select between the two fields that are stored in the
+         * real and imaginary part of the extended random field.
+         *
+         * @param[out] field     random field to fill with restriction
+         * @param      component dummy variable, backend produces single field
+         * @param      additive  add to field if true, else replace it
          */
         void extendedFieldToField(
             std::vector<RF>& field,
@@ -682,6 +775,11 @@ namespace Dune {
 
         /**
          * @brief Calculate DCT cells from extended domain cells
+         *
+         * This function computes the number of cells per dimension,
+         * which is half the number of cells in the extended domain
+         * plus one, since the content of the other cells is known
+         * due to the underlying symmetries.
          */
         void getDCTCells(ptrdiff_t localN0, ptrdiff_t local0Start)
         {

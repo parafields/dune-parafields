@@ -16,8 +16,10 @@ namespace Dune{
 
     /**
      * @brief Check if file exists
+     *
+     * @return true of file can be read, else false
      */
-    bool fileExists(std::string filename)
+    bool fileExists(const std::string& filename)
     {
       std::ifstream testfile(filename);
       return testfile.good();
@@ -32,7 +34,20 @@ namespace Dune{
 
     /// @todo take care of missing files
     /**
-     * @brief Read data from an HDF5 file (parallel)
+     * @brief Read data from an HDF5 file (in parallel)
+     *
+     * This function reads the local subset of a given distributed
+     * array from an HDF5 file.
+     *
+     * @tparam RF  data type for entries of resulting array
+     * @tparam dim dimension of array
+     *
+     * @param[out] local_data    array that should be filled
+     * @param      local_count   number of local cells per dimension
+     * @param      local_offset  offsets of local cells in each dimension
+     * @param      communicator  MPI communicator used by HDF5
+     * @param      data_name     name of data set within file
+     * @param      data_filename file name to read in
      */
     template<typename RF, unsigned int dim>
       void readParallelFromHDF5(
@@ -133,12 +148,26 @@ namespace Dune{
 
     /// @todo take care of missing files
     /**
-     * @brief Write data to an HDF5 file (parallel)
+     * @brief Write data to an HDF5 file (in parallel)
+     *
+     * This function writes the local subset of a given distributed
+     * array to an HDF5 file.
+     *
+     * @tparam RF  data type for entries in array
+     * @tparam dim dimension of array
+     *
+     * @param global        number of cells per dimension of complete array
+     * @param local_data    local array that should be written
+     * @param local_count   number of local cells per dimension
+     * @param local_offset  offsets of local cells in each dimension
+     * @param communicator  MPI communicator used by HDF5
+     * @param data_name     name of data set within file
+     * @param data_filename file name to write to
      */
     template<typename RF, unsigned int dim>
       void writeParallelToHDF5(
           const std::array<unsigned int,dim>& global_dim,
-          const std::vector<RF>& data,
+          const std::vector<RF>& local_data,
           const std::array<unsigned int,dim>& local_count,
           const std::array<unsigned int,dim>& local_offset,
           const MPI_Comm& communicator,
@@ -213,12 +242,12 @@ namespace Dune{
         // even if nothing should be written H5Dwrite needs to be called!
         if(nAllLocalCells != 0)
         { // -> otherwise HDF5 warning, because of writing nothing!
-          status = H5Dwrite(dset_id,hdf5Type<RF>,memspace_id,filespace,plist_id,&(data[0]));
+          status = H5Dwrite(dset_id,hdf5Type<RF>,memspace_id,filespace,plist_id,&(local_data[0]));
           assert(status > -1);
         }
         else
         { // IMPORTANT. otherwise the H5Dwrite() blocks!
-          status = H5Dwrite(dset_id,hdf5Type<RF>,0,filespace,plist_id,&(data[0]));
+          status = H5Dwrite(dset_id,hdf5Type<RF>,0,filespace,plist_id,&(local_data[0]));
           assert(status > -1);
         }
 
@@ -250,6 +279,21 @@ namespace Dune{
       }
 #endif //HAVE_HDF5
 
+    /**
+     * @brief Write accompanying XDMF file for HDF5 file
+     *
+     * This function creates an XDMF file that can be used when
+     * visualizing the HDF5 content, e.g., using ParaView. It
+     * adds the physical extensions of the grid, which are not
+     * stored in the HDF5 itself.
+     *
+     * @tparam RF  data type for array entries
+     * @tparam dim dimension of array
+     *
+     * @param cells      number of cells per dimension
+     * @param extensions length of domain in each dimension
+     * @param fileName   file name to write to
+     */
     template<typename RF, unsigned int dim>
       bool writeToXDMF(
           const std::array<unsigned int,dim>& cells,

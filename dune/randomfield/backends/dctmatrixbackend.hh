@@ -6,6 +6,20 @@ namespace Dune {
 
     /**
      * @brief Matrix backend that uses discrete cosine transform (DCT)
+     *
+     * This matrix backend implements the circulant embedding method
+     * for covariance functions with axial symmetries, i.e., functions
+     * for which flipping the sign in one of the dimensions of the
+     * argument doesn't change the function value. This is the case,
+     * e.g., for isotropic, axially anisotropic, and separable
+     * covariance functions, and combinations thereof. These additional
+     * symmetries make it possible to reduce the number of cells by a
+     * factor of two in each dimension. In cases where the minimum
+     * embedding factor of two is sufficient, the data on the extended
+     * domain can be represented on the original domain with one row
+     * of cells per dimension as padding.
+     *
+     * @tparam Traits traits class with data types and definitions
      */
     template<typename Traits>
       class DCTMatrixBackend
@@ -47,7 +61,14 @@ namespace Dune {
 
         public:
 
-        DCTMatrixBackend<Traits>(const std::shared_ptr<Traits>& traits_)
+        /**
+         * @brief Constructor
+         *
+         * Imports FFTW wisdom if configured to do so.
+         *
+         * @param traits_ traits object with parameters and communication
+         */
+        DCTMatrixBackend(const std::shared_ptr<Traits>& traits_)
           :
             traits(traits_),
             matrixData(nullptr),
@@ -65,7 +86,13 @@ namespace Dune {
           }
         }
 
-        ~DCTMatrixBackend<Traits>()
+        /**
+         * @brief Destructor
+         *
+         * Cleans up allocated arrays and FFTW plans. Exports FFTW
+         * wisdom if configured to do so.
+         */
+        ~DCTMatrixBackend()
         {
           if ((*traits).config.template get<bool>("fftw.useWisdom",false))
           {
@@ -84,6 +111,10 @@ namespace Dune {
 
         /*
          * @brief Update internal data after creation or refinement
+         *
+         * This function is has to be called after the creation of
+         * the random field object or its refinement. It updates
+         * parameters like the number of cells per dimension.
          */
         void update()
         {
@@ -111,6 +142,8 @@ namespace Dune {
 
         /**
          * @brief Check whether matrix has already been created
+         *
+         * @return true if the matrix data is present, else false
          */
         bool valid() const
         {
@@ -119,6 +152,13 @@ namespace Dune {
 
         /**
          * @brief Number of matrix entries stored on this processor
+         *
+         * This is the size of the extended domain, or its local
+         * subset in the case of parallel data distribution. For this
+         * backend, it is the size of the original domain plus a small
+         * amount needed for padding.
+         *
+         * @return number of local degrees of freedom
          */
         Index localMatrixSize() const
         {
@@ -127,6 +167,13 @@ namespace Dune {
 
         /**
          * @brief Number of entries per dim on this processor
+         *
+         * This is the number of cells per dimension of the
+         * extended domain, or the number of cells per dimension
+         * for the local part of the extended domain in the case of
+         * parallel data distribution.
+         *
+         * @return tuple of local cells per dimension
          */
         const Indices& localMatrixCells() const
         {
@@ -135,6 +182,12 @@ namespace Dune {
 
         /**
          * @brief Offset between local indices and global indices per dim
+         *
+         * This is the tuple of offsets, one per dimension, between the
+         * start of the local array and the start of the global array
+         * spanning all processors.
+         *
+         * @return tuple of offsets
          */
         const Indices& localMatrixOffset() const
         {
@@ -143,6 +196,12 @@ namespace Dune {
 
         /**
          * @brief Number of logical entries per dim on this processor
+         *
+         * This is the number of entries that the local array represents.
+         * For the given backend, this is approximately half the number
+         * of cells of the extended domain in each dimension, except for
+         * parallel runs, where the distributed dimension is mirrored to
+         * make the entries locally available on the correct processors.
          */
         const Indices& localEvalMatrixCells() const
         {
@@ -151,6 +210,10 @@ namespace Dune {
 
         /**
          * @brief Reserve memory before storing any matrix entries
+         *
+         * Explicitly request the matrix backend to reserve storage for the
+         * multidimensional array. This ensures that the backend doesn't
+         * waste memory when it won't be used.
          */
         void allocate()
         {
@@ -160,6 +223,16 @@ namespace Dune {
 
         /**
          * @brief Switch last two dimensions (for transposed transforms)
+         *
+         * This function switches the last two dimensions, which is needed
+         * for FFTW transposed transforms, where the Fourier transform of
+         * the matrix is stored transposed to eliminate the final transpose
+         * step. Is automatically called by the transform methods, but may
+         * be needed when a newly created backend should be constructed
+         * directly in frequency space.
+         *
+         * @param localN0     current number of cells in distributed dimension
+         * @param local0Start current offset in distributed dimension
          */
         void transposeIfNeeded(ptrdiff_t& localN0, ptrdiff_t& local0Start)
         {
@@ -176,6 +249,10 @@ namespace Dune {
 
         /**
          * @brief Transform into Fourier (i.e., frequency) space
+         *
+         * Perform a forward Fourier transform, mapping from the original
+         * domain to the frequency domain. Uses a single FFTW real-to-real
+         * DFT transform.
          */
         void forwardTransform()
         {
@@ -214,6 +291,10 @@ namespace Dune {
 
         /**
          * @brief Transform from Fourier (i.e., frequency) space
+         *
+         * Perform a backward Fourier transform, mapping from the frequency
+         * domain back to the original domain. Uses a single FFTW real-to-real
+         * DFT transform.
          */
         void backwardTransform()
         {
@@ -248,8 +329,19 @@ namespace Dune {
 
         /**
          * @brief Evaluate matrix entry (in virtual, i.e., logical indices)
+         *
+         * This function returns the matrix entry associated with the given
+         * local index (i.e., index for the local part of the array for the
+         * extended domain). Half of the entries per dimension are not
+         * actually stored, since they are redundant. Therefore, this
+         * function has to convert its argument into the corresponding
+         * index that actually has data associated with it.
+         *
+         * @param index flat index for the local array
+         *
+         * @return value associated with index
          */
-        const RF& eval(Index index) const
+        RF eval(Index index) const
         {
           Traits::indexToIndices(index,indices,localExtendedCells);
           return eval(indices);
@@ -257,8 +349,20 @@ namespace Dune {
 
         /**
          * @brief Evaluate matrix entry (in virtual, i.e., logical indices)
+         *
+         * This function returns the matrix entry associated with the given
+         * local indices (i.e., tuple of indices for the local part of the
+         * array for the extended domain, taking possible offsets into account).
+         * In each dimension, half of the entries are not actually stored, since
+         * they are redundant. This function takes care of this and maps any
+         * such tuple of indices to the corresponding index tuple that actually
+         * has data associated with it.
+         *
+         * @param indices tuple of local indices
+         *
+         * @return value associated with indices
          */
-        const RF& eval(Indices indices) const
+        RF eval(Indices indices) const
         {
           for (unsigned int i = 0; i < dim; i++)
             if (indices[i] + localEvalOffset[i] >= evalCells[i])
@@ -271,15 +375,35 @@ namespace Dune {
 
         /**
          * @brief Get matrix entry (using the actual index)
+         *
+         * This function returns the entry of the array associated with the
+         * given index. It uses the actual index of the untransformed array,
+         * and may not be used after the matrix backend has been finalized.
+         *
+         * @param index flat index for the local array
+         *
+         * @return value associated with index
+         *
+         * @see eval
+         * @see finalize
          */
-        const RF& get(Index index) const
+        RF get(Index index) const
         {
           checkFinalized();
           return matrixData[index];
         }
 
         /**
-         * @brief Get matrix entry (using the actual index)
+         * @brief Set matrix entry (using the actual index)
+         *
+         * This function sets the entry of the array associated with the given
+         * index. It uses the actual index of the untransformed array,
+         * and may not be used after the matrix backend has been finalized.
+         *
+         * @param index flat index for the local array
+         * @param value value that should be associated with the index
+         *
+         * @see finalize
          */
         void set(Index index, RF value)
         {
@@ -289,6 +413,16 @@ namespace Dune {
 
         /**
          * @brief Mirror matrix on domain boundary in parallel case
+         *
+         * This function takes the transformed array and mirrors the
+         * distributed dimension on the domain boundary in the parallel
+         * case, i.e., It reverts the savings gained by using the
+         * underlying symmetry in this one dimension, and the size of
+         * the array grows by roughly a factor of two. This is needed
+         * for parallel field generation, because otherwise the data
+         * for some of the cells would lie on another processor and
+         * couldn't be accessed. After this function has been called,
+         * the backend can no longer be modified.
          */
         void finalize()
         {
@@ -547,6 +681,9 @@ namespace Dune {
 
         /**
          * @brief Get the domain decomposition data of the Fourier transform
+         *
+         * This function obtains the local offset and cells in the distributed
+         * dimension as prescibed by FFTW.
          */
         void getDCTData()
         {
@@ -560,6 +697,11 @@ namespace Dune {
 
         /**
          * @brief Calculate DCT cells from extended domain cells
+         *
+         * This function computes the number of cells per dimension,
+         * which is half the number of cells in the extended domain
+         * plus one, since the content of the other cells is known
+         * due to the underlying symmetries.
          */
         void getDCTCells(ptrdiff_t localN0, ptrdiff_t local0Start)
         {
@@ -589,6 +731,11 @@ namespace Dune {
 
         /**
          * @brief Raise an exception if the field can no longer be modified
+         *
+         * This function raises an exception if any operation is attempted
+         * that can no longer be used after the matrix backend has been
+         * finalized, e.g., forward or backward transforms, or accessing the
+         * raw data using get and set.
          */
         void checkFinalized() const
         {

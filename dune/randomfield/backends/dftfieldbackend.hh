@@ -6,6 +6,17 @@ namespace Dune {
 
     /**
      * @brief Extended field backend that uses discrete Fourier transform (DFT)
+     *
+     * This field backend implements the extended field for the classical circulant
+     * embedding method: a scalar field on the extended domain with complex entries,
+     * which are drawn as uncorrelated white noise (in the frequency domain),
+     * multiplied with the transformed extended covariance matrix, and then
+     * transformed back to generate two uncorrelated extended random fields, one
+     * stored in the real part of the scalar field, one stored in the imaginary
+     * part. Both fields can then be extracted separately and restricted to the
+     * original domain to obtain samples.
+     *
+     * @tparam Traits traits class with data types and definitions
      */
     template<typename Traits>
       class DFTFieldBackend
@@ -37,7 +48,14 @@ namespace Dune {
 
         public:
 
-        DFTFieldBackend<Traits>(const std::shared_ptr<Traits>& traits_)
+        /**
+         * @brief Constructor
+         *
+         * Imports FFTW wisdom if configured to do so.
+         *
+         * @param traits_ traits object with parameters and communication
+         */
+        DFTFieldBackend(const std::shared_ptr<Traits>& traits_)
           :
             traits(traits_),
             fieldData(nullptr)
@@ -54,7 +72,13 @@ namespace Dune {
           }
         }
 
-        ~DFTFieldBackend<Traits>()
+        /**
+         * @brief Destructor
+         *
+         * Cleans up allocated arrays and FFTW plans. Exports FFTW
+         * wisdom if configured to do so.
+         */
+        ~DFTFieldBackend()
         {
           if ((*traits).config.template get<bool>("fftw.useWisdom",false))
           {
@@ -73,6 +97,10 @@ namespace Dune {
 
         /*
          * @brief Update internal data after creation or refinement
+         *
+         * This function is has to be called after the creation of
+         * the random field object or its refinement. It updates
+         * parameters like the number of cells per dimension.
          */
         void update()
         {
@@ -98,6 +126,11 @@ namespace Dune {
 
         /**
          * @brief Number of extended field entries stored on this processor
+         *
+         * This is the size of the extended domain, or its local
+         * subset in the case of parallel data distribution.
+         *
+         * @return number of local degrees of freedom
          */
         Index localFieldSize() const
         {
@@ -106,6 +139,13 @@ namespace Dune {
 
         /**
          * @brief Number of entries per dim on this processor
+         *
+         * This is the number of cells per dimension of the
+         * extended domain, or the number of cells per dimension
+         * for the local part of the extended domain in the case of
+         * parallel data distribution.
+         *
+         * @return tuple of local cells per dimension
          */
         const Indices& localFieldCells() const
         {
@@ -114,6 +154,10 @@ namespace Dune {
 
         /**
          * @brief Reserve memory before storing any field entries
+         *
+         * Explicitly request the field backend to reserve storage for the
+         * multidimensional array. This ensures that the backend doesn't
+         * waste memory when it won't be used.
          */
         void allocate()
         {
@@ -123,6 +167,13 @@ namespace Dune {
 
         /**
          * @brief Switch last two dimensions (for transposed transforms)
+         *
+         * This function switches the last two dimensions, which is needed
+         * for FFTW transposed transforms, where the Fourier transform of
+         * the matrix is stored transposed to eliminate the final transpose
+         * step. Is automatically called by the transform methods, but may
+         * be needed when a newly created backend should be constructed
+         * directly in frequency space.
          */
         void transposeIfNeeded()
         {
@@ -136,6 +187,9 @@ namespace Dune {
 
         /**
          * @brief Transform into Fourier (i.e., frequency) space
+         *
+         * Perform a forward Fourier transform, mapping from the original
+         * domain to the frequency domain. Uses a single FFTW DFT transform.
          */
         void forwardTransform()
         {
@@ -171,6 +225,9 @@ namespace Dune {
 
         /**
          * @brief Transform from Fourier (i.e., frequency) space
+         *
+         * Perform a backward Fourier transform, mapping from the frequency
+         * domain back to the original domain. Uses a single FFTW DFT transform.
          */
         void backwardTransform()
         {
@@ -200,6 +257,12 @@ namespace Dune {
 
         /**
          * @brief Whether this kind of backend produces two fields at once
+         *
+         * This backend produces two separate uncorrelated fields at once,
+         * one in the real part and one in the imaginary part of the
+         * complex-valued scalar field.
+         *
+         * @return true
          */
         bool hasSpareField() const
         {
@@ -208,6 +271,19 @@ namespace Dune {
 
         /**
          * @brief Set entry based on pair of random numbers
+         *
+         * This function takes two normally distributed random numbers
+         * and stores them in the backend, after multiplying them with
+         * a scalar value, which is the square root of one of the
+         * eigenvalues of the extended covariance matrix. This combined
+         * generation of noise and multiplication with the matrix root
+         * is used because other backends have to perform special
+         * operations that need this setup.
+         *
+         * @param index  index of extended field cell to fill
+         * @param lambda square root of covariance matrix eigenvalue
+         * @param rand1  normally distributed random number
+         * @param rand2  second normally distributed random number
          */
         void set(Index index, RF lambda, RF rand1, RF rand2)
         {
@@ -217,6 +293,13 @@ namespace Dune {
 
         /**
          * @brief Multiply entry with given number
+         *
+         * This function multiplies a complex entry of the array with
+         * a scalar. This is used when a random field should be multiplied
+         * with the covariance matrix, or its inverse, etc.
+         *
+         * @param index  index of extended field cell to scale
+         * @param lambda scalar factor
          */
         void mult(Index index, RF lambda)
         {
@@ -226,6 +309,12 @@ namespace Dune {
 
         /**
          * @brief Embed a random field in the extended domain
+         *
+         * This function maps a random field onto the extended domain,
+         * filling any cells that are not part of the original domain
+         * with zero values.
+         *
+         * @param field random field to embed in larger domain
          */
         void fieldToExtendedField(std::vector<RF>& field)
         {
@@ -286,6 +375,15 @@ namespace Dune {
 
         /**
          * @brief Restrict an extended random field to the original domain
+         *
+         * This function restricts an extended random field and cuts out the
+         * part that lies on the original domain. The optional argument can
+         * be used to select between the two fields that are stored in the
+         * real and imaginary part of the extended random field.
+         *
+         * @param[out] field     random field to fill with restriction
+         * @param      component extract real part if zero, else imaginary part
+         *
          */
         void extendedFieldToField(
             std::vector<RF>& field,
@@ -352,6 +450,9 @@ namespace Dune {
 
         /**
          * @brief Get the domain decomposition data of the Fourier transform
+         *
+         * This function obtains the local offset and cells in the distributed
+         * dimension as prescibed by FFTW.
          */
         void getDFTData()
         {

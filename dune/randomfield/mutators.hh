@@ -4,18 +4,36 @@
 namespace Dune {
   namespace RandomField {
 
+    /**
+     * @brief Abstract base class for value transformations
+     *
+     * @tparam RF data type of field values
+     */
     template<typename RF>
       class MutatorBase
       {
         public:
 
+          /**
+           * @brief Apply transformation to given value
+           *
+           * @param[in,out] value value to transform
+           */
           virtual void apply(RF& value) const = 0;
 
+          /**
+           * @brief Virtual destructor
+           */
           virtual ~MutatorBase() {};
       };
 
     /**
      * @brief Default Identity mutator that leaves its argument unchanged
+     *
+     * This is the default mutator, it does nothing to its arguments, i.e.,
+     * the generated field is a Gaussian random field.
+     *
+     * @tparam RF data type of field values
      */
     template<typename RF>
       class IdentityMutator
@@ -29,6 +47,11 @@ namespace Dune {
 
     /**
      * @brief Exponential function mutator for log-normal fields
+     *
+     * This mutator replaces each value with its exponential, thereby
+     * producing a log-normal random field.
+     *
+     * @tparam RF data type of field values
      */
     template<typename RF>
       class LogNormalMutator
@@ -44,6 +67,10 @@ namespace Dune {
 
     /**
      * @brief Absolute value function mutator for folded normal fields
+     *
+     * This mutator returns the absolute value of the random field.
+     *
+     * @tparam RF data type of field values
      */
     template<typename RF>
       class FoldedNormalMutator
@@ -59,6 +86,12 @@ namespace Dune {
 
     /**
      * @brief Replaces value with its sign (-1 for negative, +1 for nonnegative)
+     *
+     * This mutator returns the sign of the values. This can be used
+     * to generate random subdomains (by using the two assigned values to define
+     * an indicator function).
+     *
+     * @tparam RF data type of field values
      */
     template<typename RF>
       class SignMutator
@@ -75,6 +108,14 @@ namespace Dune {
           }
       };
 
+    /**
+     * @brief Applies the Box-Cox transformation to the data values
+     *
+     * This mutator applies the Box-Cox transformation to each data value.
+     * The parameter lambda can be chosen through the configuration object.
+     *
+     * @tparam RF data type of field values
+     */
     template<typename RF>
       class BoxCoxMutator
       : public MutatorBase<RF>
@@ -83,6 +124,11 @@ namespace Dune {
 
         public:
 
+        /**
+         * @brief Constructor
+         *
+         * @param config ParameterTree object containing configuration
+         */
         BoxCoxMutator(const Dune::ParameterTree& config)
           : lambda(config.get<RF>("transform.boxCoxLambda"))
         {}
@@ -95,6 +141,8 @@ namespace Dune {
 
     /**
      * @brief Value transform that applies one of several functions to the Gaussian random field
+     *
+     * @tparam RF data type of field values
      */
     template<typename RF>
       class ValueTransform
@@ -103,6 +151,11 @@ namespace Dune {
 
         public:
 
+        /**
+         * @brief Constructor
+         *
+         * @param config ParameterTree object containing configuration
+         */
         ValueTransform(const Dune::ParameterTree& config)
         {
           const std::string transformType = config.get<std::string>("randomField.transform","none");
@@ -120,6 +173,11 @@ namespace Dune {
             DUNE_THROW(Dune::Exception,"transform type not known");
         }
 
+        /**
+         * @brief Apply the chosen mutator, transforming the value
+         *
+         * @param[in,out] value value to transform
+         */
         void apply(RF& value) const
         {
           (*mutator).apply(value);

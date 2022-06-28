@@ -24,31 +24,49 @@ namespace Dune {
 
     /**
      * @brief Predefined types of trend component
+     *
+     * This is an enumeration of the types of trend component
+     * that are supported by the trend part.
      */
     struct TrendComponentType
     {
       enum Type {Mean, Slope, Disk, Block, Image};
 
+      /**
+       * @brief Check whether component is mean component
+       */
       static bool isMean(Type i)
       {
         return (i == Mean);
       }
 
+      /**
+       * @brief Check whether component is slope component
+       */
       static bool isSlope(Type i)
       {
         return (i == Slope);
       }
 
+      /**
+       * @brief Check whether component is Gaussian component
+       */
       static bool isDisk(Type i)
       {
         return (i == Disk);
       }
 
+      /**
+       * @brief Check whether component is rectangle component
+       */
       static bool isBlock(Type i)
       {
         return (i == Block);
       }
 
+      /**
+       * @brief Check whether component is a PNG image component
+       */
       static bool isImage(Type i)
       {
         return (i == Image);
@@ -58,6 +76,14 @@ namespace Dune {
 
     /**
      * @brief Component of random field representing deterministic structure
+     *
+     * This class represents a component of the trend part of
+     * the random field, i.e., some deterministic structure with associated
+     * uncertain coefficients. The trend part is basically a list of such
+     * trend components, which are uncorrelated, independent model
+     * components.
+     *
+     * @tparam Traits class containing types, definitions and parameters
      */
     template<typename Traits>
       class TrendComponent
@@ -84,8 +110,15 @@ namespace Dune {
 
           /**
            * @brief Constructor
+           *
+           * @param traits_         instance of Traits class with configuration
+           * @param trendVector     current values for trend coefficients
+           * @param meanVector_     mean values for trend coefficients
+           * @param varianceVector_ variance for trend coefficients
+           * @param componentType_  type of this component
+           * @param componentCount_ index if more than one component of this type exists
            */
-          TrendComponent<Traits>(
+          TrendComponent(
               const std::shared_ptr<Traits>& traits_,
               const std::vector<RF>& trendVector,
               const std::vector<RF>& meanVector_,
@@ -129,6 +162,22 @@ namespace Dune {
 #if HAVE_DUNE_PDELAB
           /**
            * @brief Construct trend component from PDELab solution vector
+           *
+           * This function creates a trend component from a PDELab
+           * GridFunctionSpace and associated coefficient vector. A typical
+           * PDE solution can't be represented by such a component, so it
+           * has to be decided what this operation should do. The given
+           * implementation interprets the PDE solution as the sensitivity of
+           * some quantity with regard to the random field, and constructs a
+           * trend component with coefficients that represent the sensitivity
+           * with regard to the component, via the chain rule and difference
+           * quotients.
+           *
+           * @tparam GFS   type of GridFunctionSpace
+           * @tparam Field type of coefficient vector
+           *
+           * @param gfs    PDELab GridFunctionSpace
+           * @param field  corresponding coefficient vector
            */
           template<typename GFS, typename Field>
             void construct(const GFS& gfs, const Field& field)
@@ -173,6 +222,19 @@ namespace Dune {
 
           /**
            * @brief Construct trend component from PDELab DiscreteGridFunction
+           *
+           * This function creates a trend component from a PDELab
+           * DiscreteGridFunction object. A typical grid function can't be
+           * represented by such a component, so it has to be decided what this
+           * operation should do. The given implementation interprets the function
+           * as the sensitivity of some quantity with regard to the random field,
+           * and constructs a trend component with coefficients that represent the
+           * sensitivity with regard to the component, via the chain rule and
+           * difference quotients.
+           *
+           * @tparam DGF type of DiscreteGridFunction
+           *
+           * @param dgf DiscreteGridFunction containing sensitivities
            */
           template<typename DGF>
             void construct(const DGF& dgf)
@@ -208,6 +270,8 @@ namespace Dune {
 
           /**
            * @brief Type of this trend component
+           *
+           * @return TrendComponentType object
            */
           TrendComponentType::Type type() const
           {
@@ -216,6 +280,12 @@ namespace Dune {
 
           /**
            * @brief Name of type of this trend component
+           *
+           * This returns a unique name for the component. If more than one
+           * component of the same type is present, an index is added to the
+           * name.
+           *
+           * @return string containing name
            */
           std::string name() const
           {
@@ -233,6 +303,8 @@ namespace Dune {
 
           /**
            * @brief Number of degrees of freedom
+           *
+           * @return degrees of freedom of this trend component
            */
           unsigned int dofs() const
           {
@@ -250,6 +322,12 @@ namespace Dune {
 
           /**
            * @brief Generate trend component coefficients with correct variance
+           *
+           * This function creates random coefficients with the assigned
+           * mean and variance. Each component uses its own number generator,
+           * and therefore requires a distict seed value.
+           *
+           * @param seed seed value for the random number generator
            */
           void generate(unsigned int seed)
           {
@@ -284,6 +362,14 @@ namespace Dune {
 
           /**
            * @brief Generate trend component coefficients that are noise
+           *
+           * This function generates white noise. Trend component coefficients
+           * are generally uncorrelated, so the only difference to the generate
+           * method is a variance of one.
+           *
+           * @param seed seed value for the random number generator
+           *
+           * @see generate
            */
           void generateUncorrelated(unsigned int seed)
           {
@@ -317,6 +403,10 @@ namespace Dune {
 
           /**
            * @brief Multiply the trend coefficients with their variances
+           *
+           * This function performs multiplication with the covariance
+           * matrix. Trend coefficients are uncorrelated, so this is just
+           * multiplication with their variances.
            */
           void timesMatrix()
           {
@@ -326,6 +416,11 @@ namespace Dune {
 
           /**
            * @brief Divide the trend coefficients by their variances
+           *
+           * This function performs multiplication with the inverse of the
+           * covariance matrix.
+           *
+           * @see timesMatrix
            */
           void timesInverseMatrix()
           {
@@ -335,6 +430,12 @@ namespace Dune {
 
           /**
            * @brief Multiply the trend coefficients with their standard deviations
+           *
+           * This function performs multiplication with the square root of
+           * the covariance matrix, which is multiplication with the standard
+           * deviations in the case of uncorrelated trend component coefficients.
+           *
+           * @see timesMatrix
            */
           void timesMatrixRoot()
           {
@@ -344,6 +445,11 @@ namespace Dune {
 
           /**
            * @brief Divide the trend coefficients by their standard deviations
+           *
+           * This function performs multiplication with the inverse square root
+           * of the covariance matrix.
+           *
+           * @see timesMatrixRoot
            */
           void timesInvMatRoot()
           {
@@ -353,6 +459,10 @@ namespace Dune {
 
           /**
            * @brief Addition assignment operator
+           *
+           * @param other other trend component to add
+           *
+           * @return reference to updated trend component
            */
           TrendComponent<Traits>& operator+=(const TrendComponent<Traits>& other)
           {
@@ -364,6 +474,10 @@ namespace Dune {
 
           /**
            * @brief Subtraction assignment operator
+           *
+           * @param other other trend component to subtract
+           *
+           * @return reference to updated trend component
            */
           TrendComponent<Traits>& operator-=(const TrendComponent<Traits>& other)
           {
@@ -375,6 +489,10 @@ namespace Dune {
 
           /**
            * @brief Multiplication with scalar
+           *
+           * @param alpha scale factor
+           *
+           * @return reference to updated trend component
            */
           TrendComponent<Traits>& operator*=(const RF alpha)
           {
@@ -386,6 +504,13 @@ namespace Dune {
 
           /**
            * @brief AXPY scaled addition
+           *
+           * Adds a multiple of another trend component.
+           *
+           * @param other other trend component to add
+           * @param alpha scale factor
+           *
+           * @return reference to updated trend component
            */
           TrendComponent<Traits>& axpy(const TrendComponent<Traits>& other, const RF alpha)
           {
@@ -397,6 +522,12 @@ namespace Dune {
 
           /**
            * @brief Set trend component coefficients to zero
+           *
+           * This function sets the coefficients to zero. The
+           * coefficients are always represented as deviations from
+           * the mean, so evaluating the trend component will produce
+           * non-zero results, namely the trend the coefficient mean
+           * would produce.
            */
           void zero()
           {
@@ -406,6 +537,12 @@ namespace Dune {
 
           /**
            * @brief Scalar product
+           *
+           * Sum of componentwise product across two trend components.
+           *
+           * @param other other trend component to multiply with
+           *
+           * @return resulting scalar value
            */
           RF operator*(const TrendComponent<Traits>& other) const
           {
@@ -419,6 +556,10 @@ namespace Dune {
 
           /**
            * @brief Equality operator
+           *
+           * @param other other trend component to compare to
+           *
+           * @return true if all coefficients are the same, else false
            */
           bool operator==(const TrendComponent<Traits>& other) const
           {
@@ -436,6 +577,12 @@ namespace Dune {
 
           /**
            * @brief Inequality operator
+           *
+           * @param other other trend component to compare to
+           *
+           * @return true if operator== would return false, else false
+           *
+           * @see operator==
            */
           bool operator!=(const TrendComponent<Traits>& other) const
           {
@@ -444,6 +591,13 @@ namespace Dune {
 
           /**
            * @brief Evaluate the trend component at a given location
+           *
+           * This function evaluates the trend component using its
+           * current coefficients. The result is the value of the trend
+           * function at the given location.
+           *
+           * @param      location coordinates where function should be evaluated
+           * @param[out] output   value of trend component at given coordinates
            */
           void evaluate(
               const typename Traits::DomainType& location,
@@ -493,6 +647,8 @@ namespace Dune {
 
           /**
            * @brief Sum of abs. values of component
+           *
+           * @return resulting value
            */
           RF oneNorm() const
           {
@@ -504,6 +660,8 @@ namespace Dune {
 
           /**
            * @brief Maximum abs. value of component
+           *
+           * @return resulting value
            */
           RF infNorm() const
           {
@@ -515,8 +673,14 @@ namespace Dune {
 
           /**
            * @brief Write the trend component to hard disk
+           *
+           * This function writes the trend component to a file, using
+           * the same file format as the ParameterTree. The resulting
+           * file can then be read in again at a later point in time.
+           *
+           * @param file file object to write component to
            */
-          void writeToFile(std::ofstream& file, unsigned int count) const
+          void writeToFile(std::ofstream& file) const
           {
             if ((*traits).rank == 0)
             {
@@ -542,6 +706,14 @@ namespace Dune {
 
     /**
      * @brief Component of random field based on pixel image
+     *
+     * This is a special version of the trend component class, representing
+     * a PNG image file. The component can be used to read in a user-defined
+     * field that contains up to 256 discrete values between zero and one.
+     * It supports a single trend coefficient, which is the scale factor for
+     * the resulting field.
+     *
+     * @tparam Traits class containing types, definitions and parameters
      */
     template<typename Traits>
       class ImageComponent
@@ -560,8 +732,10 @@ namespace Dune {
 
         /**
          * @brief Constructor reading image file
+         *
+         * @see TrendComponent
          */
-        ImageComponent<Traits>(
+        ImageComponent(
             const std::shared_ptr<Traits>& traits,
             const std::vector<RF>& trendVector,
             const std::vector<RF>& meanVector,
@@ -590,9 +764,18 @@ namespace Dune {
 #if HAVE_DUNE_PDELAB
         /**
          * @brief Constructor based on PDELab solution
+         *
+         * Same as the general TrendComponent version, but copies over
+         * the PNG reader and PNG file.
+         *
+         * @param other other ImageComponent to copy image from
+         * @param gfs   GridFunctionSpace object
+         * @param field corresponding coefficient vector
+         *
+         * @see TrendComponent
          */
         template<typename GFS, typename Field>
-          ImageComponent<Traits>(
+          ImageComponent(
               const ImageComponent<Traits>& other,
               const GFS& gfs,
               const Field& field
@@ -606,9 +789,17 @@ namespace Dune {
 
         /**
          * @brief Constructor based on PDELab DiscreteGridFunction
+         *
+         * Same as the general TrendComponent version, but copies over
+         * the PNG reader and PNG file.
+         *
+         * @param other other ImageComponent to copy image from
+         * @param dgf   DiscreteGridFunction object containing sensitivities
+         *
+         * @see TrendComponent
          */
         template<typename DGF>
-          ImageComponent<Traits>(const ImageComponent<Traits>& other, const DGF& dgf)
+          ImageComponent(const ImageComponent<Traits>& other, const DGF& dgf)
           :
             TrendComponent<Traits>(other,dgf),
             imageFile(other.imageFile),
@@ -619,6 +810,8 @@ namespace Dune {
 
         /**
          * @brief Name of type of this trend component
+         *
+         * @see TrendComponent
          */
         std::string name() const
         {
@@ -627,6 +820,8 @@ namespace Dune {
 
         /**
          * @brief Number of degrees of freedom
+         *
+         * @see TrendComponent
          */
         unsigned int dofs() const
         {
@@ -635,6 +830,8 @@ namespace Dune {
 
         /**
          * @brief Evaluate the trend component at a given location
+         *
+         * @see TrendComponent
          */
         void evaluate(
             const typename Traits::DomainType& location,
@@ -647,6 +844,8 @@ namespace Dune {
 
         /**
          * @brief Sum of abs. values of component
+         *
+         * @see TrendComponent
          */
         RF oneNorm() const
         {
@@ -655,6 +854,8 @@ namespace Dune {
 
         /**
          * @brief Maximum abs. value of component
+         *
+         * @see TrendComponent
          */
         RF infNorm() const
         {
@@ -663,6 +864,8 @@ namespace Dune {
 
         /**
          * @brief Write the trend component to hard disk
+         *
+         * @see TrendComponent
          */
         void writeToFile(std::ofstream& file) const
         {
@@ -679,6 +882,15 @@ namespace Dune {
 
     /**
      * @brief Part of random field that consists of deterministic components
+     *
+     * This class represents deterministic trend functions that modify the
+     * random field, e.g., a non-zero mean, a slope defining a local mean
+     * that is a linear function of the coordinates, or localized artifacts.
+     * Each such trend component can have coefficients with associated
+     * uncertainty, e.g., a non-zero mean that is itself a random variable,
+     * or be fixed to some deterministic values.
+     *
+     * @tparam Traits class containing types, definitions and parameters
      */
     template<typename Traits>
       class TrendPart
@@ -694,8 +906,18 @@ namespace Dune {
 
         /**
          * @brief Constructor reading from file or creating homogeneous field
+         *
+         * This constructor reads the coefficients of the trend components from
+         * a file in ParameterTree format, which has been written using the
+         * writeToFile method. If the file name argument is empty, a homogeneous
+         * field is created instead, by setting each coefficient to its
+         * expected value.
+         *
+         * @param config   ParameterTree object containing configuration
+         * @param traits_  traits object with parameters, communication, etc.
+         * @param fileName name of file containing coefficients, or empty string
          */
-        TrendPart<Traits>(
+        TrendPart(
             const Dune::ParameterTree& config,
             const std::shared_ptr<Traits>& traits_,
             const std::string& fileName = ""
@@ -852,9 +1074,26 @@ namespace Dune {
 #if HAVE_DUNE_PDELAB
         /**
          * @brief Constructor based on PDELab solution
+           *
+           * This function creates list of trend components from a PDELab
+           * GridFunctionSpace and associated coefficient vector. A typical
+           * PDE solution can't be represented by these components, so it
+           * has to be decided what this operation should do. The given
+           * implementation interprets the PDE solution as the sensitivity of
+           * some quantity with regard to the random field, and constructs
+           * components with coefficients that represent the sensitivity
+           * with regard to the components, via the chain rule and difference
+           * quotients.
+           *
+           * @tparam GFS   type of GridFunctionSpace
+           * @tparam Field type of coefficient vector
+           *
+           * @param other other trend part to copy components from
+           * @param gfs   PDELab GridFunctionSpace
+           * @param field corresponding coefficient vector
          */
         template<typename GFS, typename Field>
-          TrendPart<Traits>(
+          TrendPart(
               const TrendPart<Traits>& other,
               const GFS& gfs,
               const Field& field
@@ -876,9 +1115,23 @@ namespace Dune {
 
         /**
          * @brief Constructor based on PDELab DiscreteGridFunction
+           *
+           * This function creates a list of trend components from a PDELab
+           * DiscreteGridFunction object. A typical grid function can't be
+           * represented by these components, so it has to be decided what this
+           * operation should do. The given implementation interprets the function
+           * as the sensitivity of some quantity with regard to the random field,
+           * and constructs trend components with coefficients that represent the
+           * sensitivity with regard to the components, via the chain rule and
+           * difference quotients.
+           *
+           * @tparam DGF type of DiscreteGridFunction
+           *
+           * @param other other trend part to copy components from
+           * @param dgf   DiscreteGridFunction containing sensitivities
          */
         template<typename DGF>
-          TrendPart<Traits>(const TrendPart<Traits>& other, const DGF& dgf)
+          TrendPart(const TrendPart<Traits>& other, const DGF& dgf)
           :
             traits(other.traits),
             componentVector(other.componentVector)
@@ -897,6 +1150,10 @@ namespace Dune {
 
         /**
          * @brief Number of degrees of freedom
+           *
+           * Returns the sum of the degrees of freedom of each component.
+           *
+           * @return total number of degrees of freedom
          */
         unsigned int dofs() const
         {
@@ -913,6 +1170,12 @@ namespace Dune {
 
         /**
          * @brief Generate a trend part with desired covariance structure
+           *
+           * This function creates random coefficients with the assigned
+           * mean and variance. Each component uses its own number generator,
+           * and therefore requires a distict seed value.
+           *
+           * @param seed seed value for the random number generator
          */
         void generate(unsigned int seed)
         {
@@ -930,6 +1193,14 @@ namespace Dune {
 
         /**
          * @brief Generate a trend part without correlation (i.e. noise)
+         *
+           * This function generates white noise. Trend components and their
+           * coefficients are generally uncorrelated, so the only difference
+           * to the generate method is a variance of one.
+           *
+           * @param seed seed value for the random number generator
+           *
+           * @see generate
          */
         void generateUncorrelated(unsigned int seed)
         {
@@ -947,6 +1218,12 @@ namespace Dune {
 
         /**
          * @brief Number of stored trend components (excluding image)
+         *
+         * This function returns the number of trend components the
+         * trend part contains, except for an optional PNG image component,
+         * which is treated separately.
+         *
+         * @return number of components
          */
         unsigned int size() const
         {
@@ -955,6 +1232,12 @@ namespace Dune {
 
         /**
          * @brief Access ith trend component (excluding image)
+         *
+         * This function grants access to one of the components.
+         *
+         * @param i index of the desired component
+         *
+         * @return refererence to the selected component
          */
         const TrendComponent<Traits>& getComponent(unsigned int i) const
         {
@@ -963,6 +1246,10 @@ namespace Dune {
 
         /**
          * @brief Access image component if available
+         *
+         * This function returns the image component, if present.
+         *
+         * @return smart pointer to image component, or invalid pointer.
          */
         const std::shared_ptr<const ImageComponent<Traits>>& getImageComponent() const
         {
@@ -971,6 +1258,10 @@ namespace Dune {
 
         /**
          * @brief Multiply the trend part with its covariance matrix
+           *
+           * This function performs multiplication with the covariance
+           * matrix. Trend components are uncorrelated, so this is an
+           * operation that can be performed for each component separately.
          */
         void timesMatrix()
         {
@@ -983,6 +1274,11 @@ namespace Dune {
 
         /**
          * @brief Multiply the trend part with the inverse of its covariance matrix
+         *
+           * This function performs multiplication with the inverse of the
+           * covariance matrix.
+           *
+           * @see timesMatrix
          */
         void timesInverseMatrix()
         {
@@ -995,6 +1291,12 @@ namespace Dune {
 
         /**
          * @brief Multiply the trend part with approximate root of its cov. matrix
+         *
+           * This function performs multiplication with the square root of
+           * the covariance matrix, which is multiplication with the standard
+           * deviations of the coefficients for each component separately.
+           *
+           * @see timesMatrix
          */
         void timesMatrixRoot()
         {
@@ -1007,6 +1309,11 @@ namespace Dune {
 
         /**
          * @brief Multiply the trend part with approximate inverse root of its cov. matrix
+         *
+           * This function performs multiplication with the inverse square root
+           * of the covariance matrix.
+           *
+           * @see timesMatrixRoot
          */
         void timesInvMatRoot()
         {
@@ -1019,6 +1326,10 @@ namespace Dune {
 
         /**
          * @brief Addition assignment operator
+           *
+           * @param other other trend part to add
+           *
+           * @return reference to updated trend part
          */
         TrendPart<Traits>& operator+=(const TrendPart<Traits>& other)
         {
@@ -1033,6 +1344,10 @@ namespace Dune {
 
         /**
          * @brief Subtraction assignment operator
+           *
+           * @param other other trend part to subtract
+           *
+           * @return reference to updated trend part
          */
         TrendPart<Traits>& operator-=(const TrendPart<Traits>& other)
         {
@@ -1047,6 +1362,10 @@ namespace Dune {
 
         /**
          * @brief Multiplication with scalar
+           *
+           * @param alpha scale factor
+           *
+           * @return reference to updated trend part
          */
         TrendPart<Traits>& operator*=(const RF alpha)
         {
@@ -1061,6 +1380,13 @@ namespace Dune {
 
         /**
          * @brief AXPY scaled addition
+           *
+           * Adds a multiple of another trend part.
+           *
+           * @param other other trend part to add
+           * @param alpha scale factor
+           *
+           * @return reference to updated trend part
          */
         TrendPart<Traits>& axpy(const TrendPart<Traits>& other, const RF alpha)
         {
@@ -1075,6 +1401,12 @@ namespace Dune {
 
         /**
          * @brief Set the trend part to zero
+           *
+           * This function sets the coefficients to zero. The
+           * coefficients are always represented as deviations from
+           * the mean, so evaluating the trend components will produce
+           * non-zero results, namely the trend the coefficient mean
+           * would produce.
          */
         void zero()
         {
@@ -1087,6 +1419,12 @@ namespace Dune {
 
         /**
          * @brief Scalar product
+           *
+           * Sum of scalar products of components.
+           *
+           * @param other other trend part to multiply with
+           *
+           * @return resulting scalar value
          */
         RF operator*(const TrendPart<Traits>& other) const
         {
@@ -1103,6 +1441,10 @@ namespace Dune {
 
         /**
          * @brief Equality operator
+           *
+           * @param other other trend part to compare to
+           *
+           * @return true if all components are the same, else false
          */
         bool operator==(const TrendPart<Traits>& other) const
         {
@@ -1123,6 +1465,12 @@ namespace Dune {
 
         /**
          * @brief Inequality operator
+           *
+           * @param other other trend part to compare to
+           *
+           * @return true if operator== would return false, else false
+           *
+           * @see operator==
          */
         bool operator!=(const TrendPart<Traits>& other) const
         {
@@ -1131,6 +1479,10 @@ namespace Dune {
 
         /**
          * @brief One norm
+           *
+           * Sum of one norms of individual components.
+           *
+           * @return resulting value
          */
         RF oneNorm() const
         {
@@ -1147,6 +1499,10 @@ namespace Dune {
 
         /**
          * @brief Infinity norm
+           *
+           * Maximum of infinity norms of individual components.
+           *
+           * @return resulting value
          */
         RF infNorm() const
         {
@@ -1163,6 +1519,13 @@ namespace Dune {
 
         /**
          * @brief Evaluate the trend part at a given location
+           *
+           * This function evaluates the trend part using the current
+           * coefficients of its components. The result is the value of the
+           * trend function at the given location.
+           *
+           * @param      x      coordinates where function should be evaluated
+           * @param[out] output value of trend component at given coordinates
          */
         void evaluate(
             const typename Traits::DomainType& x,
@@ -1187,6 +1550,12 @@ namespace Dune {
 
         /**
          * @brief Write the trend part to hard disk
+           *
+           * This function writes the trend part to a file, using
+           * the same file format as the ParameterTree. The resulting
+           * file can then be read in again at a later point in time.
+           *
+           * @param fileName file to write trend part to
          */
         void writeToFile(const std::string& fileName) const
         {
@@ -1194,15 +1563,8 @@ namespace Dune {
           {
             std::ofstream file(fileName+".trend",std::ofstream::trunc);
 
-            unsigned int count = 0;
             for (unsigned int i = 0; i < componentVector.size(); i++)
-            {
-              if (i != 0)
-                if (componentVector[i].type() != componentVector[i-1].type())
-                  count = 0;
-
-              componentVector[i].writeToFile(file,count);
-            }
+              componentVector[i].writeToFile(file);
 
             if (imageComponent)
               imageComponent->writeToFile(file);

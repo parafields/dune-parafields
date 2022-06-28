@@ -32,6 +32,14 @@ namespace Dune {
 
     /**
      * @brief Traits for the RandomField class
+     *
+     * Class that collects types and values that are used to define the
+     * properties of the generated random fields (dimension, extensions,
+     * number of cells, covariance function, etc.).
+     *
+     * @tparam GridTraits  class containing dimension, value data type, etc.
+     * @tparam IsoMatrix   matrix class used for isotropic covariance functions
+     * @tparam AnisoMatrix matrix class used for general covariance functions
      */
     template<typename GridTraits,
       template<typename> class IsoMatrix,
@@ -45,9 +53,10 @@ namespace Dune {
           enum {dim = GridTraits::dim};
 
           using RF          = typename GridTraits::RangeField;
+          using RangeField  = typename GridTraits::RangeField;
+          using RangeType   = typename GridTraits::Scalar;
           using DomainField = typename GridTraits::DomainField;
           using DomainType  = typename GridTraits::Domain;
-          using RangeType   = typename GridTraits::Scalar;
 
           using IsoMatrixType    = IsoMatrix<ThisType>;
           using AnisoMatrixType  = AnisoMatrix<ThisType>;
@@ -127,6 +136,13 @@ namespace Dune {
 
           public:
 
+          /**
+           * @brief Constructor
+           *
+           * @param config_     ParameterTree object containing configuration
+           * @param loadBalance class determining data distribution in parallel case
+           * @param comm_       MPI communicator for parallel field generation
+           */
           template<typename LoadBalance>
             RandomFieldTraits(
                 const Dune::ParameterTree& config_,
@@ -171,6 +187,9 @@ namespace Dune {
 
           /**
            * @brief Compute constants after construction or refinement
+           *
+           * This function checks the configuration for consistency, and
+           * updates parameters if the resolution has been changed.
            */
           void update()
           {
@@ -274,6 +293,8 @@ namespace Dune {
 
           /**
            * @brief Request global refinement of the data structure
+           *
+           * This function doubles the number of cells per dimension.
            */
           void refine()
           {
@@ -287,6 +308,9 @@ namespace Dune {
 
           /**
            * @brief Request global coarsening of the data structure
+           *
+           * This function halves the number of cells per dimension, as
+           * long as no dimension contains an odd number of cells.
            */
           void coarsen()
           {
@@ -304,6 +328,14 @@ namespace Dune {
 
           /**
            * @brief Get the domain decomposition data of the Fourier transform
+           *
+           * This function returns the size of the memory region, the number of
+           * cells in the distributed dimension including padding, and the first
+           * local index in the distributed dimension, as returned by FFTW.
+           *
+           * @param[out] allocLocal  number of array entries needed for FFT
+           * @param[out] localN0     local number of cells in distributed dimension
+           * @param[out] local0Start first local index in distributed dimension
            */
           template<typename T>
             void getFFTData(T& allocLocal, T& localN0, T& local0Start) const
@@ -327,6 +359,18 @@ namespace Dune {
 
           /**
            * @brief Convert an index tuple into a one dimensional encoding
+           *
+           * This function takes a tuple of indices and recursively converts it
+           * into a flat index that can be used to directly access the array used
+           * by FFTW.
+           *
+           * @tparam currentDim level in recursive function call
+           *
+           * @param indices set of indices, one per dimension
+           * @param bound   set of upper bounds, one per dimension
+           *
+           * @return value of flat index
+           *
            */
           template<unsigned int currentDim = 0>
             static Index indicesToIndex(
@@ -343,6 +387,15 @@ namespace Dune {
 
           /**
            * @brief Convert a one dimensional encoding into the original index tuple
+           *
+           * This function provides the inverse of indicesToIndex, converting a given
+           * flat index into the original tupel of indices.
+           *
+           * @tparam currentDim level in recursive function call
+           *
+           * @param      index   value of flat index
+           * @param[out] indices set of indices, one per dimension
+           * @param      bound   set of upper bounds, one per dimension
            */
           template<unsigned int currentDim = 0>
             static void indexToIndices(
@@ -358,6 +411,14 @@ namespace Dune {
 
           /**
            * @brief Convert spatial coordinates into the corresponding integer indices
+           *
+           * This function converts a tuple of real-valued coordinates into a
+           * corresponding tuple of indices, based on the extensions of the underlying
+           * grid.
+           *
+           * @param      location     coordinates to convert
+           * @param[out] localIndices corresponding indices for local array
+           * @param      offset       index offset for parallel data distribution
            */
           void coordsToIndices(
               const DomainType& location,
@@ -374,6 +435,14 @@ namespace Dune {
 
           /**
            * @brief Convert integer indices into corresponding spatial coordinates
+           *
+           * This function provides the inverse of coordsToIndices, converting a tuple
+           * of indices into a tuple of coordinates describing the position of the given
+           * cell.
+           *
+           * @param      localIndices indices of local array
+           * @param      offset       index offset for parallel data distribution
+           * @param[out] location     corresponding coordinates
            */
           void indicesToCoords(
               const Indices& localIndices,
@@ -391,23 +460,32 @@ namespace Dune {
         };
 
     /**
-     * @brief Default load balance strategy, taken from dune-grid to avoid hard dependency
+     * @brief Default load balance strategy
+     *
+     * This is one possible load balance strategy for parallel data distribution. It tries to
+     * distribute the grid evenly across each dimension. The class is used to redistribute the
+     * generated field, since FFTW distributes along a single dimension, which is suboptimal
+     * when using the resulting field in simulations.
+     *
+     * @tparam dim dimension of grid that should be distributed
      */
     template<long unsigned int dim>
       class DefaultLoadBalance
       {
         public:
 
-          /** @brief Distribute a structured grid across a set of processors
+          /**
+           * @brief Distribute a structured grid across a set of processors
            *
-           * @param [in] size Number of elements in each coordinate direction, for the entire grid
-           * @param [in] P    Number of processors
+           * This function tries to subdivide each dimension and find a distribution
+           * that fits nicely onto the provided number of processors.
+           *
+           * @param      size number of elements in each coordinate direction, for the entire grid
+           * @param      P    number of processors
+           * @param[out] dims resulting number of processors per dimension
            */
-          void loadbalance(
-              const std::array<int, dim>& size,
-              int P,
-              std::array<int,dim>& dims
-              ) const
+          void loadbalance(const std::array<int, dim>& size, int P,
+              std::array<int,dim>& dims) const
           {
             double opt = 1e100;
             std::array<int,dim> trydims;
@@ -417,13 +495,23 @@ namespace Dune {
 
         private:
 
-          void optimize_dims(
-              int i,
-              const std::array<int,dim>& size,
-              int P, std::array<int,dim>& dims,
-              std::array<int,dim>& trydims,
-              double& opt
-              ) const
+          /**
+           * @brief Internal recursive helper function
+           *
+           * This function tests all possible subdivisions recursively,
+           * and minimizes the maximum number of local cells per dimension,
+           * thereby trying to generate local grids that are as close to
+           * (hyper-)cubes as possible.
+           *
+           * @param i       level of recursive function call
+           * @param size    number of cells in each dimension
+           * @param P       remaining number of processors to distribute
+           * @param dims    current best found data distribution
+           * @param trydims data distribution to try next
+           * @param opt     current best value found in optimization
+           */
+          void optimize_dims(int i, const std::array<int,dim>& size, int P,
+              std::array<int,dim>& dims, std::array<int,dim>& trydims, double& opt) const
           {
             if (i > 0) // test all subdivisions recursively
             {
