@@ -1359,6 +1359,12 @@ namespace Dune {
           public:
 
             /**
+             * @brief Default constructor constructing empty list
+             */
+              RandomFieldList()
+              {}
+
+            /**
              * @brief Constructor reading random fields from file
              *
              * This constructor creates a list of homogeneous (i.e., constant) fields
