@@ -154,12 +154,12 @@ namespace Dune {
             variance          (config.get<RF>                ("stochastic.variance")),
             covariance        (config.get<std::string>       ("stochastic.covariance")),
             periodic          (config.get<bool>              ("randomField.periodic",false)),
-            approximate       (config.get<bool>              ("randomField.approximate",false)),
+            approximate       (config.get<bool>              ("embedding.approximate",false)),
             verbose           (config.get<bool>              ("randomField.verbose",false)),
             cgIterations      (config.get<unsigned int>      ("randomField.cgIterations",100)),
             cacheInvMatvec    (config.get<bool>              ("randomField.cacheInvMatvec",false)),
             cacheInvRootMatvec(config.get<bool>              ("randomField.cacheInvRootMatvec",false)),
-            embeddingFactor   (config.get<unsigned int>      ("randomField.embeddingFactor",2)),
+            embeddingFactor   (config.get<unsigned int>      ("embedding.factor",2)),
             cells             (config.get<Indices>           ("grid.cells"))
           {
             MPI_Comm_rank(comm,&rank);

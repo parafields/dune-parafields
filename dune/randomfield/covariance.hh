@@ -5,6 +5,10 @@
 #include<array>
 #include<random>
 
+#ifdef HAVE_GSL
+#include "gsl/gsl_sf_bessel.h"
+#endif // HAVE_GSL
+
 namespace Dune {
   namespace RandomField {
 
@@ -146,6 +150,151 @@ namespace Dune {
       };
 
     /**
+     * @brief Smooth (C^\infty) cutoff function
+     *
+     * This functor class provides a \f$ (C^\infty) \f$ interpolation
+     * between a constant value of one on one side of the interval,
+     * and a constant value of zero on the other.
+     */
+    class SmoothSigmoid
+    {
+      public:
+
+        /**
+         * @brief Evaluate the sigmoid function
+         *
+         * @param oneEdge    interval boundary with value one
+         * @param zeroEdge   interval boundary with value zero
+         * @param x          evaluation point
+         * @param recursions unused dummy argument
+         *
+         * @return function value at x
+         */
+        template<typename RF>
+          RF operator()(RF oneEdge, RF zeroEdge, RF x, unsigned int recursions = 0) const
+          {
+            if (std::abs(x) < oneEdge)
+              return 1.;
+            if (std::abs(x) > zeroEdge)
+              return 0.;
+
+            const RF x1 = (zeroEdge - std::abs(x))/(zeroEdge - oneEdge);
+            const RF x2 = (std::abs(x) - oneEdge)/(zeroEdge - oneEdge);
+
+            const RF output = theta(x1)/(theta(x1) + theta(x2));
+
+            return output;
+          }
+
+      private:
+
+        /**
+         * @brief Helper function for sigmoid
+         *
+         * @param x evaluation point
+         *
+         * @return helper function value
+         */
+        template<typename RF>
+          RF theta(RF x) const
+          {
+            if (x > 0.)
+              return std::exp(-1./x);
+            else
+              return 0.;
+          }
+    };
+
+    /**
+     * @brief Sigmoid function based on clamping (linear interpolation)
+     *
+     * This functor class provides linear interpolation
+     * between a constant value of one on one side of the interval,
+     * and a constant value of zero on the other.
+     */
+    class ClampingSigmoid
+    {
+      public:
+
+        /**
+         * @brief Evaluate the sigmoid function
+         *
+         * @param oneEdge    interval boundary with value one
+         * @param zeroEdge   interval boundary with value zero
+         * @param x          evaluation point
+         * @param recursions unused dummy argument
+         *
+         * @return function value at x
+         */
+        template<typename RF>
+          RF operator()(RF oneEdge, RF zeroEdge, RF x, unsigned int recursions = 0) const
+          {
+            if (std::abs(x) < oneEdge)
+              return 1.;
+            else if (std::abs(x) > zeroEdge)
+              return 0.;
+
+            const RF output = (zeroEdge - std::abs(x))/(zeroEdge - oneEdge);
+
+            // clamping is invariant under recursion
+            return output;
+          }
+    };
+
+    /**
+     * @brief Sigmoid based on smoothstep function (using Hermite interpolation)
+     *
+     * This functor class provides \f$ C^k \f$, \f$ k \geq 0 \f$,
+     * Hermite interpolation between a constant value of one on one
+     * side of the interval, and a constant value of zero on the
+     * other. The smoothness of the interpolation is determined through
+     * the number of function call recursions, with the number of calls
+     * equal to the constant \f$k\f$: this is the number of
+     * derivatives matched by the Hermite interpolation.
+     */
+    class SmoothstepSigmoid
+    {
+      ClampingSigmoid clamping;
+
+      public:
+
+        /**
+         * @brief Evaluate the sigmoid function
+         *
+         * @param oneEdge    interval boundary with value one
+         * @param zeroEdge   interval boundary with value zero
+         * @param x          evaluation point
+         * @param recursions number of recursions (and smoothness k)
+         *
+         * @return function value at x
+         */
+      template<typename RF>
+        RF operator()(RF oneEdge, RF zeroEdge, RF x, unsigned int recursions = 0) const
+        {
+          const RF x1 = clamping(oneEdge,zeroEdge,x);
+
+          const RF x2 = 2.*x1 - 1.;
+          RF normalization = 1.;
+          RF addition = 1.;
+          RF output = 1.;
+
+          for (unsigned int i = 1; i <= recursions; i++)
+          {
+            output *= 2.*i;
+            addition *= 1 - x2 * x2;
+            output += addition;
+            output /= 2.*i + 1.;
+            normalization *= 2.*i/(2.*i+1.);
+          }
+          output *= x2 / normalization;
+          output += 1.;
+          output /= 2.;
+
+          return output;
+        }
+    };
+
+    /**
      * @brief Spherical covariance function
      *
      * The spherical covariance function represents the interaction
@@ -156,7 +305,14 @@ namespace Dune {
     {
       public:
 
-        /*
+        /**
+         * @brief Constructor
+         *
+         * @param config unused dummy argument
+         */
+        SphericalCovariance(const Dune::ParameterTree& config) {}
+
+        /**
          * @brief Evaluate the covariance function
          *
          * @tparam RF      type of values and coordinates
@@ -208,13 +364,21 @@ namespace Dune {
      *
      * The exponential covariance function is \f$ C(h) = \sigma^2 \exp(-h) \f$,
      * and produces comparatively rough sample paths. This is the Matérn
-     * covariance function for \f$ \nu = 1/2 \f$.
+     * covariance function for \f$ \nu = 1/2 \f$, and the gamma-exponential
+     * covariance function for \f$ \gamma = 1 \f$.
      */
     class ExponentialCovariance
     {
       public:
 
-        /*
+        /**
+         * @brief Constructor
+         *
+         * @param config unused dummy argument
+         */
+        ExponentialCovariance(const Dune::ParameterTree& config) {}
+
+        /**
          * @brief Evaluate the covariance function
          *
          * @tparam RF      type of values and coordinates
@@ -238,17 +402,74 @@ namespace Dune {
     };
 
     /**
+     * @brief Gamma-exponential covariance function
+     *
+     * The gamma-exponential covariance function is
+     * \f$ C(h) = \sigma^2 \exp(-h^\gamma) \f$, its sample
+     * paths are relatively rough except for \f$ \gamma = 2 \f$
+     * (Gaussian covariace function).
+     */
+    class GammaExponentialCovariance
+    {
+      const double gamma;
+
+      public:
+
+      /**
+       * @brief Constructor
+       *
+       * @param config configuration used for gamma
+       */
+      GammaExponentialCovariance(const Dune::ParameterTree& config)
+        : gamma(config.template get<double>("stochastic.expGamma"))
+      {
+        if (gamma < 0. || gamma > 2.)
+          DUNE_THROW(Dune::Exception,"exponent gamma has to be between 0 and 2");
+      }
+
+      /**
+       * @brief Evaluate the covariance function
+       *
+       * @tparam RF      type of values and coordinates
+       * @tparam dim     dimension of domain
+       *
+       * @param variance covariance for lag zero
+       * @param x        location, after scaling / trafo with correlation length
+       *
+       * @return resulting value
+       */
+      template<typename RF, long unsigned int dim>
+        RF operator()(const RF variance, const std::array<RF,dim>& x) const
+        {
+          RF sum = 0.;
+          for(unsigned int i = 0; i < dim; i++)
+            sum += x[i] * x[i];
+          RF h_eff = std::sqrt(sum);
+
+          return variance * std::exp(-std::pow(h_eff,gamma));
+        }
+    };
+
+    /**
      * @brief Gaussian covariance function
      *
      * The Gaussian, or square-exponential, covariance function is
      * \f$ C(h) = \sigma^2 \exp(-h^2) \$f, producing smooth sample paths.
-     * This is the Matérn covariance function for \f$ \nu \to \infty \f$.
+     * This is the Matérn covariance function for \f$ \nu \to \infty \f$,
+     * and the gamma-exponential covariance function for \f$ \gamma = 2 \f$.
      */
     class GaussianCovariance
     {
       public:
 
-        /*
+        /**
+         * @brief Constructor
+         *
+         * @param config unused dummy argument
+         */
+        GaussianCovariance(const Dune::ParameterTree& config) {}
+
+        /**
          * @brief Evaluate the covariance function
          *
          * @tparam RF      type of values and coordinates
@@ -281,7 +502,14 @@ namespace Dune {
     {
       public:
 
-        /*
+        /**
+         * @brief Constructor
+         *
+         * @param config unused dummy argument
+         */
+        SeparableExponentialCovariance(const Dune::ParameterTree& config) {}
+
+        /**
          * @brief Evaluate the covariance function
          *
          * @tparam RF      type of values and coordinates
@@ -305,6 +533,72 @@ namespace Dune {
     };
 
     /**
+     * @brief Matern covariance function
+     *
+     * The Matern covariance function family is very popular,
+     * since it provides explicit control over the smoothness
+     * of the resulting sample paths via its parameter
+     * \f$ \nu \f$. The general family requires Bessel functions
+     * provided by the GNU Scientific Library (GSL). The
+     * special cases \f$ \nu = 1/2, 3/2, 5/2 \f$ are provided
+     * separately, for use cases where the GSL is unavailable.
+     */
+      class MaternCovariance
+      {
+        const double nu;
+        const double sqrtTwoNu;
+        const double twoToOneMinusNu;
+        const double gammaNu;
+
+        public:
+
+      /**
+       * @brief Constructor
+       *
+       * @param config configuration used for nu
+       */
+        MaternCovariance(const Dune::ParameterTree& config)
+          : nu(config.template get<double>("stochastic.maternNu")),
+          sqrtTwoNu(std::sqrt(2.*nu)),
+          twoToOneMinusNu(std::pow(2.,1.-nu)),
+          gammaNu(std::tgamma(nu))
+        {
+          if (nu < 0.)
+            DUNE_THROW(Dune::Exception,"matern nu has to be positive");
+        }
+
+        /**
+         * @brief Evaluate the covariance function
+         *
+         * @tparam RF      type of values and coordinates
+         * @tparam dim     dimension of domain
+         *
+         * @param variance covariance for lag zero
+         * @param x        location, after scaling / trafo with correlation length
+         *
+         * @return resulting value
+         */
+        template<typename RF, long unsigned int dim>
+        RF operator()(const RF variance, const std::array<RF,dim>& x) const
+        {
+#ifdef HAVE_GSL
+          RF sum = 0.;
+          for(unsigned int i = 0; i < dim; i++)
+            sum += x[i] * x[i];
+          RF h_eff = std::sqrt(sum);
+
+          if (h_eff < 1e-10)
+            return variance;
+          else
+            return variance * twoToOneMinusNu / gammaNu
+              * std::pow(sqrtTwoNu * h_eff,nu) * gsl_sf_bessel_Knu(nu,sqrtTwoNu * h_eff);
+#else
+          DUNE_THROW(Dune::Exception,"general matern requires the GNU Scientific Library (gsl)");
+#endif // HAVE_GSL
+        }
+      };
+
+    /**
      * @brief Matern covariance function with nu = 3/2
      *
      * This is a special case of the Matérn covariance function for
@@ -315,6 +609,24 @@ namespace Dune {
     {
       public:
 
+        /**
+         * @brief Constructor
+         *
+         * @param config unused dummy argument
+         */
+        Matern32Covariance(const Dune::ParameterTree& config) {}
+
+        /**
+         * @brief Evaluate the covariance function
+         *
+         * @tparam RF      type of values and coordinates
+         * @tparam dim     dimension of domain
+         *
+         * @param variance covariance for lag zero
+         * @param x        location, after scaling / trafo with correlation length
+         *
+         * @return resulting value
+         */
         template<typename RF, long unsigned int dim>
           RF operator()(const RF variance, const std::array<RF,dim>& x) const
           {
@@ -339,7 +651,14 @@ namespace Dune {
     {
       public:
 
-        /*
+        /**
+         * @brief Constructor
+         *
+         * @param config unused dummy argument
+         */
+        Matern52Covariance(const Dune::ParameterTree& config) {}
+
+        /**
          * @brief Evaluate the covariance function
          *
          * @tparam RF      type of values and coordinates
@@ -373,7 +692,14 @@ namespace Dune {
     {
       public:
 
-        /*
+        /**
+         * @brief Constructor
+         *
+         * @param config unused dummy argument
+         */
+        DampedOscillationCovariance(const Dune::ParameterTree& config) {}
+
+        /**
          * @brief Evaluate the covariance function
          *
          * @tparam RF      type of values and coordinates
@@ -408,7 +734,14 @@ namespace Dune {
     {
       public:
 
-        /*
+        /**
+         * @brief Constructor
+         *
+         * @param config unused dummy argument
+         */
+        CauchyCovariance(const Dune::ParameterTree& config) {}
+
+        /**
          * @brief Evaluate the covariance function
          *
          * @tparam RF      type of values and coordinates
@@ -432,6 +765,58 @@ namespace Dune {
     };
 
     /**
+     * @brief Generalized Cauchy covariance function
+     *
+     * The generalized Cauchy covariance function family provides
+     * covariance functions with low regularity, given by
+     * \f$ C(h) = {(1 + h^\alpha)}^{-\beta} \f$.
+     */
+    class GeneralizedCauchyCovariance
+    {
+      const double alpha;
+      const double beta;
+
+      public:
+
+      /**
+       * @brief Constructor
+       *
+       * @param config configuration used for alpha and beta
+       */
+      GeneralizedCauchyCovariance(const Dune::ParameterTree& config)
+        : alpha(config.template get<double>("stochastic.cauchyAlpha")),
+        beta(config.template get<double>("stochastic.cauchyBeta"))
+      {
+        if (alpha <= 0. || alpha > 2.)
+          DUNE_THROW(Dune::Exception,"generalized Cauchy alpha has to be in range (0,2]");
+        if (beta <= 0.)
+          DUNE_THROW(Dune::Exception,"generalized Cauchy beta has to be positive");
+      }
+
+      /**
+       * @brief Evaluate the covariance function
+       *
+       * @tparam RF      type of values and coordinates
+       * @tparam dim     dimension of domain
+       *
+       * @param variance covariance for lag zero
+       * @param x        location, after scaling / trafo with correlation length
+       *
+       * @return resulting value
+       */
+      template<typename RF, long unsigned int dim>
+        RF operator()(const RF variance, const std::array<RF,dim>& x) const
+        {
+          RF sum = 0.;
+          for(unsigned int i = 0; i < dim; i++)
+            sum += x[i] * x[i];
+          RF h_eff = std::sqrt(sum);
+
+          return variance * std::pow(1. + std::pow(h_eff,alpha),-beta);
+        }
+    };
+
+    /**
      * @brief Cubic covariance function
      *
      * The cubic covariance function is the restriction of
@@ -442,7 +827,14 @@ namespace Dune {
     {
       public:
 
-        /*
+        /**
+         * @brief Constructor
+         *
+         * @param config unused dummy argument
+         */
+        CubicCovariance(const Dune::ParameterTree& config) {}
+
+        /**
          * @brief Evaluate the covariance function
          *
          * @tparam RF      type of values and coordinates
@@ -489,7 +881,14 @@ namespace Dune {
     {
       public:
 
-        /*
+        /**
+         * @brief Constructor
+         *
+         * @param config unused dummy argument
+         */
+        WhiteNoiseCovariance(const Dune::ParameterTree& config) {}
+
+        /**
          * @brief Evaluate the covariance function
          *
          * @tparam RF      type of values and coordinates

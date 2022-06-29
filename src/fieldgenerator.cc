@@ -12,9 +12,6 @@
 #include<dune/grid/yaspgrid.hh>
 #include<dune/grid/io/file/vtk.hh>
 #endif //HAVE_DUNE_GRID
-//#if HAVE_DUNE_PDELAB
-//#include<dune/pdelab/gridfunctionspace/gridfunctionspaceutilities.hh>
-//#endif //HAVE_DUNE_PDELAB
 #include<dune/randomfield/io.hh>
 #include<dune/randomfield/randomfield.hh>
 
@@ -374,6 +371,7 @@ void printFullExample()
 {
   std::cout << "# full example random field config file\n"
     << "# values are default values unless specified in minimal example\n"
+    << "# and demonstration of trend part / anisotropy"
     << "\n"
     << "# dimension and extent of discretized field\n"
     << "[grid]\n"
@@ -389,15 +387,10 @@ void printFullExample()
     << "#     none, logNormal, foldedNormal,\n"
     << "#     sign, boxCox\n"
     << "transform = none\n"
-    << "# factor used in circulant embedding\n"
-    << "embeddingFactor = 2\n"
     << "# periodic boundary conditions (1) or not (0)\n"
-    << "# sets embeddingFactor = 1, i.e., behavior can't be controlled per\n"
+    << "# sets embedding.factor = 1, i.e., behavior can't be controlled per\n"
     << "# boundary segment and correlation length must be small enough\n"
     << "periodic = 0\n"
-    << "# accept approximate results (1) or not (0)\n"
-    << "# simply sets negative eigenvalues to zero if they occur\n"
-    << "approximate = 0\n"
     << "# whether information should be printed (1) or not (0)\n"
     << "verbose = 0\n"
     << "# whether matvecs with inverse covariance matrix are cached\n"
@@ -407,13 +400,48 @@ void printFullExample()
     << "# Conjugate Gradients iterations for matrix inverse multiplication\n"
     << "cgIterations = 100\n"
     << "\n"
+    << "# options for circulant embedding and periodization\n"
+    << "[embedding]\n"
+    << "# accept approximate results (1) or not (0)\n"
+    << "# simply sets negative eigenvalues to zero if they occur\n"
+    << "approximate = 0\n"
+    << "# threshold for considering eigenvalues as negative\n"
+    << "threshold = 1e-14"
+    << "# relative size of extended domain (per dimension)\n"
+    << "factor = 2\n"
+    << "# type of embedding / periodization\n"
+    << "# choice of \"classical\" (circulant embedding), or smooth periodization\n"
+    << "# possible values:\n"
+    << "#     classical\n"
+    << "#     merge\n"
+    << "#     fold\n"
+    << "#     cofold\n"
+    << "periodization = classical\n"
+    << "# sigmoid function for merging, resp. smooth max for folding\n"
+    << "# smoothstep is better, but requires choice for recursion level\n"
+    << "# possible values:\n"
+    << "#     smooth\n"
+    << "#     smoothstep\n"
+    << "sigmoid = smooth\n"
+    << "# number of recursions (and therefore smoothness) for smoothstep\n"
+    << "# (magic value 99: heuristic for certain covariance functions)\n"
+    << "mergeRecursions = 99\n"
+    << "foldRecursions = 99\n"
+    << "cofoldRecursions = 1\n"
+    << "# optimization to find non-negative embedding\n"
+    << "# possible values:\n"
+    << "#     none\n"
+    << "#     coneopt\n"
+    << "#     dualopt\n"
+    << "optim = none\n"
+    << "\n"
     << "# config for stochastic part of field\n"
     << "[stochastic]\n"
     << "# name of covariance structure (variogram)\n"
     << "# possible values:\n"
-    << "#     exponential, gaussian, spherical,\n"
-    << "#     separapleExponential, matern32, matern52,\n"
-    << "#     dampedOscillation, cauchy, cubic,\n"
+    << "#     exponential, gammaExponential, separableExponential,\n"
+    << "#     matern, matern32, matern52, gaussian, spherical,\n"
+    << "#     cauchy, generalizedCauchy, cubic, dampedOscillation,\n"
     << "#     whiteNoise\n"
     << "covariance = exponential\n"
     << "# variance of random field\n"
@@ -557,10 +585,5 @@ int main(int argc, char** argv)
   catch (const Dune::Exception& e)
   {
     std::cerr << "Dune reported error: " << e << std::endl;
-  }
-  catch (...)
-  {
-    std::cerr << "Unknown exception thrown!" << std::endl;
-    throw;
   }
 }

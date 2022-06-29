@@ -112,7 +112,7 @@ namespace Dune {
         /*
          * @brief Update internal data after creation or refinement
          *
-         * This function is has to be called after the creation of
+         * This function has to be called after the creation of
          * the random field object or its refinement. It updates
          * parameters like the number of cells per dimension.
          */

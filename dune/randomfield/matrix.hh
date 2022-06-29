@@ -23,6 +23,14 @@
 #include "dune/randomfield/backends/cpprngbackend.hh"
 #include "dune/randomfield/backends/gslrngbackend.hh"
 
+#if HAVE_GSL
+#include<gsl/gsl_integration.h>
+#endif // HAVE_GSL
+
+#ifdef HAVE_DUNE_NONLINOPT
+#include "dune/randomfield/optproblem.hh"
+#endif // HAVE_DUNE_NONLINOPT
+
 namespace Dune {
   namespace RandomField {
 
@@ -30,6 +38,8 @@ namespace Dune {
     template<long unsigned int> class DefaultMatrixBackend;
     template<long unsigned int> class DefaultFieldBackend;
     template<long unsigned int> class DefaultRNGBackend;
+
+    struct EmbeddingFailed : public Dune::Exception {};
 
     /**
      * @brief Covariance matrix for stationary Gaussian random fields
@@ -235,14 +245,20 @@ namespace Dune {
                 fillCovarianceMatrix<SphericalCovariance>();
               else if (covariance == "separableExponential")
                 fillCovarianceMatrix<SeparableExponentialCovariance>();
+              else if (covariance == "matern")
+                fillCovarianceMatrix<MaternCovariance>();
               else if (covariance == "matern32")
                 fillCovarianceMatrix<Matern32Covariance>();
               else if (covariance == "matern52")
                 fillCovarianceMatrix<Matern52Covariance>();
               else if (covariance == "dampedOscillation")
                 fillCovarianceMatrix<DampedOscillationCovariance>();
+              else if (covariance == "gammaExponential")
+                fillCovarianceMatrix<GammaExponentialCovariance>();
               else if (covariance == "cauchy")
                 fillCovarianceMatrix<CauchyCovariance>();
+              else if (covariance == "generalizedCauchy")
+                fillCovarianceMatrix<GeneralizedCauchyCovariance>();
               else if (covariance == "cubic")
                 fillCovarianceMatrix<CubicCovariance>();
               else if (covariance == "whiteNoise")
@@ -261,6 +277,7 @@ namespace Dune {
 
             matrixBackend.forwardTransform();
 
+            const RF threshold = (*traits).config.template get<RF>("embedding.threshold",1e-14);
             unsigned int mySmall = 0;
             unsigned int myNegative = 0;
             unsigned int myZero = 0;
@@ -273,9 +290,9 @@ namespace Dune {
 
               if (value < 1e-6)
               {
-                if (value < 1e-10)
+                if (value < threshold)
                 {
-                  if (value > -1e-10)
+                  if (value > -threshold)
                     myZero++;
                   else
                     myNegative++;
@@ -306,7 +323,7 @@ namespace Dune {
                 std::cerr << "negative eigenvalues in covariance matrix, "
                   << "consider increasing embeddingFactor, or alternatively "
                   << "allow generation of approximate samples" << std::endl;
-              DUNE_THROW(Dune::Exception,"negative eigenvalues in covariance matrix");
+              DUNE_THROW(EmbeddingFailed,"negative eigenvalues in covariance matrix");
             }
 
             matrixBackend.finalize();
@@ -476,6 +493,8 @@ namespace Dune {
            * isotropic, applying a diagonal scaling matrix to the coordinates if
            * it is axiparallel anisotropic, or applying a general linear coordinate
            * transformation if it is geometrically anisotropic.
+           *
+           * @tparam Covariance prescribed covariance function
            */
           template<typename Covariance>
             void fillCovarianceMatrix() const
@@ -498,17 +517,105 @@ namespace Dune {
            * @brief Evaluate isotropic covariance matrix in (potentially) transformed space
            *
            * This function evaluates one of the built-in isotropic covariance functions,
-           * using the transformed coordinates, and stores the result in the multidimensional
-           * array.
+           * using the transformed coordinates, and stores the result in the
+           * multidimensional array. Based on config options, it either employs classical
+           * circulant embedding, or one of several choices of smooth embedding.
+           * Optionally, optimization can be used to search for a positive semidefinite
+           * conforming embedding.
+           *
+           * @tparam Covariance     prescribed covariance function
+           * @tparam GeometryMatrix transformation matrix (based on correlation lengths)
            */
           template<typename Covariance, typename GeometryMatrix>
             void computeCovarianceMatrixEntries() const
             {
               matrixBackend.allocate();
 
+              const std::string& periodization
+                = (*traits).config.template get<std::string>("embedding.periodization","classical");
+              const std::string& sigmoid
+                = (*traits).config.template get<std::string>("embedding.sigmoid","smoothstep");
+
+              if (periodization == "classical")
+              {
+                if ((*traits).verbose && rank == 0) std::cout << "classical circulant embedding" << std::endl;
+
+                computeMatrixEntriesWithMirroring<Covariance,GeometryMatrix>();
+              }
+              else if (periodization == "merge")
+              {
+                if ((*traits).verbose && rank == 0) std::cout << "merge periodization" << std::endl;
+
+                if (sigmoid == "smooth")
+                  computeMatrixEntriesWithMerge<Covariance,GeometryMatrix,SmoothSigmoid>();
+                else if (sigmoid == "smoothstep")
+                  computeMatrixEntriesWithMerge<Covariance,GeometryMatrix,SmoothstepSigmoid>();
+                else
+                  DUNE_THROW(Dune::Exception,"embedding.sigmoid must be \"smooth\" or \"smoothstep\"");
+              }
+              else if (periodization == "fold")
+              {
+                if ((*traits).verbose && rank == 0) std::cout << "fold periodization" << std::endl;
+
+                if (sigmoid == "fold_smooth")
+                  computeMatrixEntriesWithFold<Covariance,GeometryMatrix,SmoothSigmoid>();
+                else if (sigmoid == "fold_smoothstep")
+                  computeMatrixEntriesWithFold<Covariance,GeometryMatrix,SmoothstepSigmoid>();
+                else
+                  DUNE_THROW(Dune::Exception,"embedding.sigmoid must be \"smooth\" or \"smoothstep\"");
+              }
+              else if (periodization == "cofold")
+              {
+                if ((*traits).verbose && rank == 0) std::cout << "cofold periodization" << std::endl;
+
+                computeMatrixEntriesWithMirroring<Covariance,GeometryMatrix>();
+
+                if (sigmoid == "smooth")
+                  modifyMatrixEntriesWithCofold<SmoothSigmoid>();
+                else if (sigmoid == "smoothstep")
+                  modifyMatrixEntriesWithCofold<SmoothstepSigmoid>();
+                else
+                  DUNE_THROW(Dune::Exception,"embedding.sigmoid must be \"smooth\" or \"smoothstep\"");
+              }
+              else
+                DUNE_THROW(Dune::Exception,
+                    "stochastic.periodization must be \"classical\", \"merge\", \"fold\", or \"cofold\"");
+
+              const std::string& optim
+                = (*traits).config.template get<std::string>("embedding.optim","none");
+
+              if (optim == "none")
+                return;
+#ifdef HAVE_DUNE_NONLINOPT
+              else if (optim == "coneopt")
+                optimizeMatrixEntriesWithConeOptimization<Covariance,GeometryMatrix>();
+              else if (optim == "dualopt")
+                optimizeMatrixEntriesWithDualOptimization<Covariance,GeometryMatrix>();
+              else
+                DUNE_THROW(Dune::Exception,"stochastic.optim must be \"coneopt\" or \"dualopt\"");
+#else // HAVE_DUNE_NONLINOPT
+              else
+                DUNE_THROW(Dune::Exception,"optimization requires dune-nonlinopt");
+#endif // HAVE_DUNE_NONLINOPT
+            }
+
+          /**
+           * @brief Classical circulant embedding
+           *
+           * This function periodizes the covariance function by simply taking
+           * the distance to the closest copy of the origin. In effect, this
+           * mirrors the covariance across half the domain in each dimension.
+           *
+           *
+           * @tparam Covariance     prescribed covariance function
+           * @tparam GeometryMatrix transformation matrix (based on correlation lengths)
+           */
+          template<typename Covariance, typename GeometryMatrix>
+            void computeMatrixEntriesWithMirroring() const
+            {
               GeometryMatrix matrix((*traits).config);
 
-              const Covariance   covariance;
+              const Covariance   covariance((*traits).config);
               std::array<RF,dim> coord;
               std::array<RF,dim> transCoord;
               Indices            indices;
@@ -529,6 +636,604 @@ namespace Dune {
                 matrixBackend.set(index,covariance(variance,transCoord));
               }
             }
+
+          /**
+           * @brief Smooth embedding based on sigmoid merging
+           *
+           * This function periodizes the covariance function by merging
+           * several copies of it, each tapering off using a sigmoid cutoff
+           * function. This ensures that each copy has limited
+           * support and doesn't modify points that have a predefined value.
+           *
+           * @tparam Covariance     prescribed covariance function
+           * @tparam GeometryMatrix transformation matrix (based on correlation lengths)
+           * @tparam Sigmoid        sigmoid function used for merging
+           */
+          template<typename Covariance, typename GeometryMatrix, typename Sigmoid>
+            void computeMatrixEntriesWithMerge() const
+            {
+              GeometryMatrix matrix((*traits).config);
+
+              const Covariance covariance((*traits).config);
+              Sigmoid sigmoid;
+
+              bool radial;
+              const std::string& type = (*traits).config.template get<std::string>("stochastic.sigmoidCombine","radialPlus");
+              if (type == "radial" || type == "radialPlus")
+                radial = true;
+              else if (type == "tensor")
+                radial = false;
+              else
+                DUNE_THROW(Dune::Exception,"sigmoidCombine must be tensor, radial or radialPlus");
+
+              std::array<RF,dim>           trueCoord;
+              std::array<RF,dim>           mirrorCoord;
+              std::array<RF,dim>           transCoord;
+              std::array<unsigned int,dim> indices;
+
+              const RF sigmoidStart = (*traits).config.template get<RF>("embedding.sigmoidStart",1.);
+              const RF sigmoidEnd   = (*traits).config.template get<RF>("embedding.sigmoidEnd",(*traits).embeddingFactor - 1.);
+              unsigned int recursions = (*traits).config.template get<unsigned int>("embedding.mergeRecursions",99);
+
+              if(recursions == 99)
+              {
+                if ((*traits).covariance == "matern")
+                   recursions = std::floor((*traits).config.template get<RF>("stochastic.maternNu") * 2. + RF(dim)/2.);
+                 else if ((*traits).covariance == "gammaExponential")
+                   recursions = std::floor((*traits).config.template get<RF>("stochastic.expGamma") + RF(dim)/2.);
+                 else if ((*traits).covariance == "generalizedCauchy")
+                   recursions = std::floor((*traits).config.template get<RF>("stochastic.cauchyAlpha") + RF(dim)/2.);
+                 else if ((*traits).covariance == "exponential")
+                   recursions = 2;
+                 else if ((*traits).covariance == "matern32")
+                   recursions = 4;
+                 else if ((*traits).covariance == "matern52")
+                   recursions = 6;
+                 else if ((*traits).covariance == "cauchy")
+                   recursions = 3;
+                 else
+                   DUNE_THROW(Dune::Exception,"magic recursions value 99 not implemented for choice of covariance");
+              }
+
+              RF constValue = 0.;
+              if (type == "radialPlus")
+              {
+                for (unsigned int i = 0; i < dim; i++)
+                  trueCoord[i] = extensions[i] * (*traits).embeddingFactor/2.;
+
+                matrix.transform(trueCoord,transCoord);
+
+                constValue = covariance(variance,transCoord);
+              }
+
+              for (unsigned int index = 0; index < matrixBackend.localMatrixSize(); index++)
+              {
+                Traits::indexToIndices(index,indices,matrixBackend.localMatrixCells());
+
+                for (unsigned int i = 0; i < dim; i++)
+                  trueCoord[i] = (indices[i] + matrixBackend.localMatrixOffset()[i]) * meshsize[i];
+
+                matrixBackend.set(index,0.);
+
+                RF remainder = 1.;
+
+                for (unsigned int j = 0; j < (1 << dim); j++)
+                {
+                  mirrorCoord = trueCoord;
+                  for (unsigned int i = 0; i < dim; i++)
+                    // flip dimension if i-th bit is set
+                    if (j & (1 << i))
+                      mirrorCoord[i] = extensions[i] * (*traits).embeddingFactor - trueCoord[i];
+
+                  RF dampening = 1.;
+                  const RF eps = 1e-10;
+                  static const RF sqrtDim = std::sqrt(RF(dim));
+                  const unsigned int factor = (*traits).embeddingFactor;
+                  if (radial && sqrtDim < factor/2.)
+                  {
+                    RF radius = 0.;
+                    for (unsigned int i = 0; i < dim; i++)
+                      radius += (mirrorCoord[i]*mirrorCoord[i]) / (extensions[i]*extensions[i]);
+                    radius = std::sqrt(radius);
+
+                    dampening = sigmoid(sigmoidStart * sqrtDim - eps,
+                        factor - (factor - sigmoidEnd) * sqrtDim + eps,
+                        radius, recursions);
+                  }
+                  else
+                  {
+                    for (unsigned int i = 0; i < dim; i++)
+                      dampening *= sigmoid(extensions[i] * sigmoidStart - eps,
+                          extensions[i] * sigmoidEnd + eps,
+                          mirrorCoord[i], recursions);
+                  }
+
+                  if (dampening < eps)
+                    continue;
+
+                  remainder -= dampening;
+
+                  matrix.transform(mirrorCoord,transCoord);
+                  RF value = covariance(variance, transCoord);
+                  matrixBackend.set(index,matrixBackend.get(index) + value * dampening);
+                }
+
+                matrixBackend.set(index,matrixBackend.get(index) + constValue * remainder);
+              }
+            }
+
+          /**
+           * @brief Smooth embedding based on domain folding
+           *
+           * This function periodizes the covariance function by restricting
+           * the extent of the effective domain: beyond the original domain,
+           * coordinates are moved towards the origin, until the become
+           * effectively constant in a certain distance. As a consequence, the
+           * covariance function itself becomes constant and therefore smooth
+           * in those parts of the domain.
+           *
+           * @tparam Covariance     prescribed covariance function
+           * @tparam GeometryMatrix transformation matrix (based on correlation lengths)
+           * @tparam Sigmoid        sigmoid function used for smooth max function
+           */
+          template<typename Covariance, typename GeometryMatrix, typename Sigmoid>
+             void computeMatrixEntriesWithFold() const
+             {
+              GeometryMatrix matrix((*traits).config);
+
+              const Covariance   covariance((*traits).config);
+
+#ifdef HAVE_GSL
+              std::array<RF,dim>           coord;
+              std::array<RF,dim>           transCoord;
+              std::array<unsigned int,dim> indices;
+
+              const RF maxFactor      = (*traits).config.template get<RF>("embedding.foldMaxFactor",1.);
+              unsigned int recursions = (*traits).config.template get<unsigned int>("embedding.foldRecursions",99);
+
+              if(recursions == 99)
+              {
+                if ((*traits).covariance == "matern")
+                   recursions = std::floor((*traits).config.template get<RF>("stochastic.maternNu") * 2. + RF(dim)/2.);
+                 else if ((*traits).covariance == "gammaExponential")
+                   recursions = std::floor((*traits).config.template get<RF>("stochastic.expGamma") + RF(dim)/2.);
+                 else if ((*traits).covariance == "generalizedCauchy")
+                   recursions = std::floor((*traits).config.template get<RF>("stochastic.cauchyAlpha") + RF(dim)/2.);
+                 else if ((*traits).covariance == "exponential")
+                   recursions = 2;
+                 else if ((*traits).covariance == "matern32")
+                   recursions = 4;
+                 else if ((*traits).covariance == "matern52")
+                   recursions = 6;
+                 else if ((*traits).covariance == "cauchy")
+                   recursions = 3;
+                 else
+                   DUNE_THROW(Dune::Exception,"magic recursions value 99 not implemented for choice of covariance");
+              }
+
+              RF params[3];
+              params[0] = 1.;
+              params[1] = maxFactor * 0.5*(*traits).embeddingFactor/std::sqrt(RF(dim));
+              params[2] = recursions;
+
+              auto func = [](RF x, void* params){
+                const double alpha = ((double*)params)[0];
+                const double beta  = ((double*)params)[1];
+                const double gamma = ((double*)params)[2];
+                Sigmoid sigmoid;
+                return sigmoid(alpha,beta,x,unsigned(gamma));
+              };
+
+              gsl_function gslFunc;
+              gslFunc.function = func;
+              gslFunc.params = &params;
+              RF error;
+              std::size_t evals;
+
+              gsl_error_handler_t* handler = gsl_set_error_handler_off();
+
+              for (unsigned int index = 0; index < matrixBackend.localMatrixSize(); index++)
+              {
+                Traits::indexToIndices(index,indices,matrixBackend.localMatrixCells());
+
+                for (unsigned int i = 0; i < dim; i++)
+                {
+                  coord[i] = (indices[i] + matrixBackend.localMatrixOffset()[i]) * meshsize[i];
+                  if (coord[i] > 0.5 * extensions[i] * (*traits).embeddingFactor)
+                    coord[i] -= extensions[i] * (*traits).embeddingFactor;
+                }
+
+                RF norm = 0.;
+                for (unsigned int i = 0; i < dim; i++)
+                  norm += (coord[i]*coord[i]) / (extensions[i]*extensions[i]);
+                norm = std::sqrt(norm/RF(dim));
+
+                if (norm > 1.)
+                {
+                  RF val;
+                  gsl_integration_qng (&gslFunc, params[0], norm, 1e-6, 1e-3, &val, &error, &evals);
+                  val += 1.;
+
+                  for (unsigned int i = 0; i < dim; i++)
+                    coord[i] *= val/norm;
+                }
+
+                matrix.transform(coord,transCoord);
+
+                matrixBackend.set(index,covariance(variance,transCoord));
+              }
+
+              gsl_set_error_handler(handler);
+#else // HAVE_GSL
+              DUNE_THROW(Dune::Exception,"Fold embedding requires GSL library");
+#endif // HAVE_GSL
+            }
+
+          /**
+           * @brief Smooth embedding based on codomain folding ("cofolding")
+           *
+           * This function periodizes the covariance function by restricting
+           * the extent of the effective codomain: the lower part of the
+           * codomain is smoothly moved upwards, so that the covariance
+           * function becomes constant, and therefore smooth, in the regions
+           * with the lowest function values. All function values encountered
+           * on the original domain are preserved, only values below that
+           * interval are moved upwards in a smooth fashion.
+           *
+           * @tparam Sigmoid sigmoid function used for smooth max function
+           */
+          template<typename Sigmoid>
+            void modifyMatrixEntriesWithCofold() const
+            {
+#ifdef HAVE_GSL
+              std::array<RF,dim>           coord;
+              std::array<unsigned int,dim> indices;
+
+              RF minConstrained = std::numeric_limits<RF>::max();
+              RF maxBorder = - std::numeric_limits<RF>::max();
+
+              for (unsigned int index = 0; index < matrixBackend.localMatrixSize(); index++)
+              {
+                Traits::indexToIndices(index,indices,matrixBackend.localMatrixCells());
+
+                for (unsigned int i = 0; i < dim; i++)
+                {
+                  coord[i] = (indices[i] + matrixBackend.localMatrixOffset()[i]) * meshsize[i];
+                  if (coord[i] > 0.5 * extensions[i] * (*traits).embeddingFactor)
+                    coord[i] -= extensions[i] * (*traits).embeddingFactor;
+                }
+
+                RF norm = 0.;
+                for (unsigned int i = 0; i < dim; i++)
+                  if (std::abs(coord[i])/extensions[i] > norm)
+                    norm = std::abs(coord[i])/extensions[i];
+
+                const RF val = matrixBackend.get(index);
+
+                if (norm <= 1.)
+                {
+                  if (val < minConstrained)
+                    minConstrained = val;
+                }
+                else
+                {
+                  for (unsigned int i = 0; i < dim; i++)
+                  {
+                    if (val > maxBorder)
+                      if (0.5 * extensions[i] * (*traits).embeddingFactor - std::abs(coord[i])
+                        < extensions[i]/(*traits).extendedCells[i])
+                        maxBorder = val;
+                  }
+                }
+              }
+
+              RF params[3];
+              const RF maxFactor = (*traits).config.template get<RF>("embedding.cofoldMaxFactor",5.);
+              const RF recursion = (*traits).config.template get<RF>("embedding.cofoldRecursions",1.);
+              params[0] = maxBorder;
+              params[1] = std::min(maxFactor * maxBorder, minConstrained);
+              params[2] = recursion;
+
+              auto func = [](RF x, void* params){
+                const double alpha = ((double*)params)[0];
+                const double beta  = ((double*)params)[1];
+                const double gamma = ((double*)params)[2];
+                Sigmoid sigmoid;
+                return sigmoid(0.,beta-alpha,beta-x,unsigned(gamma));
+              };
+
+              gsl_error_handler_t* handler = gsl_set_error_handler_off();
+
+              gsl_function gslFunc;
+              gslFunc.function = func;
+              gslFunc.params = &params;
+              RF error, offset;
+              std::size_t evals;
+
+              gsl_integration_qng (&gslFunc, params[0], params[1], 1e-6, 1e-3, &offset, &error, &evals);
+              offset = params[1] - offset;
+
+              for (unsigned int index = 0; index < matrixBackend.localMatrixSize(); index++)
+              {
+                Traits::indexToIndices(index,indices,matrixBackend.localMatrixCells());
+
+                for (unsigned int i = 0; i < dim; i++)
+                {
+                  coord[i] = (indices[i] + matrixBackend.localMatrixOffset()[i]) * meshsize[i];
+                  if (coord[i] > 0.5 * extensions[i] * (*traits).embeddingFactor)
+                    coord[i] -= extensions[i] * (*traits).embeddingFactor;
+                }
+
+                RF norm = 0.;
+                for (unsigned int i = 0; i < dim; i++)
+                  if (std::abs(coord[i])/extensions[i] > norm)
+                    norm = std::abs(coord[i])/extensions[i];
+
+                if (norm > 1.)
+                {
+                  const RF x = matrixBackend.get(index);
+
+                  RF val;
+                  if (x < params[0])
+                    val = offset;
+                  else if (x < params[1])
+                  {
+                    gsl_integration_qng (&gslFunc, params[0], x, 1e-6, 1e-3, &val, &error, &evals);
+                    val += offset;
+                  }
+                  else
+                    val = x;
+
+                  matrixBackend.set(index,val);
+                }
+              }
+
+              gsl_set_error_handler(handler);
+#else // HAVE_GSL
+              DUNE_THROW(Dune::Exception,"Cofold embedding requires GSL library");
+#endif // HAVE_GSL
+            }
+
+#ifdef HAVE_DUNE_NONLINOPT
+          /**
+           * @brief Conic feasibility problem
+           *
+           * The set of covariance functions with correct values on the original
+           * domain is an affine linear subspace, and the set of covariance
+           * functions with non-negative Fourier modes is a cone (the non-negative
+           * orthant in Fourier space). This function tries to find a point in
+           * the intersection of the linear space and the cone, i.e., a
+           * covariance function with prescribed values and non-negative transform.
+           *
+           * @tparam Covariance     prescribed covariance function
+           * @tparam GeometryMatrix transformation matrix (based on correlation lengths)
+           */
+          template<typename Covariance, typename GeometryMatrix>
+            void optimizeMatrixEntriesWithConeOptimization() const
+            {
+              if ((! std::is_same<MatrixBackend<Traits>,DFTMatrixBackend<Traits>>::value)
+                  || (*traits).transposed)
+                DUNE_THROW(Dune::Exception,"optimization requires untransposed DFTMatrixBackend");
+              if ((*traits).commSize != 1)
+                DUNE_THROW(Dune::Exception,"optimization is only implemented for sequential runs");
+
+              bool radial;
+              const std::string& type
+                = (*traits).config.template get<std::string>("stochastic.sigmoidCombine");
+              if (type == "radial")
+                radial = true;
+              else
+                radial = false;
+
+              GeometryMatrix matrix((*traits).config);
+
+              const Covariance             covariance((*traits).config);
+              std::array<RF,dim>           coord;
+              std::array<RF,dim>           transCoord;
+              std::array<unsigned int,dim> indices;
+              std::vector<bool>            constrained(matrixBackend.localMatrixSize());
+
+              for (Index index = 0; index < matrixBackend.localMatrixSize(); index++)
+              {
+                Traits::indexToIndices(index,indices,matrixBackend.localMatrixCells());
+
+                for (unsigned int i = 0; i < dim; i++)
+                {
+                  coord[i] = (indices[i] + matrixBackend.localMatrixOffset()[i]) * meshsize[i];
+                  if (coord[i] > 0.5 * extensions[i] * (*traits).embeddingFactor)
+                    coord[i] -= extensions[i] * (*traits).embeddingFactor;
+                }
+
+                RF norm = 0.;
+                if (radial)
+                {
+                  for (unsigned int i = 0; i < dim; i++)
+                    norm += (coord[i]*coord[i]) / (extensions[i]*extensions[i]);
+                  norm = std::sqrt(norm/RF(dim));
+                }
+                else
+                {
+                  for (unsigned int i = 0; i < dim; i++)
+                    if (std::abs(coord[i])/extensions[i] > norm)
+                      norm = std::abs(coord[i])/extensions[i];
+                }
+
+                constrained[index] = (norm <= 1.);
+              }
+
+              using Problem = ConeOptimizationProblem<Traits>;
+
+              VectorWrapper<Traits> iter(matrixBackend,(*traits).extendedCells,(*traits).extendedDomainSize,(*traits).comm);
+              const RF shift     = (*traits).config.template get<RF>("embedding.projShift");
+              const RF threshold = (*traits).config.template get<RF>("embedding.threshold",1e-14);
+              Problem problem((*traits).config,iter,constrained,shift,threshold,(*traits).extendedDomainSize,
+                  matrixBackend.localMatrixSize(),(*traits).extendedCells,(*traits).comm);
+
+              using Solver = Dune::NonlinOpt::UnconstrainedOptimization<typename Problem::Real, typename Problem::Point>;
+
+              RF absTol = (*traits).config.template get<RF>("embedding.optimAbsTol");
+              unsigned int maxStep = (*traits).config.template get<unsigned int>("embedding.optimMaxStep");
+
+              Solver solver((*traits).config);
+              solver.template set_stoppingcriterion<Dune::NonlinOpt::GradientMaxNormCriterion>(absTol,1e-12);
+              if ((*traits).config.template get<bool>("embedding.useCG"))
+                solver.set_cg();
+              else if ((*traits).config.template get<bool>("embedding.useGMRES"))
+                solver.set_gmres();
+              solver.report();
+              solver.hard_reset(problem);
+
+              unsigned int i = 0;
+              const bool breakIfPositive = (*traits).config.template get<bool>("stochastic.breakIfPositive",true);
+              while(i < maxStep)
+              {
+                const bool converged = solver.step(problem,iter);
+                if (converged
+                || (problem.negatives() == 0 && breakIfPositive))
+                {
+                  std::cout << "embeddingFactor: " << (*traits).embeddingFactor
+                    << " iterations: " << problem.optimizationStep()
+                    << " forward trans: " << problem.forwards()
+                    << " backward trans: " << problem.backwards()
+                    << " total trans: "  << problem.forwards() + problem.backwards()
+                    << std::endl;
+                  break;
+                }
+                i++;
+              }
+
+              for (Index index = 0; index < matrixBackend.localMatrixSize(); ++index)
+                matrixBackend.set(index,iter.raw()[index][0]);
+
+              for (Index index = 0; index < matrixBackend.localMatrixSize(); ++index)
+              {
+                Traits::indexToIndices(index,indices,matrixBackend.localMatrixCells());
+
+                if (constrained[index])
+                {
+                  for (unsigned int i = 0; i < dim; i++)
+                  {
+                    coord[i] = (indices[i] + matrixBackend.localMatrixOffset()[i]) * meshsize[i];
+                    if (coord[i] > 0.5 * extensions[i] * (*traits).embeddingFactor)
+                      coord[i] -= extensions[i] * (*traits).embeddingFactor;
+                  }
+
+                  matrix.transform(coord,transCoord);
+
+                  matrixBackend.set(index,covariance(variance,transCoord));
+                }
+              }
+            }
+#endif // HAVE_DUNE_NONLINOPT
+
+#ifdef HAVE_DUNE_NONLINOPT
+          /**
+           * @brief Conic projection via dual optimization problem
+           *
+           * The set of covariance functions with correct values on the original
+           * domain is an affine linear subspace, and the set of covariance
+           * functions with non-negative Fourier modes is a cone (the non-negative
+           * orthant in Fourier space). This function tries to project a given
+           * covariance function onty the intersection of the linear space and the cone,
+           * i.e., find the closest covariance function with prescribed values and
+           * non-negative transform. It does so by solving the dual problem, i.e.,
+           * maximizing the dual over the set of Lagrange multipliers.
+           *
+           * @tparam Covariance     prescribed covariance function
+           * @tparam GeometryMatrix transformation matrix (based on correlation lengths)
+           */
+        template<typename Covariance, typename GeometryMatrix>
+            void optimizeMatrixEntriesWithDualOptimization() const
+            {
+              if ((! std::is_same<MatrixBackend<Traits>,DFTMatrixBackend<Traits>>::value)
+                  || (*traits).transposed)
+                DUNE_THROW(Dune::Exception,"optimization requires untransposed DFTMatrixBackend");
+              if ((*traits).commSize != 1)
+                DUNE_THROW(Dune::Exception,"optimization is only implemented for sequential runs");
+
+              Covariance covariance((*traits).config);
+              GeometryMatrix matrix((*traits).config);
+
+              bool radial;
+              const std::string& type = (*traits).config.template get<std::string>("stochastic.sigmoidCombine");
+              if (type == "radial")
+                radial = true;
+              else
+                radial = false;
+
+              std::array<RF,dim>           coord;
+              std::array<unsigned int,dim> indices;
+              std::vector<bool>            constrained(matrixBackend.localMatrixSize());
+
+              for (Index index = 0; index < matrixBackend.localMatrixSize(); index++)
+              {
+                Traits::indexToIndices(index,indices,matrixBackend.localMatrixCells());
+
+                for (unsigned int i = 0; i < dim; i++)
+                {
+                  coord[i] = (indices[i] + matrixBackend.localMatrixOffset()[i]) * meshsize[i];
+                  if (coord[i] > 0.5 * extensions[i] * (*traits).embeddingFactor)
+                    coord[i] -= extensions[i] * (*traits).embeddingFactor;
+                }
+
+                RF norm = 0.;
+                if (radial)
+                {
+                  for (unsigned int i = 0; i < dim; i++)
+                    norm += (coord[i]*coord[i]) / (extensions[i]*extensions[i]);
+                  norm = std::sqrt(norm/RF(dim));
+                }
+                else
+                {
+                  for (unsigned int i = 0; i < dim; i++)
+                    if (std::abs(coord[i])/extensions[i] > norm)
+                      norm = std::abs(coord[i])/extensions[i];
+                }
+
+                constrained[index] = (norm <= 1.);
+              }
+
+              using Problem = DualOptimizationProblem<Traits>;
+
+              VectorWrapper<Traits> start(matrixBackend,(*traits).extendedCells,(*traits).extendedDomainSize,(*traits).comm);
+              VectorWrapper<Traits> bound = start;
+
+              const RF shift     = 0.;
+              const RF threshold = (*traits).config.template get<RF>("embedding.threshold",1e-14);
+              Problem problem((*traits).config,start,bound,constrained,shift,threshold,(*traits).extendedDomainSize,
+                  matrixBackend.localMatrixSize(),(*traits).extendedCells,(*traits).comm);
+
+              using Solver = Dune::NonlinOpt::UnconstrainedOptimization<typename Problem::Real, typename Problem::Point>;
+              unsigned int maxStep = (*traits).config.template get<unsigned int>("embedding.optimMaxStep");
+
+              VectorWrapper<Traits> iter = problem.zero();
+              Solver solver((*traits).config);
+              solver.template set_stoppingcriterion<Dune::NonlinOpt::GradientMaxNormCriterion>(threshold,1e-12);
+              if ((*traits).config.template get<bool>("embedding.useCG"))
+                solver.set_cg();
+              else if ((*traits).config.template get<bool>("embedding.useGMRES"))
+                solver.set_gmres();
+              solver.report();
+              solver.hard_reset(problem);
+
+              unsigned int i = 0;
+              while(i < maxStep)
+              {
+                bool converged = solver.step(problem,iter);
+                if (converged)
+                  break;
+
+                i++;
+              }
+
+              std::cout << "embeddingFactor: " << (*traits).embeddingFactor
+                << " iterations: " << problem.optimizationStep()
+                << " forward trans: " << problem.forwards() + 1
+                << " backward trans: " << problem.backwards() + 1
+                << " total trans: "  << problem.forwards() + problem.backwards() + 2
+                << std::endl;
+            }
+#endif // HAVE_DUNE_NONLINOPT
 
           /**
            * @brief Whether matrix backend and field backend have the same local cell layout
@@ -694,6 +1399,7 @@ namespace Dune {
                   "DCTDSTFieldBackend requires DCTMatrixBackend");
 
               FieldBackend<Traits> component(traits);
+              component.update();
               component.allocate();
 
               for (unsigned int type = 0; type < (1 << dim); type++)
@@ -767,6 +1473,7 @@ namespace Dune {
                   "DCTDSTFieldBackend requires DCTMatrixBackend");
 
               FieldBackend<Traits> component(traits);
+              component.update();
               component.allocate();
 
               for (unsigned int type = 0; type < (1 << dim); type++)
@@ -841,6 +1548,7 @@ namespace Dune {
                   "DCTDSTFieldBackend requires DCTMatrixBackend");
 
               FieldBackend<Traits> component(traits);
+              component.update();
               component.allocate();
 
               for (unsigned int type = 0; type < (1 << dim); type++)
@@ -965,7 +1673,7 @@ namespace Dune {
         public:
 
           template<typename T>
-            using Type = Matrix<T,DCTMatrixBackend,DCTDSTFieldBackend>;
+            using Type = Matrix<T,DCTMatrixBackend,R2CFieldBackend>;
       };
 
     /**
