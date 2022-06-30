@@ -5,7 +5,8 @@ Ole Klein and contributors.
 
 | Year         | Name                        |
 |--------------|-----------------------------|
-| 2010 -- 2020 | Ole Klein                   |
+| 2010 -- 2022 | Ole Klein                   |
+| 2019         | Dominic Kempf               |
 | 2010         | Adrian Ngo                  |
 | 2019         | Santiago Ospina De Los Rios |
 | 2017         | Lukas Riedel                |
