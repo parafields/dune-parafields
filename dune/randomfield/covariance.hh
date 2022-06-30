@@ -5,7 +5,7 @@
 #include<array>
 #include<random>
 
-#ifdef HAVE_GSL
+#if HAVE_GSL
 #include "gsl/gsl_sf_bessel.h"
 #endif // HAVE_GSL
 
@@ -581,7 +581,7 @@ namespace Dune {
         template<typename RF, long unsigned int dim>
         RF operator()(const RF variance, const std::array<RF,dim>& x) const
         {
-#ifdef HAVE_GSL
+#if HAVE_GSL
           RF sum = 0.;
           for(unsigned int i = 0; i < dim; i++)
             sum += x[i] * x[i];

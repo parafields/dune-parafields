@@ -27,7 +27,7 @@
 #include<gsl/gsl_integration.h>
 #endif // HAVE_GSL
 
-#ifdef HAVE_DUNE_NONLINOPT
+#if HAVE_DUNE_NONLINOPT
 #include "dune/randomfield/optproblem.hh"
 #endif // HAVE_DUNE_NONLINOPT
 
@@ -586,7 +586,7 @@ namespace Dune {
 
               if (optim == "none")
                 return;
-#ifdef HAVE_DUNE_NONLINOPT
+#if HAVE_DUNE_NONLINOPT
               else if (optim == "coneopt")
                 optimizeMatrixEntriesWithConeOptimization<Covariance,GeometryMatrix>();
               else if (optim == "dualopt")
@@ -783,7 +783,7 @@ namespace Dune {
 
               const Covariance   covariance((*traits).config);
 
-#ifdef HAVE_GSL
+#if HAVE_GSL
               std::array<RF,dim>           coord;
               std::array<RF,dim>           transCoord;
               std::array<unsigned int,dim> indices;
@@ -885,7 +885,7 @@ namespace Dune {
           template<typename Sigmoid>
             void modifyMatrixEntriesWithCofold() const
             {
-#ifdef HAVE_GSL
+#if HAVE_GSL
               std::array<RF,dim>           coord;
               std::array<unsigned int,dim> indices;
 
@@ -994,7 +994,7 @@ namespace Dune {
 #endif // HAVE_GSL
             }
 
-#ifdef HAVE_DUNE_NONLINOPT
+#if HAVE_DUNE_NONLINOPT
           /**
            * @brief Conic feasibility problem
            *
@@ -1126,7 +1126,7 @@ namespace Dune {
             }
 #endif // HAVE_DUNE_NONLINOPT
 
-#ifdef HAVE_DUNE_NONLINOPT
+#if HAVE_DUNE_NONLINOPT
           /**
            * @brief Conic projection via dual optimization problem
            *
@@ -1655,7 +1655,7 @@ namespace Dune {
       {
         public:
 
-#ifdef HAVE_GSL
+#if HAVE_GSL
           template<typename T>
             using Type = GSLRNGBackend<T>;
 #else // HAVE_GSL

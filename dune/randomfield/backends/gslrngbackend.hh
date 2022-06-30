@@ -1,7 +1,7 @@
 #ifndef DUNE_RANDOMFIELD_GSLRNGBACKEND_HH
 #define DUNE_RANDOMFIELD_GSLRNGBACKEND_HH
 
-#ifdef HAVE_GSL
+#if HAVE_GSL
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
 #endif //HAVE_GSL
@@ -21,7 +21,7 @@ namespace Dune {
     template<typename Traits>
       class GSLRNGBackend
       {
-#ifdef HAVE_GSL
+#if HAVE_GSL
         using RF = typename Traits::RF;
 
         gsl_rng* generator;
@@ -124,7 +124,7 @@ namespace Dune {
         }
 
 #else // HAVE_GSL
-        static_assert(false,"GSLRNGBackend requires Gnu Scientific Library (GSL)");
+        static_assert(!std::is_same<Traits,Traits>::value,"GSLRNGBackend requires GNU Scientific Library (GSL)");
 #endif // HAVE_GSL
       };
 
