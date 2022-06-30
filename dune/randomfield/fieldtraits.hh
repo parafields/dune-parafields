@@ -25,7 +25,7 @@ namespace Dune {
     template<typename Traits> class R2CFieldBackend;
 
     // constants for MPI communications
-    template<typename> const MPI_Datatype mpiType;
+    template<typename> const MPI_Datatype mpiType = nullptr;
     template<> const MPI_Datatype mpiType<float>       = MPI_FLOAT;
     template<> const MPI_Datatype mpiType<double>      = MPI_DOUBLE;
     template<> const MPI_Datatype mpiType<long double> = MPI_LONG_DOUBLE;
