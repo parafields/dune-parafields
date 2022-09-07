@@ -1,2 +1,0 @@
-INPUT += @top_srcdir@/dune
-EXTRA_PACKAGES = amsmath, amssymb
