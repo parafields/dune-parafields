@@ -13,7 +13,7 @@ Ole Klein and contributors.
 | 2010         | Ronnie Schwede              |
 | 2020         | Arne Strehlow               |
 
-The module dune-randomfield is free software and documentation.
+The module dune-parafields is free software and documentation.
 
 You can use, modify and/or redistribute the contained software under the terms
 of the BSD 3-clause license, which you can find in the file BSD.

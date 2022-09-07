@@ -11,5 +11,5 @@ install(FILES covariance.hh
               randomfield.hh
               stochastic.hh
               trend.hh
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dune/randomfield
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dune/parafields
        )

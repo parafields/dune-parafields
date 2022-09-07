@@ -12,8 +12,8 @@
 #include<dune/grid/yaspgrid.hh>
 #include<dune/grid/io/file/vtk.hh>
 #endif //HAVE_DUNE_GRID
-#include<dune/randomfield/io.hh>
-#include<dune/randomfield/randomfield.hh>
+#include<dune/parafields/io.hh>
+#include<dune/parafields/randomfield.hh>
 
 /**
  * @brief Types for coordinates and range values

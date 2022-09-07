@@ -7,5 +7,5 @@ install(FILES cpprngbackend.hh
               gslrngbackend.hh
               r2cfieldbackend.hh
               r2cmatrixbackend.hh
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dune/randomfield/backends
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/dune/parafields/backends
        )

@@ -1,6 +1,10 @@
-# What is dune-randomfield?
+NOTE: ** This is the next generation repository for dune-randomfield
+and is currently under construction. For the existing, fully functioning
+version of dune-randomfield, see [the Gitlab repository](https://gitlab.dune-project.org/ole.klein/dune-randomfield)**
 
-dune-randomfield provides Gaussian random fields based on
+# What is dune-parafields?
+
+dune-parafields provides Gaussian random fields based on
 circulant embedding, with the following features:
 - support for random fields of arbitrary dimensionality
 - data redistribution and parallel overlap for 1D (processes),
@@ -18,17 +22,17 @@ circulant embedding, with the following features:
 - optional support for field input and output based on HDF5
 - field output based on VTK (Legacy or XML flavor)
 
-# How to use dune-randomfield
+# How to use dune-parafields
 
-dune-randomfield is written as a Dune module. You can put it as
+dune-parafields is written as a Dune module. You can put it as
 a requirement into the *dune.module* file of your own module and
 configure/build it through dunecontrol (see the documentation
-of dune-common for details). dune-randomfield can also be used
+of dune-common for details). dune-parafields can also be used
 as a header-only library (just include its paths and those of
 dune-common) or a standalone field generator (using the binary in
 the /src subfolder).
 
-dune-randomfield requires dune-common for configuration and the
+dune-parafields requires dune-common for configuration and the
 external library FFTW3 with MPI support for parallelized circulant
 embedding, and can use the external library HDF5 with MPI support
 for parallel file I/O if it is found. The tested versions are:
@@ -36,11 +40,11 @@ for parallel file I/O if it is found. The tested versions are:
 - fftw-3.3.4
 - hdf5-1.8.18
 
-Apart from dune-common, dune-randomfield has no dependencies on
+Apart from dune-common, dune-parafields has no dependencies on
 other Dune modules, and can directly be used in other scientific
 computing environments via the two options mentioned above.
 
-dune-randomfield is built by putting its code and that of
+dune-parafields is built by putting its code and that of
 dune-common into two subdirectories of an arbitrary folder, e.g.
 *$HOME/dune*, and then executing
 "dune-common/bin/dunecontrol --opts=\<optsFile\> all",
@@ -57,15 +61,15 @@ GXX_WARNING_OPTS="-Wall -pedantic"
 GXX_OPTS="-march=native -g -O3 -std=c++14"
 ```
 
-Basic usage instructions for dune-randomfield can be found by running
+Basic usage instructions for dune-parafields can be found by running
 the standalone *fieldgenerator* application with "-h" or "--help" as
 argument or by inspecting the automated tests in the /test subdirectory.
 
 # Where to get help
 
-To get help concerning dune-randomfield, first check the
+To get help concerning dune-parafields, first check the
 implementation of the *fieldgenerator* binary, which provides an
-example how dune-randomfield could be incorporated into your own
+example how dune-parafields could be incorporated into your own
 code.
 
 There are also examples in the /test subfolder. These tests can

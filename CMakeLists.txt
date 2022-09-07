@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.11)
-project(dune-randomfield CXX)
+project(dune-parafields CXX)
 
 if(NOT (dune-common_DIR OR dune-common_ROOT OR
       "${CMAKE_PREFIX_PATH}" MATCHES ".*dune-common.*"))

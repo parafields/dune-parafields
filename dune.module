@@ -3,7 +3,7 @@
 ################################
 
 #Name of the module
-Module: dune-randomfield
+Module: dune-parafields
 Version: 1.0
 Maintainer: ole.klein@iwr.uni-heidelberg.de
 #depending on

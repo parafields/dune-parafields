@@ -1,4 +1,4 @@
-/* begin dune-randomfield
+/* begin dune-parafields
    put the definitions for config.h specific to
    your project here. Everything above will be
    overwritten
@@ -28,18 +28,18 @@
 
 /* end private */
 
-/* Define to the version of dune-randomfield */
-#define DUNE_RANDOMFIELD_VERSION "@DUNE_RANDOMFIELD_VERSION@"
+/* Define to the version of dune-parafields */
+#define DUNE_PARAFIELDS_VERSION "@DUNE_PARAFIELDS_VERSION@"
 
-/* Define to the major version of dune-randomfield */
-#define DUNE_RANDOMFIELD_VERSION_MAJOR @DUNE_RANDOMFIELD_VERSION_MAJOR@
+/* Define to the major version of dune-parafields */
+#define DUNE_PARAFIELDS_VERSION_MAJOR @DUNE_PARAFIELDS_VERSION_MAJOR@
 
-/* Define to the minor version of dune-randomfield */
-#define DUNE_RANDOMFIELD_VERSION_MINOR @DUNE_RANDOMFIELD_VERSION_MINOR@
+/* Define to the minor version of dune-parafields */
+#define DUNE_PARAFIELDS_VERSION_MINOR @DUNE_PARAFIELDS_VERSION_MINOR@
 
-/* Define to the revision of dune-randomfield */
-#define DUNE_RANDOMFIELD_VERSION_REVISION @DUNE_RANDOMFIELD_VERSION_REVISION@
+/* Define to the revision of dune-parafields */
+#define DUNE_PARAFIELDS_VERSION_REVISION @DUNE_PARAFIELDS_VERSION_REVISION@
 
-/* end dune-randomfield
+/* end dune-parafields
    Everything below here will be overwritten
 */
