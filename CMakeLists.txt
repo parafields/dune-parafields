@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.11)
 project(dune-randomfield CXX)
 
 if(NOT (dune-common_DIR OR dune-common_ROOT OR
@@ -19,10 +19,15 @@ include(DuneMacros)
 dune_project()
 dune_enable_all_packages()
 
+# Ensure that this repository has been checked out recursively
+if(NOT EXISTS ext/CMakeLists.txt)
+  message(FATAL_ERROR "dune-randomfield needs to be cloned with --recursive")
+endif()
+
+# Add the parafields core library
+add_subdirectory(ext/parafields)
+
 add_subdirectory(dune)
-add_subdirectory(cmake/modules)
-add_subdirectory(doc)
-add_subdirectory(test)
 add_subdirectory(src)
 
 # finalize the dune project, e.g. generating config.h etc.

@@ -1,0 +1,3 @@
+[submodule "ext/parafields-core"]
+	path = ext/parafields-core
+	url = https://github.com/parafields/parafields-core.git
