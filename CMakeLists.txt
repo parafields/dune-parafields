@@ -15,17 +15,21 @@ list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/modules"
 #include the dune macros
 include(DuneMacros)
 
-# start a dune project with information from dune.module
-dune_project()
-dune_enable_all_packages()
-
 # Ensure that this repository has been checked out recursively
 if(NOT EXISTS ${CMAKE_SOURCE_DIR}/ext/parafields-core/CMakeLists.txt)
   message(FATAL_ERROR "dune-parafields needs to be cloned with --recursive")
 endif()
 
+# Add the parafields core library
+add_subdirectory(${PROJECT_SOURCE_DIR}/ext/parafields-core)
+
+# start a dune project with information from dune.module
+dune_project()
+dune_enable_all_packages()
+
 add_subdirectory(cmake/modules)
 add_subdirectory(dune)
+add_subdirectory(src)
 
 # finalize the dune project, e.g. generating config.h etc.
 finalize_dune_project(GENERATE_CONFIG_H_CMAKE)

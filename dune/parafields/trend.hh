@@ -1,1 +1,1 @@
-#include<parafields/trend.hh>
+#include <parafields/trend.hh>
