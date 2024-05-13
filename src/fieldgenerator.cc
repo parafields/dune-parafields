@@ -387,7 +387,8 @@ printFullExample()
   std::cout
     << "# full example random field config file\n"
     << "# values are default values unless specified in minimal example\n"
-    << "# and demonstration of trend part / anisotropy" << "\n"
+    << "# and demonstration of trend part / anisotropy"
+    << "\n"
     << "# dimension and extent of discretized field\n"
     << "[grid]\n"
     << "# extension per dimension (vector size = dimension)\n"
